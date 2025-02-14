@@ -1,0 +1,7 @@
+rust_input: crate::api
+rust_root: libfjs/
+dart_output: lib/src/frb
+dart_entrypoint_class_name: LibFjs
+enable_lifetime: true
+stop_on_error: true
+build_runner: false
