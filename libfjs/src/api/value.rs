@@ -1,17 +1,13 @@
 use flutter_rust_bridge::frb;
 use rquickjs::{Ctx, FromAtom, FromJs, IntoJs, Null, Type};
-#[derive(Debug, Clone)]
-#[frb(dart_metadata = ("freezed", "immutable"))]
-pub struct KeyValue {
-    pub key: String,
-    pub value: JsValue,
-}
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-#[frb(dart_metadata = ("freezed", "immutable"), dart_code = r#"
+#[frb(dart_metadata = ("freezed"), dart_code = r#"
+
   static JsValue from(Object? any) {
     if (any == null) {
-      return const JsValue.null_();
+      return const JsValue.none();
     } else if (any is bool) {
       return JsValue.boolean(any);
     } else if (any is int) {
@@ -26,36 +22,49 @@ pub struct KeyValue {
       return JsValue.array(any.map((e) => from(e)).toList());
     } else if (any is Map) {
       return JsValue.object(
-        any.entries
-            .map(
-                (e) => KeyValue(key: e.key.toString(), value: from(e.value)))
-            .toList(),
+        any.map((key, value) => MapEntry(key.toString(), from(value))),
       );
     } else {
       throw Exception("Unsupported type: ${any.runtimeType}");
     }
   }
-  get value => when(
-      null_: () => null,
-      boolean: (v) => v,
-      integer: (v) => v,
-      float: (v) => v,
-      bigint: (v) => BigInt.parse(v),
-      string: (v) => v,
-      array: (v) => v.map((e) => e.value).toList(),
-      object: (v) =>
-          Map.fromEntries(v.map((e) => MapEntry(e.key, e.value.value))),
-  );
+
+  dynamic get value => when(
+        none: () => null,
+        boolean: (v) => v,
+        integer: (v) => v,
+        float: (v) => v,
+        bigint: (v) => BigInt.parse(v),
+        string: (v) => v,
+        array: (v) => v.map((e) => e.value).toList(),
+        object: (v) => v.map((key, value) => MapEntry(key, value.value)),
+      );
+
+  bool get isNone => this is JsValue_None;
+
+  bool get isBoolean => this is JsValue_Boolean;
+
+  bool get isInteger => this is JsValue_Integer;
+
+  bool get isFloat => this is JsValue_Float;
+
+  bool get isBigint => this is JsValue_Bigint;
+
+  bool get isString => this is JsValue_String;
+
+  bool get isArray => this is JsValue_Array;
+
+  bool get isObject => this is JsValue_Object;
 "#)]
 pub enum JsValue {
-    Null,
+    None,
     Boolean(bool),
     Integer(i64),
     Float(f64),
     Bigint(String),
     String(String),
     Array(Vec<JsValue>),
-    Object(Vec<KeyValue>),
+    Object(HashMap<String, JsValue>),
 }
 
 impl<'js> FromJs<'js> for JsValue {
@@ -73,17 +82,13 @@ impl<'js> FromJs<'js> for JsValue {
                 JsValue::Array(vec)
             }
             Type::Object => {
-                let mut vec = vec![];
+                let mut map = HashMap::new();
                 for x in value.as_object().unwrap().props() {
                     let (k, v) = x?;
                     let value = JsValue::from_js(ctx, v)?;
-                    let pair = KeyValue {
-                        key: String::from_atom(k)?,
-                        value,
-                    };
-                    vec.push(pair);
+                    map.insert(String::from_atom(k)?, value);
                 }
-                JsValue::Object(vec)
+                JsValue::Object(map)
             }
             Type::Int => JsValue::Integer((value.as_int().unwrap() as i64).into()),
             Type::Bool => JsValue::Boolean(value.as_bool().unwrap().into()),
@@ -98,7 +103,7 @@ impl<'js> FromJs<'js> for JsValue {
             | Type::Promise
             | Type::Exception
             | Type::Module
-            | Type::Unknown => JsValue::Null,
+            | Type::Unknown => JsValue::None,
         };
         Ok(v)
     }
@@ -120,7 +125,7 @@ impl<'js> IntoJs<'js> for JsValue {
             JsValue::Object(v) => {
                 let x = rquickjs::Object::new(ctx.clone())?;
                 for kv in v.into_iter() {
-                    x.set(kv.key, kv.value.into_js(ctx)?)?;
+                    x.set(kv.0, kv.1.into_js(ctx)?)?;
                 }
                 x.into_js(ctx)
             }
@@ -130,7 +135,7 @@ impl<'js> IntoJs<'js> for JsValue {
                 let value = rquickjs::String::from_str(ctx.clone(), &v)?.into_js(ctx)?;
                 rquickjs::BigInt::from_value(value).into_js(ctx)
             }
-            JsValue::Null => Null.into_js(ctx),
+            JsValue::None => Null.into_js(ctx),
         }
     }
 }
