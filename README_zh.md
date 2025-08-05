@@ -1,10 +1,21 @@
-# FJS - Flutter JavaScript 引擎
+<div align="center">
+  <img src="fjs.png" alt="FJS Logo" width="240">
+  
+  # 🚀 FJS - Flutter JavaScript 引擎
+  
+  基于 Rust 构建的高性能 JavaScript 运行时 ⚡  
+  为 Flutter 应用提供无缝的 JavaScript 执行能力 🎯
+  
+  [![pub package](https://img.shields.io/pub/v/fjs.svg)](https://pub.dev/packages/fjs)
+  [![GitHub stars](https://img.shields.io/github/stars/fluttercandies/fjs.svg?style=flat&logo=github&colorB=deeppink&label=stars)](https://github.com/fluttercandies/fjs)
+  [![GitHub forks](https://img.shields.io/github/forks/fluttercandies/fjs.svg?style=flat&logo=github&colorB=deeppink&label=forks)](https://github.com/fluttercandies/fjs)
+  [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fluttercandies/fjs/blob/main/LICENSE)
+  [![Platform](https://img.shields.io/badge/platform-android%20|%20ios%20|%20linux%20|%20macos%20|%20windows-lightgrey.svg)](https://github.com/fluttercandies/fjs)
+  
+  *[🌍 English Document](README.md)*
+</div>
 
-基于 Rust 构建的高性能 JavaScript 运行时，为 Flutter 应用提供无缝的 JavaScript 执行能力，支持现代 JavaScript 特性、模块系统和内置 API。
-
-*[English Document](README.md)*
-
-## 特性
+## ✨ 特性
 
 - 🚀 **高性能**: 基于 Rust 构建，性能优异
 - 📦 **模块支持**: 支持 ES6 模块和 import/export 语法
@@ -15,7 +26,7 @@
 - 🎯 **类型安全**: 与 Dart 集成的强类型 API
 - 🧠 **内存管理**: 内置垃圾回收和内存限制
 
-## 安装
+## 📦 安装
 
 在 `pubspec.yaml` 中添加依赖：
 
@@ -30,9 +41,9 @@ dependencies:
 flutter pub get
 ```
 
-## 快速开始
+## 🚀 快速开始
 
-### 1. 初始化库
+### ⚡ 1. 初始化库
 
 ```dart
 import 'package:fjs/fjs.dart';
@@ -43,7 +54,7 @@ Future<void> main() async {
 }
 ```
 
-### 2. 创建 JavaScript 引擎
+### 🔧 2. 创建 JavaScript 引擎
 
 ```dart
 // 创建运行时和上下文
@@ -59,7 +70,7 @@ await engine.init(bridgeCall: (jsValue) {
 });
 ```
 
-### 3. 执行 JavaScript 代码
+### 💻 3. 执行 JavaScript 代码
 
 ```dart
 // 简单求值
@@ -75,7 +86,7 @@ final asyncResult = await engine.eval(JsCode.code('''
 '''));
 ```
 
-### 4. 启用内置模块
+### 🌐 4. 启用内置模块
 
 ```dart
 // 启用 fetch 和 console API
@@ -92,7 +103,7 @@ await engine.eval(JsCode.code('''
 '''));
 ```
 
-### 5. 使用模块
+### 📦 5. 使用模块
 
 ```dart
 // 声明模块
@@ -116,9 +127,9 @@ await engine.eval(JsCode.code('''
 '''));
 ```
 
-## 高级用法
+## 🔥 高级用法
 
-### 桥接通信
+### 🌉 桥接通信
 
 在 Dart 和 JavaScript 之间创建双向通信：
 
@@ -148,7 +159,7 @@ await engine.eval(JsCode.code('''
 '''));
 ```
 
-### 内存管理
+### 🧠 内存管理
 
 ```dart
 // 设置内存限制
@@ -164,7 +175,7 @@ print('内存使用: ${usage.memoryUsedSize} 字节');
 await runtime.runGc();
 ```
 
-### 错误处理
+### ⚠️ 错误处理
 
 ```dart
 try {
@@ -176,7 +187,7 @@ try {
 }
 ```
 
-### 从文件加载 JavaScript
+### 📁 从文件加载 JavaScript
 
 ```dart
 // 从文件加载
@@ -187,7 +198,7 @@ final context = await JsAsyncContext.from(rt: runtime);
 final result = await context.evalFile(path: '/path/to/script.js');
 ```
 
-## 内置模块
+## 🧩 内置模块
 
 FJS 提供了几个可按需启用的内置模块：
 
@@ -202,7 +213,7 @@ FJS 提供了几个可按需启用的内置模块：
 | `url` | URL 解析和操作 | `url: true` |
 | `events` | 事件发射器实现 | `events: true` |
 
-## API 参考
+## 📚 API 参考
 
 ### JsEngine
 
@@ -263,7 +274,7 @@ sealed class JsValue {
 }
 ```
 
-## 性能建议
+## ⚡ 性能建议
 
 1. **复用引擎**: 创建一个引擎实例并重复使用多次求值
 2. **设置内存限制**: 为您的用例配置适当的内存限制
@@ -271,7 +282,7 @@ sealed class JsValue {
 4. **只启用需要的模块**: 只启用您实际使用的内置模块
 5. **批量操作**: 将相关的 JavaScript 操作组合在一起
 
-## 示例
+## 🎯 示例
 
 查看 [example](example/) 目录了解更多综合示例，包括：
 
@@ -282,10 +293,10 @@ sealed class JsValue {
 - 错误处理
 - 性能测试
 
-## 贡献
+## 🤝 贡献
 
 欢迎贡献代码！请随时提交 Pull Request。
 
-## 许可证
+## 📄 许可证
 
 本项目基于 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
