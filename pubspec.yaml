@@ -1,7 +1,15 @@
 name: fjs
-description: "A new Flutter FFI plugin project."
+description: "A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS."
 version: 0.0.1
-homepage:
+homepage: https://github.com/fluttercandies/fjs
+repository: https://github.com/fluttercandies/fjs
+issue_tracker: https://github.com/fluttercandies/fjs/issues
+topics:
+  - fjs
+  - js-engine
+  - js-runtime
+  - javascript
+  - runtime
 
 environment:
   sdk: ^3.5.3
