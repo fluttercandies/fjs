@@ -1,26 +1,28 @@
 [package]
 name = "fjs"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-anyhow = "1.0.95"
-bytes = "1.10.0"
-cookie = "0.18.1"
-cookie_store = { version = "0.21.1", features = ["preserve_order"] }
-flutter_rust_bridge = "=2.8.0"
-itertools = "0.14.0"
-log = "0.4.25"
-reqwest = { version = "0.12.12", features = ['rustls-tls', 'json', 'socks', 'cookies', 'charset', 'http2', 'brotli', 'gzip', 'deflate', 'zstd'], default-features = false }
-rquickjs = { version = "0.9.0", features = ["full-async", "bindgen", "loader", "dyn-load", "parallel"] }
-serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.138"
-serde_urlencoded = "0.7.1"
-tokio = { version = "1.43.0", features = ["full"] }
-url = "2.5.4"
+anyhow = "1"
+flutter_rust_bridge = "=2.11.1"
+log = "0.4"
+rquickjs = { git = "https://github.com/DelSkayn/rquickjs.git", version = "0.9", features = ["full-async", "bindgen", "loader", "dyn-load", "parallel", "macro", "futures"] }
+tokio = { version = "1", features = ["full"] }
+llrt_fetch = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+llrt_console = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+llrt_buffer = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+llrt_string_decoder = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+llrt_timers = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+llrt_stream_web = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+llrt_crypto = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+llrt_abort = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+llrt_url = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+llrt_events = { git = "https://github.com/awslabs/llrt", rev = "79f8056" }
+js-sys = { version = "0.3" }
 
 [dev-dependencies]
 env_logger = "0"
