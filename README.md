@@ -1,10 +1,21 @@
-# FJS - Flutter JavaScript Engine
+<div align="center">
+  <img src="fjs.png" alt="FJS Logo" width="240">
+  
+  # 🚀 FJS - Flutter JavaScript Engine
+  
+  High-performance JavaScript runtime for Flutter ⚡  
+  Built with Rust and powered by QuickJS 🦀
+  
+  [![pub package](https://img.shields.io/pub/v/fjs.svg)](https://pub.dev/packages/fjs)
+  [![GitHub stars](https://img.shields.io/github/stars/fluttercandies/fjs.svg?style=flat&logo=github&colorB=deeppink&label=stars)](https://github.com/fluttercandies/fjs)
+  [![GitHub forks](https://img.shields.io/github/forks/fluttercandies/fjs.svg?style=flat&logo=github&colorB=deeppink&label=forks)](https://github.com/fluttercandies/fjs)
+  [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fluttercandies/fjs/blob/main/LICENSE)
+  [![Platform](https://img.shields.io/badge/platform-android%20|%20ios%20|%20linux%20|%20macos%20|%20windows-lightgrey.svg)](https://github.com/fluttercandies/fjs)
+  
+  *[🌏 中文文档](README_zh.md)*
+</div>
 
-*[中文文档](README_zh.md)*
-
-A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS. FJS enables seamless JavaScript execution within Flutter apps with support for modern JavaScript features, modules, and built-in APIs.
-
-## Features
+## ✨ Features
 
 - 🚀 **High Performance**: Built with Rust for optimal performance
 - 📦 **Module Support**: ES6 modules with import/export syntax
@@ -15,7 +26,7 @@ A high-performance JavaScript runtime for Flutter applications, built with Rust 
 - 🎯 **Type Safe**: Strongly typed APIs with Dart integration
 - 🧠 **Memory Management**: Built-in garbage collection and memory limits
 
-## Installation
+## 📦 Installation
 
 Add this to your `pubspec.yaml`:
 
@@ -30,9 +41,9 @@ Then run:
 flutter pub get
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Initialize the Library
+### ⚡ 1. Initialize the Library
 
 ```dart
 import 'package:fjs/fjs.dart';
@@ -43,7 +54,7 @@ Future<void> main() async {
 }
 ```
 
-### 2. Create a JavaScript Engine
+### 🔧 2. Create a JavaScript Engine
 
 ```dart
 // Create runtime and context
@@ -59,7 +70,7 @@ await engine.init(bridgeCall: (jsValue) {
 });
 ```
 
-### 3. Execute JavaScript Code
+### 💻 3. Execute JavaScript Code
 
 ```dart
 // Simple evaluation
@@ -75,7 +86,7 @@ final asyncResult = await engine.eval(JsCode.code('''
 '''));
 ```
 
-### 4. Enable Built-in Modules
+### 🌐 4. Enable Built-in Modules
 
 ```dart
 // Enable fetch and console APIs
@@ -92,7 +103,7 @@ await engine.eval(JsCode.code('''
 '''));
 ```
 
-### 5. Work with Modules
+### 📦 5. Work with Modules
 
 ```dart
 // Declare a module
@@ -116,9 +127,9 @@ await engine.eval(JsCode.code('''
 '''));
 ```
 
-## Advanced Usage
+## 🔥 Advanced Usage
 
-### Bridge Communication
+### 🌉 Bridge Communication
 
 Create bidirectional communication between Dart and JavaScript:
 
@@ -148,7 +159,7 @@ await engine.eval(JsCode.code('''
 '''));
 ```
 
-### Memory Management
+### 🧠 Memory Management
 
 ```dart
 // Set memory limits
@@ -164,7 +175,7 @@ print('Memory used: ${usage.memoryUsedSize} bytes');
 await runtime.runGc();
 ```
 
-### Error Handling
+### ⚠️ Error Handling
 
 ```dart
 try {
@@ -176,7 +187,7 @@ try {
 }
 ```
 
-### Loading JavaScript from Files
+### 📁 Loading JavaScript from Files
 
 ```dart
 // Load from file
@@ -187,7 +198,7 @@ final context = await JsAsyncContext.from(rt: runtime);
 final result = await context.evalFile(path: '/path/to/script.js');
 ```
 
-## Built-in Modules
+## 🧩 Built-in Modules
 
 FJS provides several built-in modules that can be enabled as needed:
 
@@ -202,7 +213,7 @@ FJS provides several built-in modules that can be enabled as needed:
 | `url` | URL parsing and manipulation | `url: true` |
 | `events` | Event emitter implementation | `events: true` |
 
-## API Reference
+## 📚 API Reference
 
 ### JsEngine
 
@@ -263,7 +274,7 @@ sealed class JsValue {
 }
 ```
 
-## Performance Tips
+## ⚡ Performance Tips
 
 1. **Reuse Engines**: Create one engine instance and reuse it for multiple evaluations
 2. **Set Memory Limits**: Configure appropriate memory limits for your use case
@@ -271,7 +282,7 @@ sealed class JsValue {
 4. **Enable Only Needed Modules**: Only enable built-in modules you actually use
 5. **Batch Operations**: Group related JavaScript operations together
 
-## Examples
+## 🎯 Examples
 
 Check out the [example](example/) directory for more comprehensive examples including:
 
@@ -282,10 +293,10 @@ Check out the [example](example/) directory for more comprehensive examples incl
 - Error handling
 - Performance testing
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
