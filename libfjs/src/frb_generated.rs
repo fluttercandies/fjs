@@ -3853,6 +3853,7 @@ impl SseDecode for crate::api::js::JsBuiltinOptions {
         let mut var_abort = <Option<bool>>::sse_decode(deserializer);
         let mut var_url = <Option<bool>>::sse_decode(deserializer);
         let mut var_events = <Option<bool>>::sse_decode(deserializer);
+        let mut var_json = <Option<bool>>::sse_decode(deserializer);
         return crate::api::js::JsBuiltinOptions {
             fetch: var_fetch,
             console: var_console,
@@ -3864,6 +3865,7 @@ impl SseDecode for crate::api::js::JsBuiltinOptions {
             abort: var_abort,
             url: var_url,
             events: var_events,
+            json: var_json,
         };
     }
 }
@@ -4510,6 +4512,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::js::JsBuiltinOptions {
             self.abort.into_into_dart().into_dart(),
             self.url.into_into_dart().into_dart(),
             self.events.into_into_dart().into_dart(),
+            self.json.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4929,6 +4932,7 @@ impl SseEncode for crate::api::js::JsBuiltinOptions {
         <Option<bool>>::sse_encode(self.abort, serializer);
         <Option<bool>>::sse_encode(self.url, serializer);
         <Option<bool>>::sse_encode(self.events, serializer);
+        <Option<bool>>::sse_encode(self.json, serializer);
     }
 }
 

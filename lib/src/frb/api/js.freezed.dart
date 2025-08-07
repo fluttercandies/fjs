@@ -1094,6 +1094,7 @@ mixin _$JsBuiltinOptions {
   bool? get abort;
   bool? get url;
   bool? get events;
+  bool? get json;
 
   /// Create a copy of JsBuiltinOptions
   /// with the given fields replaced by the non-null parameter values.
@@ -1118,16 +1119,17 @@ mixin _$JsBuiltinOptions {
             (identical(other.crypto, crypto) || other.crypto == crypto) &&
             (identical(other.abort, abort) || other.abort == abort) &&
             (identical(other.url, url) || other.url == url) &&
-            (identical(other.events, events) || other.events == events));
+            (identical(other.events, events) || other.events == events) &&
+            (identical(other.json, json) || other.json == json));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, fetch, console, buffer,
-      stringDecoder, timers, stream, crypto, abort, url, events);
+      stringDecoder, timers, stream, crypto, abort, url, events, json);
 
   @override
   String toString() {
-    return 'JsBuiltinOptions(fetch: $fetch, console: $console, buffer: $buffer, stringDecoder: $stringDecoder, timers: $timers, stream: $stream, crypto: $crypto, abort: $abort, url: $url, events: $events)';
+    return 'JsBuiltinOptions(fetch: $fetch, console: $console, buffer: $buffer, stringDecoder: $stringDecoder, timers: $timers, stream: $stream, crypto: $crypto, abort: $abort, url: $url, events: $events, json: $json)';
   }
 }
 
@@ -1147,7 +1149,8 @@ abstract mixin class $JsBuiltinOptionsCopyWith<$Res> {
       bool? crypto,
       bool? abort,
       bool? url,
-      bool? events});
+      bool? events,
+      bool? json});
 }
 
 /// @nodoc
@@ -1173,6 +1176,7 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? abort = freezed,
     Object? url = freezed,
     Object? events = freezed,
+    Object? json = freezed,
   }) {
     return _then(_self.copyWith(
       fetch: freezed == fetch
@@ -1214,6 +1218,10 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
       events: freezed == events
           ? _self.events
           : events // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      json: freezed == json
+          ? _self.json
+          : json // ignore: cast_nullable_to_non_nullable
               as bool?,
     ));
   }
@@ -1320,7 +1328,8 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? crypto,
             bool? abort,
             bool? url,
-            bool? events)?
+            bool? events,
+            bool? json)?
         $default, {
     required TResult orElse(),
   }) {
@@ -1337,7 +1346,8 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.crypto,
             _that.abort,
             _that.url,
-            _that.events);
+            _that.events,
+            _that.json);
       case _:
         return orElse();
     }
@@ -1368,7 +1378,8 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? crypto,
             bool? abort,
             bool? url,
-            bool? events)
+            bool? events,
+            bool? json)
         $default,
   ) {
     final _that = this;
@@ -1384,7 +1395,8 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.crypto,
             _that.abort,
             _that.url,
-            _that.events);
+            _that.events,
+            _that.json);
     }
   }
 
@@ -1412,7 +1424,8 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? crypto,
             bool? abort,
             bool? url,
-            bool? events)?
+            bool? events,
+            bool? json)?
         $default,
   ) {
     final _that = this;
@@ -1428,7 +1441,8 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.crypto,
             _that.abort,
             _that.url,
-            _that.events);
+            _that.events,
+            _that.json);
       case _:
         return null;
     }
@@ -1448,7 +1462,8 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
       this.crypto,
       this.abort,
       this.url,
-      this.events})
+      this.events,
+      this.json})
       : super._();
 
   @override
@@ -1471,6 +1486,8 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
   final bool? url;
   @override
   final bool? events;
+  @override
+  final bool? json;
 
   /// Create a copy of JsBuiltinOptions
   /// with the given fields replaced by the non-null parameter values.
@@ -1495,16 +1512,17 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
             (identical(other.crypto, crypto) || other.crypto == crypto) &&
             (identical(other.abort, abort) || other.abort == abort) &&
             (identical(other.url, url) || other.url == url) &&
-            (identical(other.events, events) || other.events == events));
+            (identical(other.events, events) || other.events == events) &&
+            (identical(other.json, json) || other.json == json));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, fetch, console, buffer,
-      stringDecoder, timers, stream, crypto, abort, url, events);
+      stringDecoder, timers, stream, crypto, abort, url, events, json);
 
   @override
   String toString() {
-    return 'JsBuiltinOptions(fetch: $fetch, console: $console, buffer: $buffer, stringDecoder: $stringDecoder, timers: $timers, stream: $stream, crypto: $crypto, abort: $abort, url: $url, events: $events)';
+    return 'JsBuiltinOptions(fetch: $fetch, console: $console, buffer: $buffer, stringDecoder: $stringDecoder, timers: $timers, stream: $stream, crypto: $crypto, abort: $abort, url: $url, events: $events, json: $json)';
   }
 }
 
@@ -1526,7 +1544,8 @@ abstract mixin class _$JsBuiltinOptionsCopyWith<$Res>
       bool? crypto,
       bool? abort,
       bool? url,
-      bool? events});
+      bool? events,
+      bool? json});
 }
 
 /// @nodoc
@@ -1552,6 +1571,7 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? abort = freezed,
     Object? url = freezed,
     Object? events = freezed,
+    Object? json = freezed,
   }) {
     return _then(_JsBuiltinOptions(
       fetch: freezed == fetch
@@ -1593,6 +1613,10 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
       events: freezed == events
           ? _self.events
           : events // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      json: freezed == json
+          ? _self.json
+          : json // ignore: cast_nullable_to_non_nullable
               as bool?,
     ));
   }

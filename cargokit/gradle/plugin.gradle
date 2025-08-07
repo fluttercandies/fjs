@@ -1,8 +1,10 @@
 /// This is copied from Cargokit (which is the official way to use it currently)
 /// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
 
-import java.nio.file.Paths
+
 import org.apache.tools.ant.taskdefs.condition.Os
+
+import java.nio.file.Paths
 
 CargoKitPlugin.file = buildscript.sourceFile
 
@@ -58,13 +60,13 @@ abstract class CargoKitBuildTask extends DefaultTask {
         def manifestDir = Paths.get(project.buildscript.sourceFile.parent, project.cargokit.manifestDir)
 
         def rootProjectDir = project.rootProject.projectDir
-        
+
         if (!Os.isFamily(Os.FAMILY_WINDOWS)) {
             project.exec {
                 commandLine 'chmod', '+x', path
             }
         }
-        
+
         project.exec {
             executable path
             args "build-gradle"
@@ -92,10 +94,10 @@ class CargoKitPlugin implements Plugin<Project> {
         _findFlutterPlugin(rootProject.childProjects)
     }
 
-   private Plugin _findFlutterPlugin(Map projects) {
+    private Plugin _findFlutterPlugin(Map projects) {
         for (project in projects) {
             for (plugin in project.value.getPlugins()) {
-                if (plugin.class.name == "FlutterPlugin") {
+                if (plugin.class.name == "FlutterPlugin" || plugin.class.name == "com.flutter.gradle.FlutterPlugin") {
                     return plugin;
                 }
             }
@@ -119,7 +121,7 @@ class CargoKitPlugin implements Plugin<Project> {
         }
 
         def cargoBuildDir = "${project.buildDir}/build"
-        
+
         // Determine if the project is an application or library
         def isApplication = plugin.project.plugins.hasPlugin('com.android.application')
         def variants = isApplication ? plugin.project.android.applicationVariants : plugin.project.android.libraryVariants
@@ -132,13 +134,22 @@ class CargoKitPlugin implements Plugin<Project> {
             def jniLibs = project.android.sourceSets.maybeCreate(buildType).jniLibs;
             jniLibs.srcDir(new File(cargoOutputDir))
 
-            def platforms = plugin.getTargetPlatforms().collect()
+
+            def platforms;
+            if (plugin.metaClass.respondsTo(plugin, 'getTargetPlatforms')) {
+                platforms = plugin.getTargetPlatforms().collect();
+            } else {
+                platforms = com.flutter.gradle.FlutterPluginUtils.getTargetPlatforms(project).collect();
+            }
 
             // Same thing addFlutterDependencies does in flutter.gradle
             if (buildType == "debug") {
-                platforms.add("android-x86")
                 platforms.add("android-x64")
+                platforms.add("android-arm64")
             }
+
+            // platforms remove duplicates
+            platforms = platforms.unique()
 
             // The task name depends on plugin properties, which are not available
             // at this point
