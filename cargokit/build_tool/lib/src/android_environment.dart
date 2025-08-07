@@ -1,6 +1,7 @@
 /// This is copied from Cargokit (which is the official way to use it currently)
 /// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
@@ -163,7 +164,7 @@ class AndroidEnvironment {
     final bindgenValue =
         "--sysroot=$sysroot -I${path.join(sysroot, 'usr', 'include', target.rust)}";
 
-    return {
+    final env = {
       arKey: arValue,
       ccKey: ccValue,
       cfFlagsKey: cFlagsValue,
@@ -178,6 +179,9 @@ class AndroidEnvironment {
       '_CARGOKIT_NDK_LINK_CLANG': ccValue,
       'CARGOKIT_TOOL_TEMP_DIR': toolTempDir,
     };
+
+    print(JsonEncoder.withIndent('  ').convert(env));
+    return env;
   }
 
   // Workaround for libgcc missing in NDK23, inspired by cargo-ndk
@@ -203,7 +207,17 @@ class AndroidEnvironment {
     if (rustFlags.isNotEmpty) {
       rustFlags = '$rustFlags\x1f';
     }
-    rustFlags = '$rustFlags-L\x1f$workaroundDir';
+    rustFlags = '$rustFlags-L\x1f$workaroundDir\x1f';
+
+    const pageSizeArgs = [
+      "-C",
+      "link-arg=-Wl,--hash-style=both",
+      "-C",
+      "link-arg=-Wl,-z,max-page-size=16384"
+    ];
+    final pageSizeArgsString = pageSizeArgs.join("\x1f");
+
+    rustFlags = '$rustFlags$pageSizeArgsString';
     return rustFlags;
   }
 }

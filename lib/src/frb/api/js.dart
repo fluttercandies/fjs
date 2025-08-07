@@ -219,6 +219,7 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
     bool? abort,
     bool? url,
     bool? events,
+    bool? json,
   }) = _JsBuiltinOptions;
 
   const JsBuiltinOptions._();
@@ -231,7 +232,8 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
       timers: enableModules.contains('timers'),
       stream: enableModules.contains('stream'),
       crypto: enableModules.contains('crypto'),
-      abort: enableModules.contains('abort_controller'),
+      json: enableModules.contains('json'),
+      abort: enableModules.contains('abort'),
       url: enableModules.contains('url'),
       events: enableModules.contains('events'),
     );
@@ -245,7 +247,8 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
     if (timers == true) modules.add('timers');
     if (stream == true) modules.add('stream');
     if (crypto == true) modules.add('crypto');
-    if (abort == true) modules.add('abort_controller');
+    if (json == true) modules.add('json');
+    if (abort == true) modules.add('abort');
     if (url == true) modules.add('url');
     if (events == true) modules.add('events');
     return modules;
