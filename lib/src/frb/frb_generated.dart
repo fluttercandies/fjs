@@ -2574,8 +2574,8 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
   JsBuiltinOptions dco_decode_js_builtin_options(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return JsBuiltinOptions(
       fetch: dco_decode_opt_box_autoadd_bool(arr[0]),
       console: dco_decode_opt_box_autoadd_bool(arr[1]),
@@ -2587,6 +2587,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       abort: dco_decode_opt_box_autoadd_bool(arr[7]),
       url: dco_decode_opt_box_autoadd_bool(arr[8]),
       events: dco_decode_opt_box_autoadd_bool(arr[9]),
+      json: dco_decode_opt_box_autoadd_bool(arr[10]),
     );
   }
 
@@ -3148,6 +3149,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     var var_abort = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_url = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_events = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_json = sse_decode_opt_box_autoadd_bool(deserializer);
     return JsBuiltinOptions(
         fetch: var_fetch,
         console: var_console,
@@ -3158,7 +3160,8 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         crypto: var_crypto,
         abort: var_abort,
         url: var_url,
-        events: var_events);
+        events: var_events,
+        json: var_json);
   }
 
   @protected
@@ -3780,6 +3783,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     sse_encode_opt_box_autoadd_bool(self.abort, serializer);
     sse_encode_opt_box_autoadd_bool(self.url, serializer);
     sse_encode_opt_box_autoadd_bool(self.events, serializer);
+    sse_encode_opt_box_autoadd_bool(self.json, serializer);
   }
 
   @protected
