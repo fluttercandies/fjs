@@ -208,7 +208,7 @@ FJS 提供了几个可按需启用的内置模块：
 | `console` | 控制台日志（log、debug、warn、error） | `console: true` |
 | `buffer` | Buffer 操作工具 | `buffer: true` |
 | `timers` | setTimeout、setInterval、clearTimeout 等 | `timers: true` |
-| `crypto` | 加密函数 | `crypto: true` |
+| `crypto` | 加密函数（Android 平台不支持） | `crypto: true` |
 | `stream` | 流处理工具 | `stream: true` |
 | `url` | URL 解析和操作 | `url: true` |
 | `events` | 事件发射器实现 | `events: true` |
@@ -302,6 +302,12 @@ sealed class JsValue {
 - **影响**: 在 Apple Silicon Mac 上开发时，运行 iOS 模拟器需要使用 Rosetta 2 转译
 - **生产环境**: 真实 iOS 设备 (arm64) 完全支持，性能正常
 - **最低系统要求**: 需要 iOS 12.0 或更高版本，由于原生库依赖
+
+### Android 平台限制
+
+- **架构支持**: Android 仅支持 arm64 和 x86_64 架构
+- **Crypto 模块**: Android 平台不支持内置的 crypto 模块
+- **影响**: 在 Android 上需要加密功能的应用应使用 Dart 的 crypto 库或平台特定的实现
 
 ## 🤝 贡献
 
