@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,230 +9,48 @@ part of 'value.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 /// @nodoc
 mixin _$JsValue {
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() null_,
-    required TResult Function(bool field0) boolean,
-    required TResult Function(int field0) integer,
-    required TResult Function(double field0) float,
-    required TResult Function(String field0) bigint,
-    required TResult Function(String field0) string,
-    required TResult Function(List<JsValue> field0) array,
-    required TResult Function(List<KeyValue> field0) object,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function()? null_,
-    TResult? Function(bool field0)? boolean,
-    TResult? Function(int field0)? integer,
-    TResult? Function(double field0)? float,
-    TResult? Function(String field0)? bigint,
-    TResult? Function(String field0)? string,
-    TResult? Function(List<JsValue> field0)? array,
-    TResult? Function(List<KeyValue> field0)? object,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? null_,
-    TResult Function(bool field0)? boolean,
-    TResult Function(int field0)? integer,
-    TResult Function(double field0)? float,
-    TResult Function(String field0)? bigint,
-    TResult Function(String field0)? string,
-    TResult Function(List<JsValue> field0)? array,
-    TResult Function(List<KeyValue> field0)? object,
-    required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(JsValue_Null value) null_,
-    required TResult Function(JsValue_Boolean value) boolean,
-    required TResult Function(JsValue_Integer value) integer,
-    required TResult Function(JsValue_Float value) float,
-    required TResult Function(JsValue_Bigint value) bigint,
-    required TResult Function(JsValue_String value) string,
-    required TResult Function(JsValue_Array value) array,
-    required TResult Function(JsValue_Object value) object,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(JsValue_Null value)? null_,
-    TResult? Function(JsValue_Boolean value)? boolean,
-    TResult? Function(JsValue_Integer value)? integer,
-    TResult? Function(JsValue_Float value)? float,
-    TResult? Function(JsValue_Bigint value)? bigint,
-    TResult? Function(JsValue_String value)? string,
-    TResult? Function(JsValue_Array value)? array,
-    TResult? Function(JsValue_Object value)? object,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(JsValue_Null value)? null_,
-    TResult Function(JsValue_Boolean value)? boolean,
-    TResult Function(JsValue_Integer value)? integer,
-    TResult Function(JsValue_Float value)? float,
-    TResult Function(JsValue_Bigint value)? bigint,
-    TResult Function(JsValue_String value)? string,
-    TResult Function(JsValue_Array value)? array,
-    TResult Function(JsValue_Object value)? object,
-    required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $JsValueCopyWith<$Res> {
-  factory $JsValueCopyWith(JsValue value, $Res Function(JsValue) then) =
-      _$JsValueCopyWithImpl<$Res, JsValue>;
-}
-
-/// @nodoc
-class _$JsValueCopyWithImpl<$Res, $Val extends JsValue>
-    implements $JsValueCopyWith<$Res> {
-  _$JsValueCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-}
-
-/// @nodoc
-abstract class _$$JsValue_NullImplCopyWith<$Res> {
-  factory _$$JsValue_NullImplCopyWith(
-          _$JsValue_NullImpl value, $Res Function(_$JsValue_NullImpl) then) =
-      __$$JsValue_NullImplCopyWithImpl<$Res>;
-}
-
-/// @nodoc
-class __$$JsValue_NullImplCopyWithImpl<$Res>
-    extends _$JsValueCopyWithImpl<$Res, _$JsValue_NullImpl>
-    implements _$$JsValue_NullImplCopyWith<$Res> {
-  __$$JsValue_NullImplCopyWithImpl(
-      _$JsValue_NullImpl _value, $Res Function(_$JsValue_NullImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-}
-
-/// @nodoc
-
-class _$JsValue_NullImpl extends JsValue_Null {
-  const _$JsValue_NullImpl() : super._();
-
-  @override
-  String toString() {
-    return 'JsValue.null_()';
-  }
-
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        (other.runtimeType == runtimeType && other is _$JsValue_NullImpl);
+        (other.runtimeType == runtimeType && other is JsValue);
   }
 
   @override
   int get hashCode => runtimeType.hashCode;
 
   @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() null_,
-    required TResult Function(bool field0) boolean,
-    required TResult Function(int field0) integer,
-    required TResult Function(double field0) float,
-    required TResult Function(String field0) bigint,
-    required TResult Function(String field0) string,
-    required TResult Function(List<JsValue> field0) array,
-    required TResult Function(List<KeyValue> field0) object,
-  }) {
-    return null_();
+  String toString() {
+    return 'JsValue()';
   }
+}
 
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function()? null_,
-    TResult? Function(bool field0)? boolean,
-    TResult? Function(int field0)? integer,
-    TResult? Function(double field0)? float,
-    TResult? Function(String field0)? bigint,
-    TResult? Function(String field0)? string,
-    TResult? Function(List<JsValue> field0)? array,
-    TResult? Function(List<KeyValue> field0)? object,
-  }) {
-    return null_?.call();
-  }
+/// @nodoc
+class $JsValueCopyWith<$Res> {
+  $JsValueCopyWith(JsValue _, $Res Function(JsValue) __);
+}
 
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? null_,
-    TResult Function(bool field0)? boolean,
-    TResult Function(int field0)? integer,
-    TResult Function(double field0)? float,
-    TResult Function(String field0)? bigint,
-    TResult Function(String field0)? string,
-    TResult Function(List<JsValue> field0)? array,
-    TResult Function(List<KeyValue> field0)? object,
-    required TResult orElse(),
-  }) {
-    if (null_ != null) {
-      return null_();
-    }
-    return orElse();
-  }
+/// Adds pattern-matching-related methods to [JsValue].
+extension JsValuePatterns on JsValue {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
 
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(JsValue_Null value) null_,
-    required TResult Function(JsValue_Boolean value) boolean,
-    required TResult Function(JsValue_Integer value) integer,
-    required TResult Function(JsValue_Float value) float,
-    required TResult Function(JsValue_Bigint value) bigint,
-    required TResult Function(JsValue_String value) string,
-    required TResult Function(JsValue_Array value) array,
-    required TResult Function(JsValue_Object value) object,
-  }) {
-    return null_(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(JsValue_Null value)? null_,
-    TResult? Function(JsValue_Boolean value)? boolean,
-    TResult? Function(JsValue_Integer value)? integer,
-    TResult? Function(JsValue_Float value)? float,
-    TResult? Function(JsValue_Bigint value)? bigint,
-    TResult? Function(JsValue_String value)? string,
-    TResult? Function(JsValue_Array value)? array,
-    TResult? Function(JsValue_Object value)? object,
-  }) {
-    return null_?.call(this);
-  }
-
-  @override
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
-    TResult Function(JsValue_Null value)? null_,
+    TResult Function(JsValue_None value)? none,
     TResult Function(JsValue_Boolean value)? boolean,
     TResult Function(JsValue_Integer value)? integer,
     TResult Function(JsValue_Float value)? float,
@@ -242,45 +60,337 @@ class _$JsValue_NullImpl extends JsValue_Null {
     TResult Function(JsValue_Object value)? object,
     required TResult orElse(),
   }) {
-    if (null_ != null) {
-      return null_(this);
+    final _that = this;
+    switch (_that) {
+      case JsValue_None() when none != null:
+        return none(_that);
+      case JsValue_Boolean() when boolean != null:
+        return boolean(_that);
+      case JsValue_Integer() when integer != null:
+        return integer(_that);
+      case JsValue_Float() when float != null:
+        return float(_that);
+      case JsValue_Bigint() when bigint != null:
+        return bigint(_that);
+      case JsValue_String() when string != null:
+        return string(_that);
+      case JsValue_Array() when array != null:
+        return array(_that);
+      case JsValue_Object() when object != null:
+        return object(_that);
+      case _:
+        return orElse();
     }
-    return orElse();
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(JsValue_None value) none,
+    required TResult Function(JsValue_Boolean value) boolean,
+    required TResult Function(JsValue_Integer value) integer,
+    required TResult Function(JsValue_Float value) float,
+    required TResult Function(JsValue_Bigint value) bigint,
+    required TResult Function(JsValue_String value) string,
+    required TResult Function(JsValue_Array value) array,
+    required TResult Function(JsValue_Object value) object,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsValue_None():
+        return none(_that);
+      case JsValue_Boolean():
+        return boolean(_that);
+      case JsValue_Integer():
+        return integer(_that);
+      case JsValue_Float():
+        return float(_that);
+      case JsValue_Bigint():
+        return bigint(_that);
+      case JsValue_String():
+        return string(_that);
+      case JsValue_Array():
+        return array(_that);
+      case JsValue_Object():
+        return object(_that);
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(JsValue_None value)? none,
+    TResult? Function(JsValue_Boolean value)? boolean,
+    TResult? Function(JsValue_Integer value)? integer,
+    TResult? Function(JsValue_Float value)? float,
+    TResult? Function(JsValue_Bigint value)? bigint,
+    TResult? Function(JsValue_String value)? string,
+    TResult? Function(JsValue_Array value)? array,
+    TResult? Function(JsValue_Object value)? object,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsValue_None() when none != null:
+        return none(_that);
+      case JsValue_Boolean() when boolean != null:
+        return boolean(_that);
+      case JsValue_Integer() when integer != null:
+        return integer(_that);
+      case JsValue_Float() when float != null:
+        return float(_that);
+      case JsValue_Bigint() when bigint != null:
+        return bigint(_that);
+      case JsValue_String() when string != null:
+        return string(_that);
+      case JsValue_Array() when array != null:
+        return array(_that);
+      case JsValue_Object() when object != null:
+        return object(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? none,
+    TResult Function(bool field0)? boolean,
+    TResult Function(PlatformInt64 field0)? integer,
+    TResult Function(double field0)? float,
+    TResult Function(String field0)? bigint,
+    TResult Function(String field0)? string,
+    TResult Function(List<JsValue> field0)? array,
+    TResult Function(Map<String, JsValue> field0)? object,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsValue_None() when none != null:
+        return none();
+      case JsValue_Boolean() when boolean != null:
+        return boolean(_that.field0);
+      case JsValue_Integer() when integer != null:
+        return integer(_that.field0);
+      case JsValue_Float() when float != null:
+        return float(_that.field0);
+      case JsValue_Bigint() when bigint != null:
+        return bigint(_that.field0);
+      case JsValue_String() when string != null:
+        return string(_that.field0);
+      case JsValue_Array() when array != null:
+        return array(_that.field0);
+      case JsValue_Object() when object != null:
+        return object(_that.field0);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() none,
+    required TResult Function(bool field0) boolean,
+    required TResult Function(PlatformInt64 field0) integer,
+    required TResult Function(double field0) float,
+    required TResult Function(String field0) bigint,
+    required TResult Function(String field0) string,
+    required TResult Function(List<JsValue> field0) array,
+    required TResult Function(Map<String, JsValue> field0) object,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsValue_None():
+        return none();
+      case JsValue_Boolean():
+        return boolean(_that.field0);
+      case JsValue_Integer():
+        return integer(_that.field0);
+      case JsValue_Float():
+        return float(_that.field0);
+      case JsValue_Bigint():
+        return bigint(_that.field0);
+      case JsValue_String():
+        return string(_that.field0);
+      case JsValue_Array():
+        return array(_that.field0);
+      case JsValue_Object():
+        return object(_that.field0);
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? none,
+    TResult? Function(bool field0)? boolean,
+    TResult? Function(PlatformInt64 field0)? integer,
+    TResult? Function(double field0)? float,
+    TResult? Function(String field0)? bigint,
+    TResult? Function(String field0)? string,
+    TResult? Function(List<JsValue> field0)? array,
+    TResult? Function(Map<String, JsValue> field0)? object,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsValue_None() when none != null:
+        return none();
+      case JsValue_Boolean() when boolean != null:
+        return boolean(_that.field0);
+      case JsValue_Integer() when integer != null:
+        return integer(_that.field0);
+      case JsValue_Float() when float != null:
+        return float(_that.field0);
+      case JsValue_Bigint() when bigint != null:
+        return bigint(_that.field0);
+      case JsValue_String() when string != null:
+        return string(_that.field0);
+      case JsValue_Array() when array != null:
+        return array(_that.field0);
+      case JsValue_Object() when object != null:
+        return object(_that.field0);
+      case _:
+        return null;
+    }
   }
 }
 
-abstract class JsValue_Null extends JsValue {
-  const factory JsValue_Null() = _$JsValue_NullImpl;
-  const JsValue_Null._() : super._();
+/// @nodoc
+
+class JsValue_None extends JsValue {
+  const JsValue_None() : super._();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is JsValue_None);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() {
+    return 'JsValue.none()';
+  }
 }
 
 /// @nodoc
-abstract class _$$JsValue_BooleanImplCopyWith<$Res> {
-  factory _$$JsValue_BooleanImplCopyWith(_$JsValue_BooleanImpl value,
-          $Res Function(_$JsValue_BooleanImpl) then) =
-      __$$JsValue_BooleanImplCopyWithImpl<$Res>;
+
+class JsValue_Boolean extends JsValue {
+  const JsValue_Boolean(this.field0) : super._();
+
+  final bool field0;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_BooleanCopyWith<JsValue_Boolean> get copyWith =>
+      _$JsValue_BooleanCopyWithImpl<JsValue_Boolean>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsValue_Boolean &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @override
+  String toString() {
+    return 'JsValue.boolean(field0: $field0)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsValue_BooleanCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_BooleanCopyWith(
+          JsValue_Boolean value, $Res Function(JsValue_Boolean) _then) =
+      _$JsValue_BooleanCopyWithImpl;
   @useResult
   $Res call({bool field0});
 }
 
 /// @nodoc
-class __$$JsValue_BooleanImplCopyWithImpl<$Res>
-    extends _$JsValueCopyWithImpl<$Res, _$JsValue_BooleanImpl>
-    implements _$$JsValue_BooleanImplCopyWith<$Res> {
-  __$$JsValue_BooleanImplCopyWithImpl(
-      _$JsValue_BooleanImpl _value, $Res Function(_$JsValue_BooleanImpl) _then)
-      : super(_value, _then);
+class _$JsValue_BooleanCopyWithImpl<$Res>
+    implements $JsValue_BooleanCopyWith<$Res> {
+  _$JsValue_BooleanCopyWithImpl(this._self, this._then);
+
+  final JsValue_Boolean _self;
+  final $Res Function(JsValue_Boolean) _then;
 
   /// Create a copy of JsValue
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
     Object? field0 = null,
   }) {
-    return _then(_$JsValue_BooleanImpl(
+    return _then(JsValue_Boolean(
       null == field0
-          ? _value.field0
+          ? _self.field0
           : field0 // ignore: cast_nullable_to_non_nullable
               as bool,
     ));
@@ -289,354 +399,126 @@ class __$$JsValue_BooleanImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$JsValue_BooleanImpl extends JsValue_Boolean {
-  const _$JsValue_BooleanImpl(this.field0) : super._();
+class JsValue_Integer extends JsValue {
+  const JsValue_Integer(this.field0) : super._();
 
-  @override
-  final bool field0;
+  final PlatformInt64 field0;
 
-  @override
-  String toString() {
-    return 'JsValue.boolean(field0: $field0)';
-  }
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_IntegerCopyWith<JsValue_Integer> get copyWith =>
+      _$JsValue_IntegerCopyWithImpl<JsValue_Integer>(this, _$identity);
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$JsValue_BooleanImpl &&
+            other is JsValue_Integer &&
             (identical(other.field0, field0) || other.field0 == field0));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$JsValue_BooleanImplCopyWith<_$JsValue_BooleanImpl> get copyWith =>
-      __$$JsValue_BooleanImplCopyWithImpl<_$JsValue_BooleanImpl>(
-          this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() null_,
-    required TResult Function(bool field0) boolean,
-    required TResult Function(int field0) integer,
-    required TResult Function(double field0) float,
-    required TResult Function(String field0) bigint,
-    required TResult Function(String field0) string,
-    required TResult Function(List<JsValue> field0) array,
-    required TResult Function(List<KeyValue> field0) object,
-  }) {
-    return boolean(field0);
+  String toString() {
+    return 'JsValue.integer(field0: $field0)';
   }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function()? null_,
-    TResult? Function(bool field0)? boolean,
-    TResult? Function(int field0)? integer,
-    TResult? Function(double field0)? float,
-    TResult? Function(String field0)? bigint,
-    TResult? Function(String field0)? string,
-    TResult? Function(List<JsValue> field0)? array,
-    TResult? Function(List<KeyValue> field0)? object,
-  }) {
-    return boolean?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? null_,
-    TResult Function(bool field0)? boolean,
-    TResult Function(int field0)? integer,
-    TResult Function(double field0)? float,
-    TResult Function(String field0)? bigint,
-    TResult Function(String field0)? string,
-    TResult Function(List<JsValue> field0)? array,
-    TResult Function(List<KeyValue> field0)? object,
-    required TResult orElse(),
-  }) {
-    if (boolean != null) {
-      return boolean(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(JsValue_Null value) null_,
-    required TResult Function(JsValue_Boolean value) boolean,
-    required TResult Function(JsValue_Integer value) integer,
-    required TResult Function(JsValue_Float value) float,
-    required TResult Function(JsValue_Bigint value) bigint,
-    required TResult Function(JsValue_String value) string,
-    required TResult Function(JsValue_Array value) array,
-    required TResult Function(JsValue_Object value) object,
-  }) {
-    return boolean(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(JsValue_Null value)? null_,
-    TResult? Function(JsValue_Boolean value)? boolean,
-    TResult? Function(JsValue_Integer value)? integer,
-    TResult? Function(JsValue_Float value)? float,
-    TResult? Function(JsValue_Bigint value)? bigint,
-    TResult? Function(JsValue_String value)? string,
-    TResult? Function(JsValue_Array value)? array,
-    TResult? Function(JsValue_Object value)? object,
-  }) {
-    return boolean?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(JsValue_Null value)? null_,
-    TResult Function(JsValue_Boolean value)? boolean,
-    TResult Function(JsValue_Integer value)? integer,
-    TResult Function(JsValue_Float value)? float,
-    TResult Function(JsValue_Bigint value)? bigint,
-    TResult Function(JsValue_String value)? string,
-    TResult Function(JsValue_Array value)? array,
-    TResult Function(JsValue_Object value)? object,
-    required TResult orElse(),
-  }) {
-    if (boolean != null) {
-      return boolean(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class JsValue_Boolean extends JsValue {
-  const factory JsValue_Boolean(final bool field0) = _$JsValue_BooleanImpl;
-  const JsValue_Boolean._() : super._();
-
-  bool get field0;
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$JsValue_BooleanImplCopyWith<_$JsValue_BooleanImpl> get copyWith =>
-      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$JsValue_IntegerImplCopyWith<$Res> {
-  factory _$$JsValue_IntegerImplCopyWith(_$JsValue_IntegerImpl value,
-          $Res Function(_$JsValue_IntegerImpl) then) =
-      __$$JsValue_IntegerImplCopyWithImpl<$Res>;
+abstract mixin class $JsValue_IntegerCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_IntegerCopyWith(
+          JsValue_Integer value, $Res Function(JsValue_Integer) _then) =
+      _$JsValue_IntegerCopyWithImpl;
   @useResult
-  $Res call({int field0});
+  $Res call({PlatformInt64 field0});
 }
 
 /// @nodoc
-class __$$JsValue_IntegerImplCopyWithImpl<$Res>
-    extends _$JsValueCopyWithImpl<$Res, _$JsValue_IntegerImpl>
-    implements _$$JsValue_IntegerImplCopyWith<$Res> {
-  __$$JsValue_IntegerImplCopyWithImpl(
-      _$JsValue_IntegerImpl _value, $Res Function(_$JsValue_IntegerImpl) _then)
-      : super(_value, _then);
+class _$JsValue_IntegerCopyWithImpl<$Res>
+    implements $JsValue_IntegerCopyWith<$Res> {
+  _$JsValue_IntegerCopyWithImpl(this._self, this._then);
+
+  final JsValue_Integer _self;
+  final $Res Function(JsValue_Integer) _then;
 
   /// Create a copy of JsValue
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
     Object? field0 = null,
   }) {
-    return _then(_$JsValue_IntegerImpl(
+    return _then(JsValue_Integer(
       null == field0
-          ? _value.field0
+          ? _self.field0
           : field0 // ignore: cast_nullable_to_non_nullable
-              as int,
+              as PlatformInt64,
     ));
   }
 }
 
 /// @nodoc
 
-class _$JsValue_IntegerImpl extends JsValue_Integer {
-  const _$JsValue_IntegerImpl(this.field0) : super._();
+class JsValue_Float extends JsValue {
+  const JsValue_Float(this.field0) : super._();
 
-  @override
-  final int field0;
+  final double field0;
 
-  @override
-  String toString() {
-    return 'JsValue.integer(field0: $field0)';
-  }
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_FloatCopyWith<JsValue_Float> get copyWith =>
+      _$JsValue_FloatCopyWithImpl<JsValue_Float>(this, _$identity);
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$JsValue_IntegerImpl &&
+            other is JsValue_Float &&
             (identical(other.field0, field0) || other.field0 == field0));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$JsValue_IntegerImplCopyWith<_$JsValue_IntegerImpl> get copyWith =>
-      __$$JsValue_IntegerImplCopyWithImpl<_$JsValue_IntegerImpl>(
-          this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() null_,
-    required TResult Function(bool field0) boolean,
-    required TResult Function(int field0) integer,
-    required TResult Function(double field0) float,
-    required TResult Function(String field0) bigint,
-    required TResult Function(String field0) string,
-    required TResult Function(List<JsValue> field0) array,
-    required TResult Function(List<KeyValue> field0) object,
-  }) {
-    return integer(field0);
+  String toString() {
+    return 'JsValue.float(field0: $field0)';
   }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function()? null_,
-    TResult? Function(bool field0)? boolean,
-    TResult? Function(int field0)? integer,
-    TResult? Function(double field0)? float,
-    TResult? Function(String field0)? bigint,
-    TResult? Function(String field0)? string,
-    TResult? Function(List<JsValue> field0)? array,
-    TResult? Function(List<KeyValue> field0)? object,
-  }) {
-    return integer?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? null_,
-    TResult Function(bool field0)? boolean,
-    TResult Function(int field0)? integer,
-    TResult Function(double field0)? float,
-    TResult Function(String field0)? bigint,
-    TResult Function(String field0)? string,
-    TResult Function(List<JsValue> field0)? array,
-    TResult Function(List<KeyValue> field0)? object,
-    required TResult orElse(),
-  }) {
-    if (integer != null) {
-      return integer(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(JsValue_Null value) null_,
-    required TResult Function(JsValue_Boolean value) boolean,
-    required TResult Function(JsValue_Integer value) integer,
-    required TResult Function(JsValue_Float value) float,
-    required TResult Function(JsValue_Bigint value) bigint,
-    required TResult Function(JsValue_String value) string,
-    required TResult Function(JsValue_Array value) array,
-    required TResult Function(JsValue_Object value) object,
-  }) {
-    return integer(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(JsValue_Null value)? null_,
-    TResult? Function(JsValue_Boolean value)? boolean,
-    TResult? Function(JsValue_Integer value)? integer,
-    TResult? Function(JsValue_Float value)? float,
-    TResult? Function(JsValue_Bigint value)? bigint,
-    TResult? Function(JsValue_String value)? string,
-    TResult? Function(JsValue_Array value)? array,
-    TResult? Function(JsValue_Object value)? object,
-  }) {
-    return integer?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(JsValue_Null value)? null_,
-    TResult Function(JsValue_Boolean value)? boolean,
-    TResult Function(JsValue_Integer value)? integer,
-    TResult Function(JsValue_Float value)? float,
-    TResult Function(JsValue_Bigint value)? bigint,
-    TResult Function(JsValue_String value)? string,
-    TResult Function(JsValue_Array value)? array,
-    TResult Function(JsValue_Object value)? object,
-    required TResult orElse(),
-  }) {
-    if (integer != null) {
-      return integer(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class JsValue_Integer extends JsValue {
-  const factory JsValue_Integer(final int field0) = _$JsValue_IntegerImpl;
-  const JsValue_Integer._() : super._();
-
-  int get field0;
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$JsValue_IntegerImplCopyWith<_$JsValue_IntegerImpl> get copyWith =>
-      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$JsValue_FloatImplCopyWith<$Res> {
-  factory _$$JsValue_FloatImplCopyWith(
-          _$JsValue_FloatImpl value, $Res Function(_$JsValue_FloatImpl) then) =
-      __$$JsValue_FloatImplCopyWithImpl<$Res>;
+abstract mixin class $JsValue_FloatCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_FloatCopyWith(
+          JsValue_Float value, $Res Function(JsValue_Float) _then) =
+      _$JsValue_FloatCopyWithImpl;
   @useResult
   $Res call({double field0});
 }
 
 /// @nodoc
-class __$$JsValue_FloatImplCopyWithImpl<$Res>
-    extends _$JsValueCopyWithImpl<$Res, _$JsValue_FloatImpl>
-    implements _$$JsValue_FloatImplCopyWith<$Res> {
-  __$$JsValue_FloatImplCopyWithImpl(
-      _$JsValue_FloatImpl _value, $Res Function(_$JsValue_FloatImpl) _then)
-      : super(_value, _then);
+class _$JsValue_FloatCopyWithImpl<$Res>
+    implements $JsValue_FloatCopyWith<$Res> {
+  _$JsValue_FloatCopyWithImpl(this._self, this._then);
+
+  final JsValue_Float _self;
+  final $Res Function(JsValue_Float) _then;
 
   /// Create a copy of JsValue
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
     Object? field0 = null,
   }) {
-    return _then(_$JsValue_FloatImpl(
+    return _then(JsValue_Float(
       null == field0
-          ? _value.field0
+          ? _self.field0
           : field0 // ignore: cast_nullable_to_non_nullable
               as double,
     ));
@@ -645,353 +527,62 @@ class __$$JsValue_FloatImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$JsValue_FloatImpl extends JsValue_Float {
-  const _$JsValue_FloatImpl(this.field0) : super._();
+class JsValue_Bigint extends JsValue {
+  const JsValue_Bigint(this.field0) : super._();
 
-  @override
-  final double field0;
+  final String field0;
 
-  @override
-  String toString() {
-    return 'JsValue.float(field0: $field0)';
-  }
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_BigintCopyWith<JsValue_Bigint> get copyWith =>
+      _$JsValue_BigintCopyWithImpl<JsValue_Bigint>(this, _$identity);
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$JsValue_FloatImpl &&
+            other is JsValue_Bigint &&
             (identical(other.field0, field0) || other.field0 == field0));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, field0);
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$JsValue_FloatImplCopyWith<_$JsValue_FloatImpl> get copyWith =>
-      __$$JsValue_FloatImplCopyWithImpl<_$JsValue_FloatImpl>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() null_,
-    required TResult Function(bool field0) boolean,
-    required TResult Function(int field0) integer,
-    required TResult Function(double field0) float,
-    required TResult Function(String field0) bigint,
-    required TResult Function(String field0) string,
-    required TResult Function(List<JsValue> field0) array,
-    required TResult Function(List<KeyValue> field0) object,
-  }) {
-    return float(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function()? null_,
-    TResult? Function(bool field0)? boolean,
-    TResult? Function(int field0)? integer,
-    TResult? Function(double field0)? float,
-    TResult? Function(String field0)? bigint,
-    TResult? Function(String field0)? string,
-    TResult? Function(List<JsValue> field0)? array,
-    TResult? Function(List<KeyValue> field0)? object,
-  }) {
-    return float?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? null_,
-    TResult Function(bool field0)? boolean,
-    TResult Function(int field0)? integer,
-    TResult Function(double field0)? float,
-    TResult Function(String field0)? bigint,
-    TResult Function(String field0)? string,
-    TResult Function(List<JsValue> field0)? array,
-    TResult Function(List<KeyValue> field0)? object,
-    required TResult orElse(),
-  }) {
-    if (float != null) {
-      return float(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(JsValue_Null value) null_,
-    required TResult Function(JsValue_Boolean value) boolean,
-    required TResult Function(JsValue_Integer value) integer,
-    required TResult Function(JsValue_Float value) float,
-    required TResult Function(JsValue_Bigint value) bigint,
-    required TResult Function(JsValue_String value) string,
-    required TResult Function(JsValue_Array value) array,
-    required TResult Function(JsValue_Object value) object,
-  }) {
-    return float(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(JsValue_Null value)? null_,
-    TResult? Function(JsValue_Boolean value)? boolean,
-    TResult? Function(JsValue_Integer value)? integer,
-    TResult? Function(JsValue_Float value)? float,
-    TResult? Function(JsValue_Bigint value)? bigint,
-    TResult? Function(JsValue_String value)? string,
-    TResult? Function(JsValue_Array value)? array,
-    TResult? Function(JsValue_Object value)? object,
-  }) {
-    return float?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(JsValue_Null value)? null_,
-    TResult Function(JsValue_Boolean value)? boolean,
-    TResult Function(JsValue_Integer value)? integer,
-    TResult Function(JsValue_Float value)? float,
-    TResult Function(JsValue_Bigint value)? bigint,
-    TResult Function(JsValue_String value)? string,
-    TResult Function(JsValue_Array value)? array,
-    TResult Function(JsValue_Object value)? object,
-    required TResult orElse(),
-  }) {
-    if (float != null) {
-      return float(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class JsValue_Float extends JsValue {
-  const factory JsValue_Float(final double field0) = _$JsValue_FloatImpl;
-  const JsValue_Float._() : super._();
-
-  double get field0;
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$JsValue_FloatImplCopyWith<_$JsValue_FloatImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class _$$JsValue_BigintImplCopyWith<$Res> {
-  factory _$$JsValue_BigintImplCopyWith(_$JsValue_BigintImpl value,
-          $Res Function(_$JsValue_BigintImpl) then) =
-      __$$JsValue_BigintImplCopyWithImpl<$Res>;
-  @useResult
-  $Res call({String field0});
-}
-
-/// @nodoc
-class __$$JsValue_BigintImplCopyWithImpl<$Res>
-    extends _$JsValueCopyWithImpl<$Res, _$JsValue_BigintImpl>
-    implements _$$JsValue_BigintImplCopyWith<$Res> {
-  __$$JsValue_BigintImplCopyWithImpl(
-      _$JsValue_BigintImpl _value, $Res Function(_$JsValue_BigintImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? field0 = null,
-  }) {
-    return _then(_$JsValue_BigintImpl(
-      null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
-              as String,
-    ));
-  }
-}
-
-/// @nodoc
-
-class _$JsValue_BigintImpl extends JsValue_Bigint {
-  const _$JsValue_BigintImpl(this.field0) : super._();
-
-  @override
-  final String field0;
 
   @override
   String toString() {
     return 'JsValue.bigint(field0: $field0)';
   }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$JsValue_BigintImpl &&
-            (identical(other.field0, field0) || other.field0 == field0));
-  }
-
-  @override
-  int get hashCode => Object.hash(runtimeType, field0);
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$JsValue_BigintImplCopyWith<_$JsValue_BigintImpl> get copyWith =>
-      __$$JsValue_BigintImplCopyWithImpl<_$JsValue_BigintImpl>(
-          this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() null_,
-    required TResult Function(bool field0) boolean,
-    required TResult Function(int field0) integer,
-    required TResult Function(double field0) float,
-    required TResult Function(String field0) bigint,
-    required TResult Function(String field0) string,
-    required TResult Function(List<JsValue> field0) array,
-    required TResult Function(List<KeyValue> field0) object,
-  }) {
-    return bigint(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function()? null_,
-    TResult? Function(bool field0)? boolean,
-    TResult? Function(int field0)? integer,
-    TResult? Function(double field0)? float,
-    TResult? Function(String field0)? bigint,
-    TResult? Function(String field0)? string,
-    TResult? Function(List<JsValue> field0)? array,
-    TResult? Function(List<KeyValue> field0)? object,
-  }) {
-    return bigint?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? null_,
-    TResult Function(bool field0)? boolean,
-    TResult Function(int field0)? integer,
-    TResult Function(double field0)? float,
-    TResult Function(String field0)? bigint,
-    TResult Function(String field0)? string,
-    TResult Function(List<JsValue> field0)? array,
-    TResult Function(List<KeyValue> field0)? object,
-    required TResult orElse(),
-  }) {
-    if (bigint != null) {
-      return bigint(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(JsValue_Null value) null_,
-    required TResult Function(JsValue_Boolean value) boolean,
-    required TResult Function(JsValue_Integer value) integer,
-    required TResult Function(JsValue_Float value) float,
-    required TResult Function(JsValue_Bigint value) bigint,
-    required TResult Function(JsValue_String value) string,
-    required TResult Function(JsValue_Array value) array,
-    required TResult Function(JsValue_Object value) object,
-  }) {
-    return bigint(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(JsValue_Null value)? null_,
-    TResult? Function(JsValue_Boolean value)? boolean,
-    TResult? Function(JsValue_Integer value)? integer,
-    TResult? Function(JsValue_Float value)? float,
-    TResult? Function(JsValue_Bigint value)? bigint,
-    TResult? Function(JsValue_String value)? string,
-    TResult? Function(JsValue_Array value)? array,
-    TResult? Function(JsValue_Object value)? object,
-  }) {
-    return bigint?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(JsValue_Null value)? null_,
-    TResult Function(JsValue_Boolean value)? boolean,
-    TResult Function(JsValue_Integer value)? integer,
-    TResult Function(JsValue_Float value)? float,
-    TResult Function(JsValue_Bigint value)? bigint,
-    TResult Function(JsValue_String value)? string,
-    TResult Function(JsValue_Array value)? array,
-    TResult Function(JsValue_Object value)? object,
-    required TResult orElse(),
-  }) {
-    if (bigint != null) {
-      return bigint(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class JsValue_Bigint extends JsValue {
-  const factory JsValue_Bigint(final String field0) = _$JsValue_BigintImpl;
-  const JsValue_Bigint._() : super._();
-
-  String get field0;
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$JsValue_BigintImplCopyWith<_$JsValue_BigintImpl> get copyWith =>
-      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$JsValue_StringImplCopyWith<$Res> {
-  factory _$$JsValue_StringImplCopyWith(_$JsValue_StringImpl value,
-          $Res Function(_$JsValue_StringImpl) then) =
-      __$$JsValue_StringImplCopyWithImpl<$Res>;
+abstract mixin class $JsValue_BigintCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_BigintCopyWith(
+          JsValue_Bigint value, $Res Function(JsValue_Bigint) _then) =
+      _$JsValue_BigintCopyWithImpl;
   @useResult
   $Res call({String field0});
 }
 
 /// @nodoc
-class __$$JsValue_StringImplCopyWithImpl<$Res>
-    extends _$JsValueCopyWithImpl<$Res, _$JsValue_StringImpl>
-    implements _$$JsValue_StringImplCopyWith<$Res> {
-  __$$JsValue_StringImplCopyWithImpl(
-      _$JsValue_StringImpl _value, $Res Function(_$JsValue_StringImpl) _then)
-      : super(_value, _then);
+class _$JsValue_BigintCopyWithImpl<$Res>
+    implements $JsValue_BigintCopyWith<$Res> {
+  _$JsValue_BigintCopyWithImpl(this._self, this._then);
+
+  final JsValue_Bigint _self;
+  final $Res Function(JsValue_Bigint) _then;
 
   /// Create a copy of JsValue
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
     Object? field0 = null,
   }) {
-    return _then(_$JsValue_StringImpl(
+    return _then(JsValue_Bigint(
       null == field0
-          ? _value.field0
+          ? _self.field0
           : field0 // ignore: cast_nullable_to_non_nullable
               as String,
     ));
@@ -1000,176 +591,134 @@ class __$$JsValue_StringImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$JsValue_StringImpl extends JsValue_String {
-  const _$JsValue_StringImpl(this.field0) : super._();
+class JsValue_String extends JsValue {
+  const JsValue_String(this.field0) : super._();
 
-  @override
   final String field0;
 
-  @override
-  String toString() {
-    return 'JsValue.string(field0: $field0)';
-  }
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_StringCopyWith<JsValue_String> get copyWith =>
+      _$JsValue_StringCopyWithImpl<JsValue_String>(this, _$identity);
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$JsValue_StringImpl &&
+            other is JsValue_String &&
             (identical(other.field0, field0) || other.field0 == field0));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$JsValue_StringImplCopyWith<_$JsValue_StringImpl> get copyWith =>
-      __$$JsValue_StringImplCopyWithImpl<_$JsValue_StringImpl>(
-          this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() null_,
-    required TResult Function(bool field0) boolean,
-    required TResult Function(int field0) integer,
-    required TResult Function(double field0) float,
-    required TResult Function(String field0) bigint,
-    required TResult Function(String field0) string,
-    required TResult Function(List<JsValue> field0) array,
-    required TResult Function(List<KeyValue> field0) object,
-  }) {
-    return string(field0);
+  String toString() {
+    return 'JsValue.string(field0: $field0)';
   }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function()? null_,
-    TResult? Function(bool field0)? boolean,
-    TResult? Function(int field0)? integer,
-    TResult? Function(double field0)? float,
-    TResult? Function(String field0)? bigint,
-    TResult? Function(String field0)? string,
-    TResult? Function(List<JsValue> field0)? array,
-    TResult? Function(List<KeyValue> field0)? object,
-  }) {
-    return string?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? null_,
-    TResult Function(bool field0)? boolean,
-    TResult Function(int field0)? integer,
-    TResult Function(double field0)? float,
-    TResult Function(String field0)? bigint,
-    TResult Function(String field0)? string,
-    TResult Function(List<JsValue> field0)? array,
-    TResult Function(List<KeyValue> field0)? object,
-    required TResult orElse(),
-  }) {
-    if (string != null) {
-      return string(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(JsValue_Null value) null_,
-    required TResult Function(JsValue_Boolean value) boolean,
-    required TResult Function(JsValue_Integer value) integer,
-    required TResult Function(JsValue_Float value) float,
-    required TResult Function(JsValue_Bigint value) bigint,
-    required TResult Function(JsValue_String value) string,
-    required TResult Function(JsValue_Array value) array,
-    required TResult Function(JsValue_Object value) object,
-  }) {
-    return string(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(JsValue_Null value)? null_,
-    TResult? Function(JsValue_Boolean value)? boolean,
-    TResult? Function(JsValue_Integer value)? integer,
-    TResult? Function(JsValue_Float value)? float,
-    TResult? Function(JsValue_Bigint value)? bigint,
-    TResult? Function(JsValue_String value)? string,
-    TResult? Function(JsValue_Array value)? array,
-    TResult? Function(JsValue_Object value)? object,
-  }) {
-    return string?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(JsValue_Null value)? null_,
-    TResult Function(JsValue_Boolean value)? boolean,
-    TResult Function(JsValue_Integer value)? integer,
-    TResult Function(JsValue_Float value)? float,
-    TResult Function(JsValue_Bigint value)? bigint,
-    TResult Function(JsValue_String value)? string,
-    TResult Function(JsValue_Array value)? array,
-    TResult Function(JsValue_Object value)? object,
-    required TResult orElse(),
-  }) {
-    if (string != null) {
-      return string(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class JsValue_String extends JsValue {
-  const factory JsValue_String(final String field0) = _$JsValue_StringImpl;
-  const JsValue_String._() : super._();
-
-  String get field0;
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$JsValue_StringImplCopyWith<_$JsValue_StringImpl> get copyWith =>
-      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$JsValue_ArrayImplCopyWith<$Res> {
-  factory _$$JsValue_ArrayImplCopyWith(
-          _$JsValue_ArrayImpl value, $Res Function(_$JsValue_ArrayImpl) then) =
-      __$$JsValue_ArrayImplCopyWithImpl<$Res>;
+abstract mixin class $JsValue_StringCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_StringCopyWith(
+          JsValue_String value, $Res Function(JsValue_String) _then) =
+      _$JsValue_StringCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsValue_StringCopyWithImpl<$Res>
+    implements $JsValue_StringCopyWith<$Res> {
+  _$JsValue_StringCopyWithImpl(this._self, this._then);
+
+  final JsValue_String _self;
+  final $Res Function(JsValue_String) _then;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsValue_String(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsValue_Array extends JsValue {
+  const JsValue_Array(final List<JsValue> field0)
+      : _field0 = field0,
+        super._();
+
+  final List<JsValue> _field0;
+  List<JsValue> get field0 {
+    if (_field0 is EqualUnmodifiableListView) return _field0;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_field0);
+  }
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_ArrayCopyWith<JsValue_Array> get copyWith =>
+      _$JsValue_ArrayCopyWithImpl<JsValue_Array>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsValue_Array &&
+            const DeepCollectionEquality().equals(other._field0, _field0));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, const DeepCollectionEquality().hash(_field0));
+
+  @override
+  String toString() {
+    return 'JsValue.array(field0: $field0)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsValue_ArrayCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_ArrayCopyWith(
+          JsValue_Array value, $Res Function(JsValue_Array) _then) =
+      _$JsValue_ArrayCopyWithImpl;
   @useResult
   $Res call({List<JsValue> field0});
 }
 
 /// @nodoc
-class __$$JsValue_ArrayImplCopyWithImpl<$Res>
-    extends _$JsValueCopyWithImpl<$Res, _$JsValue_ArrayImpl>
-    implements _$$JsValue_ArrayImplCopyWith<$Res> {
-  __$$JsValue_ArrayImplCopyWithImpl(
-      _$JsValue_ArrayImpl _value, $Res Function(_$JsValue_ArrayImpl) _then)
-      : super(_value, _then);
+class _$JsValue_ArrayCopyWithImpl<$Res>
+    implements $JsValue_ArrayCopyWith<$Res> {
+  _$JsValue_ArrayCopyWithImpl(this._self, this._then);
+
+  final JsValue_Array _self;
+  final $Res Function(JsValue_Array) _then;
 
   /// Create a copy of JsValue
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
     Object? field0 = null,
   }) {
-    return _then(_$JsValue_ArrayImpl(
+    return _then(JsValue_Array(
       null == field0
-          ? _value._field0
+          ? _self._field0
           : field0 // ignore: cast_nullable_to_non_nullable
               as List<JsValue>,
     ));
@@ -1178,499 +727,74 @@ class __$$JsValue_ArrayImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$JsValue_ArrayImpl extends JsValue_Array {
-  const _$JsValue_ArrayImpl(final List<JsValue> field0)
+class JsValue_Object extends JsValue {
+  const JsValue_Object(final Map<String, JsValue> field0)
       : _field0 = field0,
         super._();
 
-  final List<JsValue> _field0;
-  @override
-  List<JsValue> get field0 {
-    if (_field0 is EqualUnmodifiableListView) return _field0;
+  final Map<String, JsValue> _field0;
+  Map<String, JsValue> get field0 {
+    if (_field0 is EqualUnmodifiableMapView) return _field0;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_field0);
+    return EqualUnmodifiableMapView(_field0);
   }
 
-  @override
-  String toString() {
-    return 'JsValue.array(field0: $field0)';
-  }
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_ObjectCopyWith<JsValue_Object> get copyWith =>
+      _$JsValue_ObjectCopyWithImpl<JsValue_Object>(this, _$identity);
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$JsValue_ArrayImpl &&
+            other is JsValue_Object &&
             const DeepCollectionEquality().equals(other._field0, _field0));
   }
 
   @override
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(_field0));
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$JsValue_ArrayImplCopyWith<_$JsValue_ArrayImpl> get copyWith =>
-      __$$JsValue_ArrayImplCopyWithImpl<_$JsValue_ArrayImpl>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() null_,
-    required TResult Function(bool field0) boolean,
-    required TResult Function(int field0) integer,
-    required TResult Function(double field0) float,
-    required TResult Function(String field0) bigint,
-    required TResult Function(String field0) string,
-    required TResult Function(List<JsValue> field0) array,
-    required TResult Function(List<KeyValue> field0) object,
-  }) {
-    return array(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function()? null_,
-    TResult? Function(bool field0)? boolean,
-    TResult? Function(int field0)? integer,
-    TResult? Function(double field0)? float,
-    TResult? Function(String field0)? bigint,
-    TResult? Function(String field0)? string,
-    TResult? Function(List<JsValue> field0)? array,
-    TResult? Function(List<KeyValue> field0)? object,
-  }) {
-    return array?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? null_,
-    TResult Function(bool field0)? boolean,
-    TResult Function(int field0)? integer,
-    TResult Function(double field0)? float,
-    TResult Function(String field0)? bigint,
-    TResult Function(String field0)? string,
-    TResult Function(List<JsValue> field0)? array,
-    TResult Function(List<KeyValue> field0)? object,
-    required TResult orElse(),
-  }) {
-    if (array != null) {
-      return array(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(JsValue_Null value) null_,
-    required TResult Function(JsValue_Boolean value) boolean,
-    required TResult Function(JsValue_Integer value) integer,
-    required TResult Function(JsValue_Float value) float,
-    required TResult Function(JsValue_Bigint value) bigint,
-    required TResult Function(JsValue_String value) string,
-    required TResult Function(JsValue_Array value) array,
-    required TResult Function(JsValue_Object value) object,
-  }) {
-    return array(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(JsValue_Null value)? null_,
-    TResult? Function(JsValue_Boolean value)? boolean,
-    TResult? Function(JsValue_Integer value)? integer,
-    TResult? Function(JsValue_Float value)? float,
-    TResult? Function(JsValue_Bigint value)? bigint,
-    TResult? Function(JsValue_String value)? string,
-    TResult? Function(JsValue_Array value)? array,
-    TResult? Function(JsValue_Object value)? object,
-  }) {
-    return array?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(JsValue_Null value)? null_,
-    TResult Function(JsValue_Boolean value)? boolean,
-    TResult Function(JsValue_Integer value)? integer,
-    TResult Function(JsValue_Float value)? float,
-    TResult Function(JsValue_Bigint value)? bigint,
-    TResult Function(JsValue_String value)? string,
-    TResult Function(JsValue_Array value)? array,
-    TResult Function(JsValue_Object value)? object,
-    required TResult orElse(),
-  }) {
-    if (array != null) {
-      return array(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class JsValue_Array extends JsValue {
-  const factory JsValue_Array(final List<JsValue> field0) = _$JsValue_ArrayImpl;
-  const JsValue_Array._() : super._();
-
-  List<JsValue> get field0;
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$JsValue_ArrayImplCopyWith<_$JsValue_ArrayImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class _$$JsValue_ObjectImplCopyWith<$Res> {
-  factory _$$JsValue_ObjectImplCopyWith(_$JsValue_ObjectImpl value,
-          $Res Function(_$JsValue_ObjectImpl) then) =
-      __$$JsValue_ObjectImplCopyWithImpl<$Res>;
-  @useResult
-  $Res call({List<KeyValue> field0});
-}
-
-/// @nodoc
-class __$$JsValue_ObjectImplCopyWithImpl<$Res>
-    extends _$JsValueCopyWithImpl<$Res, _$JsValue_ObjectImpl>
-    implements _$$JsValue_ObjectImplCopyWith<$Res> {
-  __$$JsValue_ObjectImplCopyWithImpl(
-      _$JsValue_ObjectImpl _value, $Res Function(_$JsValue_ObjectImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? field0 = null,
-  }) {
-    return _then(_$JsValue_ObjectImpl(
-      null == field0
-          ? _value._field0
-          : field0 // ignore: cast_nullable_to_non_nullable
-              as List<KeyValue>,
-    ));
-  }
-}
-
-/// @nodoc
-
-class _$JsValue_ObjectImpl extends JsValue_Object {
-  const _$JsValue_ObjectImpl(final List<KeyValue> field0)
-      : _field0 = field0,
-        super._();
-
-  final List<KeyValue> _field0;
-  @override
-  List<KeyValue> get field0 {
-    if (_field0 is EqualUnmodifiableListView) return _field0;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_field0);
-  }
 
   @override
   String toString() {
     return 'JsValue.object(field0: $field0)';
   }
+}
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$JsValue_ObjectImpl &&
-            const DeepCollectionEquality().equals(other._field0, _field0));
-  }
+/// @nodoc
+abstract mixin class $JsValue_ObjectCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_ObjectCopyWith(
+          JsValue_Object value, $Res Function(JsValue_Object) _then) =
+      _$JsValue_ObjectCopyWithImpl;
+  @useResult
+  $Res call({Map<String, JsValue> field0});
+}
 
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, const DeepCollectionEquality().hash(_field0));
+/// @nodoc
+class _$JsValue_ObjectCopyWithImpl<$Res>
+    implements $JsValue_ObjectCopyWith<$Res> {
+  _$JsValue_ObjectCopyWithImpl(this._self, this._then);
+
+  final JsValue_Object _self;
+  final $Res Function(JsValue_Object) _then;
 
   /// Create a copy of JsValue
   /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
   @pragma('vm:prefer-inline')
-  _$$JsValue_ObjectImplCopyWith<_$JsValue_ObjectImpl> get copyWith =>
-      __$$JsValue_ObjectImplCopyWithImpl<_$JsValue_ObjectImpl>(
-          this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() null_,
-    required TResult Function(bool field0) boolean,
-    required TResult Function(int field0) integer,
-    required TResult Function(double field0) float,
-    required TResult Function(String field0) bigint,
-    required TResult Function(String field0) string,
-    required TResult Function(List<JsValue> field0) array,
-    required TResult Function(List<KeyValue> field0) object,
-  }) {
-    return object(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function()? null_,
-    TResult? Function(bool field0)? boolean,
-    TResult? Function(int field0)? integer,
-    TResult? Function(double field0)? float,
-    TResult? Function(String field0)? bigint,
-    TResult? Function(String field0)? string,
-    TResult? Function(List<JsValue> field0)? array,
-    TResult? Function(List<KeyValue> field0)? object,
-  }) {
-    return object?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? null_,
-    TResult Function(bool field0)? boolean,
-    TResult Function(int field0)? integer,
-    TResult Function(double field0)? float,
-    TResult Function(String field0)? bigint,
-    TResult Function(String field0)? string,
-    TResult Function(List<JsValue> field0)? array,
-    TResult Function(List<KeyValue> field0)? object,
-    required TResult orElse(),
-  }) {
-    if (object != null) {
-      return object(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(JsValue_Null value) null_,
-    required TResult Function(JsValue_Boolean value) boolean,
-    required TResult Function(JsValue_Integer value) integer,
-    required TResult Function(JsValue_Float value) float,
-    required TResult Function(JsValue_Bigint value) bigint,
-    required TResult Function(JsValue_String value) string,
-    required TResult Function(JsValue_Array value) array,
-    required TResult Function(JsValue_Object value) object,
-  }) {
-    return object(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(JsValue_Null value)? null_,
-    TResult? Function(JsValue_Boolean value)? boolean,
-    TResult? Function(JsValue_Integer value)? integer,
-    TResult? Function(JsValue_Float value)? float,
-    TResult? Function(JsValue_Bigint value)? bigint,
-    TResult? Function(JsValue_String value)? string,
-    TResult? Function(JsValue_Array value)? array,
-    TResult? Function(JsValue_Object value)? object,
-  }) {
-    return object?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(JsValue_Null value)? null_,
-    TResult Function(JsValue_Boolean value)? boolean,
-    TResult Function(JsValue_Integer value)? integer,
-    TResult Function(JsValue_Float value)? float,
-    TResult Function(JsValue_Bigint value)? bigint,
-    TResult Function(JsValue_String value)? string,
-    TResult Function(JsValue_Array value)? array,
-    TResult Function(JsValue_Object value)? object,
-    required TResult orElse(),
-  }) {
-    if (object != null) {
-      return object(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class JsValue_Object extends JsValue {
-  const factory JsValue_Object(final List<KeyValue> field0) =
-      _$JsValue_ObjectImpl;
-  const JsValue_Object._() : super._();
-
-  List<KeyValue> get field0;
-
-  /// Create a copy of JsValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$JsValue_ObjectImplCopyWith<_$JsValue_ObjectImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-mixin _$KeyValue {
-  String get key => throw _privateConstructorUsedError;
-  JsValue get value => throw _privateConstructorUsedError;
-
-  /// Create a copy of KeyValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $KeyValueCopyWith<KeyValue> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $KeyValueCopyWith<$Res> {
-  factory $KeyValueCopyWith(KeyValue value, $Res Function(KeyValue) then) =
-      _$KeyValueCopyWithImpl<$Res, KeyValue>;
-  @useResult
-  $Res call({String key, JsValue value});
-
-  $JsValueCopyWith<$Res> get value;
-}
-
-/// @nodoc
-class _$KeyValueCopyWithImpl<$Res, $Val extends KeyValue>
-    implements $KeyValueCopyWith<$Res> {
-  _$KeyValueCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of KeyValue
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
   $Res call({
-    Object? key = null,
-    Object? value = null,
+    Object? field0 = null,
   }) {
-    return _then(_value.copyWith(
-      key: null == key
-          ? _value.key
-          : key // ignore: cast_nullable_to_non_nullable
-              as String,
-      value: null == value
-          ? _value.value
-          : value // ignore: cast_nullable_to_non_nullable
-              as JsValue,
-    ) as $Val);
-  }
-
-  /// Create a copy of KeyValue
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $JsValueCopyWith<$Res> get value {
-    return $JsValueCopyWith<$Res>(_value.value, (value) {
-      return _then(_value.copyWith(value: value) as $Val);
-    });
-  }
-}
-
-/// @nodoc
-abstract class _$$KeyValueImplCopyWith<$Res>
-    implements $KeyValueCopyWith<$Res> {
-  factory _$$KeyValueImplCopyWith(
-          _$KeyValueImpl value, $Res Function(_$KeyValueImpl) then) =
-      __$$KeyValueImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({String key, JsValue value});
-
-  @override
-  $JsValueCopyWith<$Res> get value;
-}
-
-/// @nodoc
-class __$$KeyValueImplCopyWithImpl<$Res>
-    extends _$KeyValueCopyWithImpl<$Res, _$KeyValueImpl>
-    implements _$$KeyValueImplCopyWith<$Res> {
-  __$$KeyValueImplCopyWithImpl(
-      _$KeyValueImpl _value, $Res Function(_$KeyValueImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of KeyValue
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? key = null,
-    Object? value = null,
-  }) {
-    return _then(_$KeyValueImpl(
-      key: null == key
-          ? _value.key
-          : key // ignore: cast_nullable_to_non_nullable
-              as String,
-      value: null == value
-          ? _value.value
-          : value // ignore: cast_nullable_to_non_nullable
-              as JsValue,
+    return _then(JsValue_Object(
+      null == field0
+          ? _self._field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as Map<String, JsValue>,
     ));
   }
 }
 
-/// @nodoc
-
-class _$KeyValueImpl implements _KeyValue {
-  const _$KeyValueImpl({required this.key, required this.value});
-
-  @override
-  final String key;
-  @override
-  final JsValue value;
-
-  @override
-  String toString() {
-    return 'KeyValue(key: $key, value: $value)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$KeyValueImpl &&
-            (identical(other.key, key) || other.key == key) &&
-            (identical(other.value, value) || other.value == value));
-  }
-
-  @override
-  int get hashCode => Object.hash(runtimeType, key, value);
-
-  /// Create a copy of KeyValue
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$KeyValueImplCopyWith<_$KeyValueImpl> get copyWith =>
-      __$$KeyValueImplCopyWithImpl<_$KeyValueImpl>(this, _$identity);
-}
-
-abstract class _KeyValue implements KeyValue {
-  const factory _KeyValue(
-      {required final String key,
-      required final JsValue value}) = _$KeyValueImpl;
-
-  @override
-  String get key;
-  @override
-  JsValue get value;
-
-  /// Create a copy of KeyValue
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$KeyValueImplCopyWith<_$KeyValueImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
+// dart format on
