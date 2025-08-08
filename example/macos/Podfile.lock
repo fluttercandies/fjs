@@ -1,5 +1,5 @@
 PODS:
-  - fjs (0.0.1):
+  - fjs (1.0.0):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
 
@@ -14,9 +14,9 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral
 
 SPEC CHECKSUMS:
-  fjs: ed1f7134ff3142e1d003b9a9fb57bf264225bdd7
+  fjs: 3e2d70e0ed8c68fc79c0c46a4b850c281a1e7758
   FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
 
 PODFILE CHECKSUM: 236401fc2c932af29a9fcf0e97baeeb2d750d367
 
-COCOAPODS: 1.12.1
+COCOAPODS: 1.16.2

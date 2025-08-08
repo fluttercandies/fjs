@@ -4,14 +4,14 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'fjs'
-  s.version          = '0.0.1'
-  s.summary          = 'A new Flutter FFI plugin project.'
+  s.version          = '1.0.0'
+  s.summary          = 'A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS.'
   s.description      = <<-DESC
-A new Flutter FFI plugin project.
+A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://github.com/fluttercandies/fjs'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'iota9star' => 'iota.9star@gmail.com' }
 
   # This will ensure the source files in Classes/ are included in the native
   # builds of apps using this FFI plugin. Podspec does not support relative
@@ -21,7 +21,7 @@ A new Flutter FFI plugin project.
   s.source_files     = 'Classes/**/*'
   s.dependency 'FlutterMacOS'
 
-  s.platform = :osx, '10.11'
+  s.platform = :osx, '10.14'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
 
