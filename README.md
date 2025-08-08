@@ -208,7 +208,7 @@ FJS provides several built-in modules that can be enabled as needed:
 | `console` | Console logging (log, debug, warn, error) | `console: true` |
 | `buffer` | Buffer manipulation utilities | `buffer: true` |
 | `timers` | setTimeout, setInterval, clearTimeout, etc. | `timers: true` |
-| `crypto` | Cryptographic functions | `crypto: true` |
+| `crypto` | Cryptographic functions (not supported on Android) | `crypto: true` |
 | `stream` | Stream processing utilities | `stream: true` |
 | `url` | URL parsing and manipulation | `url: true` |
 | `events` | Event emitter implementation | `events: true` |
@@ -302,6 +302,12 @@ Check out the [example](example/) directory for more comprehensive examples incl
 - **Impact**: Development on Apple Silicon Macs will use Rosetta 2 translation when running iOS simulator
 - **Production**: Real iOS devices (arm64) are fully supported with normal performance
 - **Minimum iOS Version**: Requires iOS 12.0 or later due to native library dependencies
+
+### Android Platform Limitations
+
+- **Architecture Support**: Android only supports arm64 and x86_64 architectures
+- **Crypto Module**: The built-in crypto module is not supported on Android platform
+- **Impact**: Applications requiring cryptographic functions on Android should use Dart's crypto libraries or platform-specific implementations
 
 ## 🤝 Contributing
 
