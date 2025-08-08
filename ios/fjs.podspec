@@ -20,10 +20,10 @@ A new Flutter FFI plugin project.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.platform = :ios, '11.0'
+  s.platform = :ios, '12.0'
 
   # Flutter.framework does not contain a i386 slice.
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
+  # Remove the old single line configuration
   s.swift_version = '5.0'
 
   s.script_phase = {
@@ -38,8 +38,11 @@ A new Flutter FFI plugin project.
   }
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    # Flutter.framework does not contain a i386 slice.
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
+    # Exclude architectures for iOS simulator only:
+    # - i386: Flutter.framework does not contain a i386 slice
+    # - arm64: rquickjs build issues on aarch64-apple-ios-sim target
+    # Note: This ONLY affects iOS simulator, real iOS devices (arm64) work normally
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 arm64',
     'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libfjs.a',
   }
 end
