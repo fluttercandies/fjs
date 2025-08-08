@@ -51,6 +51,7 @@ class Environment {
 
   static String _getEnv(String key) {
     final res = Platform.environment[key];
+    print("Environment variable $key: $res");
     if (res == null) {
       throw Exception("Missing environment variable $key");
     }
