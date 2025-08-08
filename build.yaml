@@ -1,0 +1,8 @@
+targets:
+  $default:
+    builders:
+      freezed:
+        generate_for:
+          include:
+            - lib/src/frb/api/js.dart
+            - lib/src/frb/api/value.dart
