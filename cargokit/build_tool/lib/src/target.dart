@@ -65,19 +65,19 @@ class Target {
       darwinArch: 'arm64',
     ),
     Target(
-      rust: 'aarch64-apple-ios',
-      darwinPlatform: 'iphoneos',
-      darwinArch: 'arm64',
-    ),
-    // Target(
-    //   rust: 'aarch64-apple-ios-sim',
-    //   darwinPlatform: 'iphonesimulator',
-    //   darwinArch: 'arm64',
-    // ),
-    Target(
       rust: 'x86_64-apple-ios',
       darwinPlatform: 'iphonesimulator',
       darwinArch: 'x86_64',
+    ),
+    Target(
+      rust: 'aarch64-apple-ios-sim',
+      darwinPlatform: 'iphonesimulator',
+      darwinArch: 'arm64',
+    ),
+    Target(
+      rust: 'aarch64-apple-ios',
+      darwinPlatform: 'iphoneos',
+      darwinArch: 'arm64',
     ),
   ];
 

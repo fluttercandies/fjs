@@ -250,7 +250,7 @@ class CargokitUserOptions {
     if (node is! YamlMap) {
       throw SourceSpanException('Cargokit options must be a map', node.span);
     }
-    bool usePrecompiledBinaries = defaultUsePrecompiledBinaries();
+    bool usePrecompiledBinaries = true; //defaultUsePrecompiledBinaries();
     bool verboseLogging = false;
 
     for (final entry in node.nodes.entries) {
