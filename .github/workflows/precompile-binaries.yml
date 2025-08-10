@@ -14,6 +14,7 @@ on:
 env:
   GITHUB_REPOSITORY: fluttercandies/fjs
   RUST_CRATE_DIR: libfjs
+  NDK_VERSION: 27.0.12077973
     
 jobs:
   precompile:
@@ -59,7 +60,7 @@ jobs:
       - name: Install Android NDK
         if: matrix.os == 'ubuntu-latest'
         run: |
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;27.0.12077973"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;${{ env.NDK_VERSION }}"
 
       - name: Setup build_tool dependencies
         run: |
@@ -75,7 +76,7 @@ jobs:
 
       - name: Precompile binaries (Ubuntu with Android)
         if: matrix.os == 'ubuntu-latest'
-        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }} --android-sdk-location=$ANDROID_HOME --android-ndk-version=27.0.12077973 --android-min-sdk-version=21
+        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }} --android-sdk-location=$ANDROID_HOME --android-ndk-version=${{ env.NDK_VERSION }} --android-min-sdk-version=21
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
