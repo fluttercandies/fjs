@@ -41,6 +41,21 @@ dependencies:
 flutter pub get
 ```
 
+### 🔧 开发环境要求
+
+FJS 使用 Rust 构建其核心 JavaScript 引擎。为了获得最佳的开发体验：
+
+- **Rust 安装**: 通过 [rustup](https://rustup.rs/) 安装 Rust 以从源码构建
+- **预编译二进制**: FJS 为常见平台提供预编译二进制文件，减少构建时间
+- **构建选项**: 如果您更喜欢从源码构建或已安装 rustup，FJS 将自动编译 Rust 代码
+
+要禁用预编译二进制文件并始终从源码构建，请在应用根目录中创建 `cargokit_options.yaml` 文件：
+
+```yaml
+# 可选：强制从源码构建而不使用预编译二进制文件
+use_precompiled_binaries: false
+```
+
 ## 🚀 快速开始
 
 ### ⚡ 1. 初始化库

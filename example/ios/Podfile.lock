@@ -1,5 +1,5 @@
 PODS:
-  - fjs (0.0.1):
+  - fjs (1.0.0):
     - Flutter
   - Flutter (1.0.0)
   - integration_test (0.0.1):
@@ -19,7 +19,7 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/integration_test/ios"
 
 SPEC CHECKSUMS:
-  fjs: e0c90d026f28daa0b81197bc9403ef8749009f51
+  fjs: aa20b25710d1c622169ce051301f77e4f7e4a4d6
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
 
