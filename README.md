@@ -41,6 +41,21 @@ Then run:
 flutter pub get
 ```
 
+### 🔧 Development Requirements
+
+FJS uses Rust for its core JavaScript engine. For the best development experience:
+
+- **Rust Installation**: Install Rust via [rustup](https://rustup.rs/) for building from source
+- **Precompiled Binaries**: FJS provides precompiled binaries for common platforms to reduce build time
+- **Build Options**: If you prefer to build from source or rustup is already installed, FJS will automatically compile the Rust code
+
+To disable precompiled binaries and always build from source, create a `cargokit_options.yaml` file in your app's root directory:
+
+```yaml
+# Optional: Force building from source instead of using precompiled binaries
+use_precompiled_binaries: false
+```
+
 ## 🚀 Quick Start
 
 ### ⚡ 1. Initialize the Library
