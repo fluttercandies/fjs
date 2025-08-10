@@ -11,8 +11,8 @@ anyhow = "1"
 log = "0"
 flutter_rust_bridge = "=2.11.1"
 rquickjs = { git = "https://github.com/DelSkayn/rquickjs.git", version = "0.9.0", features = ["full-async", "bindgen", "loader", "dyn-load", "parallel", "macro", "futures"] }
-tokio = { version = "1", features = ["full"] }
-llrt_fetch = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta" }
+tokio = { version = "1.47.1", features = ["full"] }
+llrt_fetch = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta", default-features = false, features = ["compression-rust", "http1", "http2"] }
 llrt_console = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta" }
 llrt_buffer = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta" }
 llrt_string_decoder = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta" }
@@ -23,7 +23,9 @@ llrt_crypto = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta" 
 llrt_abort = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta" }
 llrt_url = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta" }
 llrt_events = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta" }
+llrt_compression = { git = "https://github.com/awslabs/llrt", version = "0.6.2-beta", default-features = false, features = ["brotli-c", "flate2-rust", "zstd-c"] }
 der = "=0.8.0-rc.7"
+flate2 = { version = "1.1.2", default-features = false, features = ["zlib-rs"] }
 
 [dev-dependencies]
 env_logger = "0"
