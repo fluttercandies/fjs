@@ -57,18 +57,21 @@ jobs:
         run: |
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;27.0.12077973"
 
+      - name: Setup build_tool dependencies
+        run: |
+          cd cargokit/build_tool
+          dart pub get
+
       - name: Precompile binaries (macOS/Windows)
         if: matrix.os != 'ubuntu-latest'
-        run: dart run build_tool precompile-binaries -v --manifest-dir=../libfjs --repository=fluttercandies/fjs
-        working-directory: cargokit/build_tool
+        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=libfjs --repository=fluttercandies/fjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
 
       - name: Precompile binaries (Ubuntu with Android)
         if: matrix.os == 'ubuntu-latest'
-        run: dart run build_tool precompile-binaries -v --manifest-dir=../libfjs --repository=fluttercandies/fjs --android-sdk-location=$ANDROID_HOME --android-ndk-version=27.0.12077973 --android-min-sdk-version=21
-        working-directory: cargokit/build_tool
+        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=libfjs --repository=fluttercandies/fjs --android-sdk-location=$ANDROID_HOME --android-ndk-version=27.0.12077973 --android-min-sdk-version=21
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
