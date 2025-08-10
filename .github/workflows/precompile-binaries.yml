@@ -11,6 +11,10 @@ on:
     tags:
       - v*
 
+env:
+  GITHUB_REPOSITORY: fluttercandies/fjs
+  RUST_CRATE_DIR: libfjs
+    
 jobs:
   precompile:
     runs-on: ${{ matrix.os }}
@@ -64,14 +68,14 @@ jobs:
 
       - name: Precompile binaries (macOS/Windows)
         if: matrix.os != 'ubuntu-latest'
-        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=libfjs --repository=fluttercandies/fjs
+        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
 
       - name: Precompile binaries (Ubuntu with Android)
         if: matrix.os == 'ubuntu-latest'
-        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=libfjs --repository=fluttercandies/fjs --android-sdk-location=$ANDROID_HOME --android-ndk-version=27.0.12077973 --android-min-sdk-version=21
+        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }} --android-sdk-location=$ANDROID_HOME --android-ndk-version=27.0.12077973 --android-min-sdk-version=21
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
