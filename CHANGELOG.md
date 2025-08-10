@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+* Improved flate2 configuration with zlib-rs backend
+
 ## 1.0.0
 
 * **BREAKING CHANGE**: First stable release with enhanced compatibility
