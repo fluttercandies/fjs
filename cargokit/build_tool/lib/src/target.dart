@@ -18,12 +18,12 @@ class Target {
   });
 
   static final all = [
-    Target(
-      rust: 'armv7-linux-androideabi',
-      flutter: 'android-arm',
-      android: 'armeabi-v7a',
-      androidMinSdkVersion: 16,
-    ),
+    // Target(
+    //   rust: 'armv7-linux-androideabi',
+    //   flutter: 'android-arm',
+    //   android: 'armeabi-v7a',
+    //   androidMinSdkVersion: 16,
+    // ),
     Target(
       rust: 'aarch64-linux-android',
       flutter: 'android-arm64',
@@ -65,9 +65,9 @@ class Target {
       darwinArch: 'arm64',
     ),
     Target(
-      rust: 'aarch64-apple-ios',
-      darwinPlatform: 'iphoneos',
-      darwinArch: 'arm64',
+      rust: 'x86_64-apple-ios',
+      darwinPlatform: 'iphonesimulator',
+      darwinArch: 'x86_64',
     ),
     Target(
       rust: 'aarch64-apple-ios-sim',
@@ -75,9 +75,9 @@ class Target {
       darwinArch: 'arm64',
     ),
     Target(
-      rust: 'x86_64-apple-ios',
-      darwinPlatform: 'iphonesimulator',
-      darwinArch: 'x86_64',
+      rust: 'aarch64-apple-ios',
+      darwinPlatform: 'iphoneos',
+      darwinArch: 'arm64',
     ),
   ];
 

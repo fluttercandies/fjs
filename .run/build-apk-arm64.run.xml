@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="build-apk" type="ShConfigurationType">
+  <configuration default="false" name="build-apk-arm64" type="ShConfigurationType">
     <option name="SCRIPT_TEXT" value="flutter build apk --target-platform android-arm64 --split-per-abi --release --tree-shake-icons &amp;&amp; open build/app/outputs/flutter-apk" />
     <option name="INDEPENDENT_SCRIPT_PATH" value="true" />
     <option name="SCRIPT_PATH" value="" />
