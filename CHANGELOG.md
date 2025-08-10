@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+* Precompiled binaries support for macOS, iOS, Linux, Windows, and Android
+
 ## 1.0.2
 
 * Improved flate2 configuration with zlib-rs backend
