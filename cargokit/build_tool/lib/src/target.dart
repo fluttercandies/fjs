@@ -18,24 +18,24 @@ class Target {
   });
 
   static final all = [
-    // Target(
-    //   rust: 'armv7-linux-androideabi',
-    //   flutter: 'android-arm',
-    //   android: 'armeabi-v7a',
-    //   androidMinSdkVersion: 16,
-    // ),
+    Target(
+      rust: 'armv7-linux-androideabi',
+      flutter: 'android-arm',
+      android: 'armeabi-v7a',
+      androidMinSdkVersion: 16,
+    ),
     Target(
       rust: 'aarch64-linux-android',
       flutter: 'android-arm64',
       android: 'arm64-v8a',
       androidMinSdkVersion: 21,
     ),
-    // Target(
-    //   rust: 'i686-linux-android',
-    //   flutter: 'android-x86',
-    //   android: 'x86',
-    //   androidMinSdkVersion: 16,
-    // ),
+    Target(
+      rust: 'i686-linux-android',
+      flutter: 'android-x86',
+      android: 'x86',
+      androidMinSdkVersion: 16,
+    ),
     Target(
       rust: 'x86_64-linux-android',
       flutter: 'android-x64',
