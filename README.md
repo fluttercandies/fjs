@@ -320,7 +320,6 @@ Check out the [example](example/) directory for more comprehensive examples incl
 
 ### Android Platform Limitations
 
-- **Architecture Support**: Android only supports arm64 and x86_64 architectures
 - **Crypto Module**: The built-in crypto module is not supported on Android platform
 - **Impact**: Applications requiring cryptographic functions on Android should use Dart's crypto libraries or platform-specific implementations
 
