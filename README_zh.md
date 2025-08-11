@@ -320,7 +320,6 @@ sealed class JsValue {
 
 ### Android 平台限制
 
-- **架构支持**: Android 仅支持 arm64 和 x86_64 架构
 - **Crypto 模块**: Android 平台不支持内置的 crypto 模块
 - **影响**: 在 Android 上需要加密功能的应用应使用 Dart 的 crypto 库或平台特定的实现
 
