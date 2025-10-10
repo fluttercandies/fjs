@@ -11,21 +11,42 @@ anyhow = "1"
 log = "0"
 flutter_rust_bridge = "=2.11.1"
 rquickjs = { git = "https://github.com/DelSkayn/rquickjs.git", version = "0.9.0", features = ["full-async", "bindgen", "loader", "dyn-load", "parallel", "macro", "futures"] }
-tokio = { version = "1.47.1", features = ["full"] }
-llrt_fetch = { git = "https://github.com/awslabs/llrt", rev = "061e352", default-features = false, features = ["compression-rust", "http1", "http2"] }
-llrt_console = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_buffer = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_string_decoder = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_timers = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_stream_web = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_json = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_crypto = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_abort = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_url = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_events = { git = "https://github.com/awslabs/llrt", rev = "061e352" }
-llrt_compression = { git = "https://github.com/awslabs/llrt", rev = "061e352", default-features = false, features = ["brotli-c", "flate2-rust", "zstd-c"] }
-der = "=0.8.0-rc.7"
-flate2 = { version = "1.1.2", default-features = false, features = ["zlib-rs"] }
+tokio = { version = "1", features = ["full"] }
+
+llrt_abort = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_assert = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_async_hooks = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_buffer = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_child_process = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_console = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_crypto = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_dns = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_events = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_exceptions = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_fetch = { git = "https://github.com/awslabs/llrt", rev = "cc2207e", default-features = false, features = ["compression-rust", "http1", "http2"] }
+llrt_fs = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_navigator = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_net = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_os = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_path = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_process = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_perf_hooks = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_stream_web = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_string_decoder = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_timers = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_tty = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_url = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_util = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_zlib = { git = "https://github.com/awslabs/llrt", rev = "cc2207e", default-features = false, features = ["compression-rust"] }
+llrt_utils = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+llrt_json = { git = "https://github.com/awslabs/llrt", rev = "cc2207e" }
+
+llrt_compression = { git = "https://github.com/awslabs/llrt", rev = "cc2207e", default-features = false, features = ["brotli-c", "flate2-rust", "zstd-c"] }
+der = { version = "0.8.0-rc.9" }
+cipher = "=0.5.0-rc.1"
+pkcs1 = "=0.8.0-rc.4"
+block-padding = "=0.4.0-rc.4"
+flate2 = { version = "1.1.4", default-features = false, features = ["zlib-rs"] }
 
 [dev-dependencies]
 env_logger = "0"
