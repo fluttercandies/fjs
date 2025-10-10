@@ -1772,7 +1772,6 @@ impl JsBuiltinOptions {
                 .with_module(llrt_console::ConsoleModule);
         }
 
-        #[cfg(not(target_os = "android"))]
         if self.crypto.unwrap_or(false) {
             builder = builder
                 .with_global(llrt_crypto::init)
@@ -1811,6 +1810,7 @@ impl JsBuiltinOptions {
             builder = builder.with_module(llrt_net::NetModule);
         }
 
+        #[cfg(not(target_os = "ios"))]
         if self.os.unwrap_or(false) {
             builder = builder.with_module(llrt_os::OsModule);
         }
