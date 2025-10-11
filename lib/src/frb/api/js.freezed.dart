@@ -14,6 +14,7 @@ T _$identity<T>(T value) => value;
 
 /// @nodoc
 mixin _$JsAction {
+  /// Unique identifier for this action
   int get id;
 
   /// Create a copy of JsAction
@@ -88,24 +89,24 @@ extension JsActionPatterns on JsAction {
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(JsAction_Eval value)? eval,
-    TResult Function(JsAction_DeclareModule value)? declareModule,
+    TResult Function(JsAction_DeclareNewModule value)? declareNewModule,
+    TResult Function(JsAction_DeclareNewModules value)? declareNewModules,
+    TResult Function(JsAction_ClearNewModules value)? clearNewModules,
     TResult Function(JsAction_EvaluateModule value)? evaluateModule,
-    TResult Function(JsAction_ImportModule value)? importModule,
-    TResult Function(JsAction_EnableBuiltinModule value)? enableBuiltinModule,
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case JsAction_Eval() when eval != null:
         return eval(_that);
-      case JsAction_DeclareModule() when declareModule != null:
-        return declareModule(_that);
+      case JsAction_DeclareNewModule() when declareNewModule != null:
+        return declareNewModule(_that);
+      case JsAction_DeclareNewModules() when declareNewModules != null:
+        return declareNewModules(_that);
+      case JsAction_ClearNewModules() when clearNewModules != null:
+        return clearNewModules(_that);
       case JsAction_EvaluateModule() when evaluateModule != null:
         return evaluateModule(_that);
-      case JsAction_ImportModule() when importModule != null:
-        return importModule(_that);
-      case JsAction_EnableBuiltinModule() when enableBuiltinModule != null:
-        return enableBuiltinModule(_that);
       case _:
         return orElse();
     }
@@ -127,24 +128,24 @@ extension JsActionPatterns on JsAction {
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(JsAction_Eval value) eval,
-    required TResult Function(JsAction_DeclareModule value) declareModule,
+    required TResult Function(JsAction_DeclareNewModule value) declareNewModule,
+    required TResult Function(JsAction_DeclareNewModules value)
+        declareNewModules,
+    required TResult Function(JsAction_ClearNewModules value) clearNewModules,
     required TResult Function(JsAction_EvaluateModule value) evaluateModule,
-    required TResult Function(JsAction_ImportModule value) importModule,
-    required TResult Function(JsAction_EnableBuiltinModule value)
-        enableBuiltinModule,
   }) {
     final _that = this;
     switch (_that) {
       case JsAction_Eval():
         return eval(_that);
-      case JsAction_DeclareModule():
-        return declareModule(_that);
+      case JsAction_DeclareNewModule():
+        return declareNewModule(_that);
+      case JsAction_DeclareNewModules():
+        return declareNewModules(_that);
+      case JsAction_ClearNewModules():
+        return clearNewModules(_that);
       case JsAction_EvaluateModule():
         return evaluateModule(_that);
-      case JsAction_ImportModule():
-        return importModule(_that);
-      case JsAction_EnableBuiltinModule():
-        return enableBuiltinModule(_that);
     }
   }
 
@@ -163,23 +164,23 @@ extension JsActionPatterns on JsAction {
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(JsAction_Eval value)? eval,
-    TResult? Function(JsAction_DeclareModule value)? declareModule,
+    TResult? Function(JsAction_DeclareNewModule value)? declareNewModule,
+    TResult? Function(JsAction_DeclareNewModules value)? declareNewModules,
+    TResult? Function(JsAction_ClearNewModules value)? clearNewModules,
     TResult? Function(JsAction_EvaluateModule value)? evaluateModule,
-    TResult? Function(JsAction_ImportModule value)? importModule,
-    TResult? Function(JsAction_EnableBuiltinModule value)? enableBuiltinModule,
   }) {
     final _that = this;
     switch (_that) {
       case JsAction_Eval() when eval != null:
         return eval(_that);
-      case JsAction_DeclareModule() when declareModule != null:
-        return declareModule(_that);
+      case JsAction_DeclareNewModule() when declareNewModule != null:
+        return declareNewModule(_that);
+      case JsAction_DeclareNewModules() when declareNewModules != null:
+        return declareNewModules(_that);
+      case JsAction_ClearNewModules() when clearNewModules != null:
+        return clearNewModules(_that);
       case JsAction_EvaluateModule() when evaluateModule != null:
         return evaluateModule(_that);
-      case JsAction_ImportModule() when importModule != null:
-        return importModule(_that);
-      case JsAction_EnableBuiltinModule() when enableBuiltinModule != null:
-        return enableBuiltinModule(_that);
       case _:
         return null;
     }
@@ -200,25 +201,24 @@ extension JsActionPatterns on JsAction {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(int id, JsCode source, JsEvalOptions? options)? eval,
-    TResult Function(int id, JsModule module)? declareModule,
+    TResult Function(int id, JsModule module)? declareNewModule,
+    TResult Function(int id, List<JsModule> modules)? declareNewModules,
+    TResult Function(int id)? clearNewModules,
     TResult Function(int id, JsModule module)? evaluateModule,
-    TResult Function(int id, String specifier)? importModule,
-    TResult Function(int id, JsBuiltinOptions builtinOptions)?
-        enableBuiltinModule,
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case JsAction_Eval() when eval != null:
         return eval(_that.id, _that.source, _that.options);
-      case JsAction_DeclareModule() when declareModule != null:
-        return declareModule(_that.id, _that.module);
+      case JsAction_DeclareNewModule() when declareNewModule != null:
+        return declareNewModule(_that.id, _that.module);
+      case JsAction_DeclareNewModules() when declareNewModules != null:
+        return declareNewModules(_that.id, _that.modules);
+      case JsAction_ClearNewModules() when clearNewModules != null:
+        return clearNewModules(_that.id);
       case JsAction_EvaluateModule() when evaluateModule != null:
         return evaluateModule(_that.id, _that.module);
-      case JsAction_ImportModule() when importModule != null:
-        return importModule(_that.id, _that.specifier);
-      case JsAction_EnableBuiltinModule() when enableBuiltinModule != null:
-        return enableBuiltinModule(_that.id, _that.builtinOptions);
       case _:
         return orElse();
     }
@@ -241,24 +241,23 @@ extension JsActionPatterns on JsAction {
   TResult when<TResult extends Object?>({
     required TResult Function(int id, JsCode source, JsEvalOptions? options)
         eval,
-    required TResult Function(int id, JsModule module) declareModule,
+    required TResult Function(int id, JsModule module) declareNewModule,
+    required TResult Function(int id, List<JsModule> modules) declareNewModules,
+    required TResult Function(int id) clearNewModules,
     required TResult Function(int id, JsModule module) evaluateModule,
-    required TResult Function(int id, String specifier) importModule,
-    required TResult Function(int id, JsBuiltinOptions builtinOptions)
-        enableBuiltinModule,
   }) {
     final _that = this;
     switch (_that) {
       case JsAction_Eval():
         return eval(_that.id, _that.source, _that.options);
-      case JsAction_DeclareModule():
-        return declareModule(_that.id, _that.module);
+      case JsAction_DeclareNewModule():
+        return declareNewModule(_that.id, _that.module);
+      case JsAction_DeclareNewModules():
+        return declareNewModules(_that.id, _that.modules);
+      case JsAction_ClearNewModules():
+        return clearNewModules(_that.id);
       case JsAction_EvaluateModule():
         return evaluateModule(_that.id, _that.module);
-      case JsAction_ImportModule():
-        return importModule(_that.id, _that.specifier);
-      case JsAction_EnableBuiltinModule():
-        return enableBuiltinModule(_that.id, _that.builtinOptions);
     }
   }
 
@@ -277,24 +276,23 @@ extension JsActionPatterns on JsAction {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(int id, JsCode source, JsEvalOptions? options)? eval,
-    TResult? Function(int id, JsModule module)? declareModule,
+    TResult? Function(int id, JsModule module)? declareNewModule,
+    TResult? Function(int id, List<JsModule> modules)? declareNewModules,
+    TResult? Function(int id)? clearNewModules,
     TResult? Function(int id, JsModule module)? evaluateModule,
-    TResult? Function(int id, String specifier)? importModule,
-    TResult? Function(int id, JsBuiltinOptions builtinOptions)?
-        enableBuiltinModule,
   }) {
     final _that = this;
     switch (_that) {
       case JsAction_Eval() when eval != null:
         return eval(_that.id, _that.source, _that.options);
-      case JsAction_DeclareModule() when declareModule != null:
-        return declareModule(_that.id, _that.module);
+      case JsAction_DeclareNewModule() when declareNewModule != null:
+        return declareNewModule(_that.id, _that.module);
+      case JsAction_DeclareNewModules() when declareNewModules != null:
+        return declareNewModules(_that.id, _that.modules);
+      case JsAction_ClearNewModules() when clearNewModules != null:
+        return clearNewModules(_that.id);
       case JsAction_EvaluateModule() when evaluateModule != null:
         return evaluateModule(_that.id, _that.module);
-      case JsAction_ImportModule() when importModule != null:
-        return importModule(_that.id, _that.specifier);
-      case JsAction_EnableBuiltinModule() when enableBuiltinModule != null:
-        return enableBuiltinModule(_that.id, _that.builtinOptions);
       case _:
         return null;
     }
@@ -307,9 +305,14 @@ class JsAction_Eval extends JsAction {
   const JsAction_Eval({required this.id, required this.source, this.options})
       : super._();
 
+  /// Unique identifier for this action
   @override
   final int id;
+
+  /// The source code to evaluate (either inline code or file path)
   final JsCode source;
+
+  /// Optional evaluation options
   final JsEvalOptions? options;
 
   /// Create a copy of JsAction
@@ -413,12 +416,15 @@ class _$JsAction_EvalCopyWithImpl<$Res>
 
 /// @nodoc
 
-class JsAction_DeclareModule extends JsAction {
-  const JsAction_DeclareModule({required this.id, required this.module})
+class JsAction_DeclareNewModule extends JsAction {
+  const JsAction_DeclareNewModule({required this.id, required this.module})
       : super._();
 
+  /// Unique identifier for this action
   @override
   final int id;
+
+  /// The module to declare
   final JsModule module;
 
   /// Create a copy of JsAction
@@ -426,15 +432,15 @@ class JsAction_DeclareModule extends JsAction {
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
-  $JsAction_DeclareModuleCopyWith<JsAction_DeclareModule> get copyWith =>
-      _$JsAction_DeclareModuleCopyWithImpl<JsAction_DeclareModule>(
+  $JsAction_DeclareNewModuleCopyWith<JsAction_DeclareNewModule> get copyWith =>
+      _$JsAction_DeclareNewModuleCopyWithImpl<JsAction_DeclareNewModule>(
           this, _$identity);
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is JsAction_DeclareModule &&
+            other is JsAction_DeclareNewModule &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.module, module) || other.module == module));
   }
@@ -444,16 +450,16 @@ class JsAction_DeclareModule extends JsAction {
 
   @override
   String toString() {
-    return 'JsAction.declareModule(id: $id, module: $module)';
+    return 'JsAction.declareNewModule(id: $id, module: $module)';
   }
 }
 
 /// @nodoc
-abstract mixin class $JsAction_DeclareModuleCopyWith<$Res>
+abstract mixin class $JsAction_DeclareNewModuleCopyWith<$Res>
     implements $JsActionCopyWith<$Res> {
-  factory $JsAction_DeclareModuleCopyWith(JsAction_DeclareModule value,
-          $Res Function(JsAction_DeclareModule) _then) =
-      _$JsAction_DeclareModuleCopyWithImpl;
+  factory $JsAction_DeclareNewModuleCopyWith(JsAction_DeclareNewModule value,
+          $Res Function(JsAction_DeclareNewModule) _then) =
+      _$JsAction_DeclareNewModuleCopyWithImpl;
   @override
   @useResult
   $Res call({int id, JsModule module});
@@ -462,12 +468,12 @@ abstract mixin class $JsAction_DeclareModuleCopyWith<$Res>
 }
 
 /// @nodoc
-class _$JsAction_DeclareModuleCopyWithImpl<$Res>
-    implements $JsAction_DeclareModuleCopyWith<$Res> {
-  _$JsAction_DeclareModuleCopyWithImpl(this._self, this._then);
+class _$JsAction_DeclareNewModuleCopyWithImpl<$Res>
+    implements $JsAction_DeclareNewModuleCopyWith<$Res> {
+  _$JsAction_DeclareNewModuleCopyWithImpl(this._self, this._then);
 
-  final JsAction_DeclareModule _self;
-  final $Res Function(JsAction_DeclareModule) _then;
+  final JsAction_DeclareNewModule _self;
+  final $Res Function(JsAction_DeclareNewModule) _then;
 
   /// Create a copy of JsAction
   /// with the given fields replaced by the non-null parameter values.
@@ -477,7 +483,7 @@ class _$JsAction_DeclareModuleCopyWithImpl<$Res>
     Object? id = null,
     Object? module = null,
   }) {
-    return _then(JsAction_DeclareModule(
+    return _then(JsAction_DeclareNewModule(
       id: null == id
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
@@ -502,12 +508,176 @@ class _$JsAction_DeclareModuleCopyWithImpl<$Res>
 
 /// @nodoc
 
+class JsAction_DeclareNewModules extends JsAction {
+  const JsAction_DeclareNewModules(
+      {required this.id, required final List<JsModule> modules})
+      : _modules = modules,
+        super._();
+
+  /// Unique identifier for this action
+  @override
+  final int id;
+
+  /// List of modules to declare
+  final List<JsModule> _modules;
+
+  /// List of modules to declare
+  List<JsModule> get modules {
+    if (_modules is EqualUnmodifiableListView) return _modules;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_modules);
+  }
+
+  /// Create a copy of JsAction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsAction_DeclareNewModulesCopyWith<JsAction_DeclareNewModules>
+      get copyWith =>
+          _$JsAction_DeclareNewModulesCopyWithImpl<JsAction_DeclareNewModules>(
+              this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsAction_DeclareNewModules &&
+            (identical(other.id, id) || other.id == id) &&
+            const DeepCollectionEquality().equals(other._modules, _modules));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, id, const DeepCollectionEquality().hash(_modules));
+
+  @override
+  String toString() {
+    return 'JsAction.declareNewModules(id: $id, modules: $modules)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsAction_DeclareNewModulesCopyWith<$Res>
+    implements $JsActionCopyWith<$Res> {
+  factory $JsAction_DeclareNewModulesCopyWith(JsAction_DeclareNewModules value,
+          $Res Function(JsAction_DeclareNewModules) _then) =
+      _$JsAction_DeclareNewModulesCopyWithImpl;
+  @override
+  @useResult
+  $Res call({int id, List<JsModule> modules});
+}
+
+/// @nodoc
+class _$JsAction_DeclareNewModulesCopyWithImpl<$Res>
+    implements $JsAction_DeclareNewModulesCopyWith<$Res> {
+  _$JsAction_DeclareNewModulesCopyWithImpl(this._self, this._then);
+
+  final JsAction_DeclareNewModules _self;
+  final $Res Function(JsAction_DeclareNewModules) _then;
+
+  /// Create a copy of JsAction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? modules = null,
+  }) {
+    return _then(JsAction_DeclareNewModules(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as int,
+      modules: null == modules
+          ? _self._modules
+          : modules // ignore: cast_nullable_to_non_nullable
+              as List<JsModule>,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsAction_ClearNewModules extends JsAction {
+  const JsAction_ClearNewModules({required this.id}) : super._();
+
+  /// Unique identifier for this action
+  @override
+  final int id;
+
+  /// Create a copy of JsAction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsAction_ClearNewModulesCopyWith<JsAction_ClearNewModules> get copyWith =>
+      _$JsAction_ClearNewModulesCopyWithImpl<JsAction_ClearNewModules>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsAction_ClearNewModules &&
+            (identical(other.id, id) || other.id == id));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, id);
+
+  @override
+  String toString() {
+    return 'JsAction.clearNewModules(id: $id)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsAction_ClearNewModulesCopyWith<$Res>
+    implements $JsActionCopyWith<$Res> {
+  factory $JsAction_ClearNewModulesCopyWith(JsAction_ClearNewModules value,
+          $Res Function(JsAction_ClearNewModules) _then) =
+      _$JsAction_ClearNewModulesCopyWithImpl;
+  @override
+  @useResult
+  $Res call({int id});
+}
+
+/// @nodoc
+class _$JsAction_ClearNewModulesCopyWithImpl<$Res>
+    implements $JsAction_ClearNewModulesCopyWith<$Res> {
+  _$JsAction_ClearNewModulesCopyWithImpl(this._self, this._then);
+
+  final JsAction_ClearNewModules _self;
+  final $Res Function(JsAction_ClearNewModules) _then;
+
+  /// Create a copy of JsAction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+  }) {
+    return _then(JsAction_ClearNewModules(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+}
+
+/// @nodoc
+
 class JsAction_EvaluateModule extends JsAction {
   const JsAction_EvaluateModule({required this.id, required this.module})
       : super._();
 
+  /// Unique identifier for this action
   @override
   final int id;
+
+  /// The module to evaluate
   final JsModule module;
 
   /// Create a copy of JsAction
@@ -585,176 +755,6 @@ class _$JsAction_EvaluateModuleCopyWithImpl<$Res>
   $JsModuleCopyWith<$Res> get module {
     return $JsModuleCopyWith<$Res>(_self.module, (value) {
       return _then(_self.copyWith(module: value));
-    });
-  }
-}
-
-/// @nodoc
-
-class JsAction_ImportModule extends JsAction {
-  const JsAction_ImportModule({required this.id, required this.specifier})
-      : super._();
-
-  @override
-  final int id;
-  final String specifier;
-
-  /// Create a copy of JsAction
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @pragma('vm:prefer-inline')
-  $JsAction_ImportModuleCopyWith<JsAction_ImportModule> get copyWith =>
-      _$JsAction_ImportModuleCopyWithImpl<JsAction_ImportModule>(
-          this, _$identity);
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is JsAction_ImportModule &&
-            (identical(other.id, id) || other.id == id) &&
-            (identical(other.specifier, specifier) ||
-                other.specifier == specifier));
-  }
-
-  @override
-  int get hashCode => Object.hash(runtimeType, id, specifier);
-
-  @override
-  String toString() {
-    return 'JsAction.importModule(id: $id, specifier: $specifier)';
-  }
-}
-
-/// @nodoc
-abstract mixin class $JsAction_ImportModuleCopyWith<$Res>
-    implements $JsActionCopyWith<$Res> {
-  factory $JsAction_ImportModuleCopyWith(JsAction_ImportModule value,
-          $Res Function(JsAction_ImportModule) _then) =
-      _$JsAction_ImportModuleCopyWithImpl;
-  @override
-  @useResult
-  $Res call({int id, String specifier});
-}
-
-/// @nodoc
-class _$JsAction_ImportModuleCopyWithImpl<$Res>
-    implements $JsAction_ImportModuleCopyWith<$Res> {
-  _$JsAction_ImportModuleCopyWithImpl(this._self, this._then);
-
-  final JsAction_ImportModule _self;
-  final $Res Function(JsAction_ImportModule) _then;
-
-  /// Create a copy of JsAction
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $Res call({
-    Object? id = null,
-    Object? specifier = null,
-  }) {
-    return _then(JsAction_ImportModule(
-      id: null == id
-          ? _self.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as int,
-      specifier: null == specifier
-          ? _self.specifier
-          : specifier // ignore: cast_nullable_to_non_nullable
-              as String,
-    ));
-  }
-}
-
-/// @nodoc
-
-class JsAction_EnableBuiltinModule extends JsAction {
-  const JsAction_EnableBuiltinModule(
-      {required this.id, required this.builtinOptions})
-      : super._();
-
-  @override
-  final int id;
-  final JsBuiltinOptions builtinOptions;
-
-  /// Create a copy of JsAction
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @pragma('vm:prefer-inline')
-  $JsAction_EnableBuiltinModuleCopyWith<JsAction_EnableBuiltinModule>
-      get copyWith => _$JsAction_EnableBuiltinModuleCopyWithImpl<
-          JsAction_EnableBuiltinModule>(this, _$identity);
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is JsAction_EnableBuiltinModule &&
-            (identical(other.id, id) || other.id == id) &&
-            (identical(other.builtinOptions, builtinOptions) ||
-                other.builtinOptions == builtinOptions));
-  }
-
-  @override
-  int get hashCode => Object.hash(runtimeType, id, builtinOptions);
-
-  @override
-  String toString() {
-    return 'JsAction.enableBuiltinModule(id: $id, builtinOptions: $builtinOptions)';
-  }
-}
-
-/// @nodoc
-abstract mixin class $JsAction_EnableBuiltinModuleCopyWith<$Res>
-    implements $JsActionCopyWith<$Res> {
-  factory $JsAction_EnableBuiltinModuleCopyWith(
-          JsAction_EnableBuiltinModule value,
-          $Res Function(JsAction_EnableBuiltinModule) _then) =
-      _$JsAction_EnableBuiltinModuleCopyWithImpl;
-  @override
-  @useResult
-  $Res call({int id, JsBuiltinOptions builtinOptions});
-
-  $JsBuiltinOptionsCopyWith<$Res> get builtinOptions;
-}
-
-/// @nodoc
-class _$JsAction_EnableBuiltinModuleCopyWithImpl<$Res>
-    implements $JsAction_EnableBuiltinModuleCopyWith<$Res> {
-  _$JsAction_EnableBuiltinModuleCopyWithImpl(this._self, this._then);
-
-  final JsAction_EnableBuiltinModule _self;
-  final $Res Function(JsAction_EnableBuiltinModule) _then;
-
-  /// Create a copy of JsAction
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $Res call({
-    Object? id = null,
-    Object? builtinOptions = null,
-  }) {
-    return _then(JsAction_EnableBuiltinModule(
-      id: null == id
-          ? _self.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as int,
-      builtinOptions: null == builtinOptions
-          ? _self.builtinOptions
-          : builtinOptions // ignore: cast_nullable_to_non_nullable
-              as JsBuiltinOptions,
-    ));
-  }
-
-  /// Create a copy of JsAction
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $JsBuiltinOptionsCopyWith<$Res> get builtinOptions {
-    return $JsBuiltinOptionsCopyWith<$Res>(_self.builtinOptions, (value) {
-      return _then(_self.copyWith(builtinOptions: value));
     });
   }
 }
@@ -1084,16 +1084,31 @@ class __$JsActionResultCopyWithImpl<$Res>
 
 /// @nodoc
 mixin _$JsBuiltinOptions {
-  bool? get fetch;
-  bool? get console;
+  bool? get abort;
+  bool? get assert_;
+  bool? get asyncHooks;
   bool? get buffer;
+  bool? get childProcess;
+  bool? get console;
+  bool? get crypto;
+  bool? get dns;
+  bool? get events;
+  bool? get exceptions;
+  bool? get fetch;
+  bool? get fs;
+  bool? get navigator;
+  bool? get net;
+  bool? get os;
+  bool? get path;
+  bool? get perfHooks;
+  bool? get process;
+  bool? get streamWeb;
   bool? get stringDecoder;
   bool? get timers;
-  bool? get stream;
-  bool? get crypto;
-  bool? get abort;
+  bool? get tty;
   bool? get url;
-  bool? get events;
+  bool? get util;
+  bool? get zlib;
   bool? get json;
 
   /// Create a copy of JsBuiltinOptions
@@ -1109,27 +1124,75 @@ mixin _$JsBuiltinOptions {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is JsBuiltinOptions &&
-            (identical(other.fetch, fetch) || other.fetch == fetch) &&
-            (identical(other.console, console) || other.console == console) &&
+            (identical(other.abort, abort) || other.abort == abort) &&
+            (identical(other.assert_, assert_) || other.assert_ == assert_) &&
+            (identical(other.asyncHooks, asyncHooks) ||
+                other.asyncHooks == asyncHooks) &&
             (identical(other.buffer, buffer) || other.buffer == buffer) &&
+            (identical(other.childProcess, childProcess) ||
+                other.childProcess == childProcess) &&
+            (identical(other.console, console) || other.console == console) &&
+            (identical(other.crypto, crypto) || other.crypto == crypto) &&
+            (identical(other.dns, dns) || other.dns == dns) &&
+            (identical(other.events, events) || other.events == events) &&
+            (identical(other.exceptions, exceptions) ||
+                other.exceptions == exceptions) &&
+            (identical(other.fetch, fetch) || other.fetch == fetch) &&
+            (identical(other.fs, fs) || other.fs == fs) &&
+            (identical(other.navigator, navigator) ||
+                other.navigator == navigator) &&
+            (identical(other.net, net) || other.net == net) &&
+            (identical(other.os, os) || other.os == os) &&
+            (identical(other.path, path) || other.path == path) &&
+            (identical(other.perfHooks, perfHooks) ||
+                other.perfHooks == perfHooks) &&
+            (identical(other.process, process) || other.process == process) &&
+            (identical(other.streamWeb, streamWeb) ||
+                other.streamWeb == streamWeb) &&
             (identical(other.stringDecoder, stringDecoder) ||
                 other.stringDecoder == stringDecoder) &&
             (identical(other.timers, timers) || other.timers == timers) &&
-            (identical(other.stream, stream) || other.stream == stream) &&
-            (identical(other.crypto, crypto) || other.crypto == crypto) &&
-            (identical(other.abort, abort) || other.abort == abort) &&
+            (identical(other.tty, tty) || other.tty == tty) &&
             (identical(other.url, url) || other.url == url) &&
-            (identical(other.events, events) || other.events == events) &&
+            (identical(other.util, util) || other.util == util) &&
+            (identical(other.zlib, zlib) || other.zlib == zlib) &&
             (identical(other.json, json) || other.json == json));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, fetch, console, buffer,
-      stringDecoder, timers, stream, crypto, abort, url, events, json);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        abort,
+        assert_,
+        asyncHooks,
+        buffer,
+        childProcess,
+        console,
+        crypto,
+        dns,
+        events,
+        exceptions,
+        fetch,
+        fs,
+        navigator,
+        net,
+        os,
+        path,
+        perfHooks,
+        process,
+        streamWeb,
+        stringDecoder,
+        timers,
+        tty,
+        url,
+        util,
+        zlib,
+        json
+      ]);
 
   @override
   String toString() {
-    return 'JsBuiltinOptions(fetch: $fetch, console: $console, buffer: $buffer, stringDecoder: $stringDecoder, timers: $timers, stream: $stream, crypto: $crypto, abort: $abort, url: $url, events: $events, json: $json)';
+    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
   }
 }
 
@@ -1140,16 +1203,31 @@ abstract mixin class $JsBuiltinOptionsCopyWith<$Res> {
       _$JsBuiltinOptionsCopyWithImpl;
   @useResult
   $Res call(
-      {bool? fetch,
-      bool? console,
+      {bool? abort,
+      bool? assert_,
+      bool? asyncHooks,
       bool? buffer,
+      bool? childProcess,
+      bool? console,
+      bool? crypto,
+      bool? dns,
+      bool? events,
+      bool? exceptions,
+      bool? fetch,
+      bool? fs,
+      bool? navigator,
+      bool? net,
+      bool? os,
+      bool? path,
+      bool? perfHooks,
+      bool? process,
+      bool? streamWeb,
       bool? stringDecoder,
       bool? timers,
-      bool? stream,
-      bool? crypto,
-      bool? abort,
+      bool? tty,
       bool? url,
-      bool? events,
+      bool? util,
+      bool? zlib,
       bool? json});
 }
 
@@ -1166,30 +1244,109 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? fetch = freezed,
-    Object? console = freezed,
+    Object? abort = freezed,
+    Object? assert_ = freezed,
+    Object? asyncHooks = freezed,
     Object? buffer = freezed,
+    Object? childProcess = freezed,
+    Object? console = freezed,
+    Object? crypto = freezed,
+    Object? dns = freezed,
+    Object? events = freezed,
+    Object? exceptions = freezed,
+    Object? fetch = freezed,
+    Object? fs = freezed,
+    Object? navigator = freezed,
+    Object? net = freezed,
+    Object? os = freezed,
+    Object? path = freezed,
+    Object? perfHooks = freezed,
+    Object? process = freezed,
+    Object? streamWeb = freezed,
     Object? stringDecoder = freezed,
     Object? timers = freezed,
-    Object? stream = freezed,
-    Object? crypto = freezed,
-    Object? abort = freezed,
+    Object? tty = freezed,
     Object? url = freezed,
-    Object? events = freezed,
+    Object? util = freezed,
+    Object? zlib = freezed,
     Object? json = freezed,
   }) {
     return _then(_self.copyWith(
-      fetch: freezed == fetch
-          ? _self.fetch
-          : fetch // ignore: cast_nullable_to_non_nullable
+      abort: freezed == abort
+          ? _self.abort
+          : abort // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      assert_: freezed == assert_
+          ? _self.assert_
+          : assert_ // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      asyncHooks: freezed == asyncHooks
+          ? _self.asyncHooks
+          : asyncHooks // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      buffer: freezed == buffer
+          ? _self.buffer
+          : buffer // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      childProcess: freezed == childProcess
+          ? _self.childProcess
+          : childProcess // ignore: cast_nullable_to_non_nullable
               as bool?,
       console: freezed == console
           ? _self.console
           : console // ignore: cast_nullable_to_non_nullable
               as bool?,
-      buffer: freezed == buffer
-          ? _self.buffer
-          : buffer // ignore: cast_nullable_to_non_nullable
+      crypto: freezed == crypto
+          ? _self.crypto
+          : crypto // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      dns: freezed == dns
+          ? _self.dns
+          : dns // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      events: freezed == events
+          ? _self.events
+          : events // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      exceptions: freezed == exceptions
+          ? _self.exceptions
+          : exceptions // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      fetch: freezed == fetch
+          ? _self.fetch
+          : fetch // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      fs: freezed == fs
+          ? _self.fs
+          : fs // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      navigator: freezed == navigator
+          ? _self.navigator
+          : navigator // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      net: freezed == net
+          ? _self.net
+          : net // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      os: freezed == os
+          ? _self.os
+          : os // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      path: freezed == path
+          ? _self.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      perfHooks: freezed == perfHooks
+          ? _self.perfHooks
+          : perfHooks // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      process: freezed == process
+          ? _self.process
+          : process // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      streamWeb: freezed == streamWeb
+          ? _self.streamWeb
+          : streamWeb // ignore: cast_nullable_to_non_nullable
               as bool?,
       stringDecoder: freezed == stringDecoder
           ? _self.stringDecoder
@@ -1199,25 +1356,21 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
           ? _self.timers
           : timers // ignore: cast_nullable_to_non_nullable
               as bool?,
-      stream: freezed == stream
-          ? _self.stream
-          : stream // ignore: cast_nullable_to_non_nullable
-              as bool?,
-      crypto: freezed == crypto
-          ? _self.crypto
-          : crypto // ignore: cast_nullable_to_non_nullable
-              as bool?,
-      abort: freezed == abort
-          ? _self.abort
-          : abort // ignore: cast_nullable_to_non_nullable
+      tty: freezed == tty
+          ? _self.tty
+          : tty // ignore: cast_nullable_to_non_nullable
               as bool?,
       url: freezed == url
           ? _self.url
           : url // ignore: cast_nullable_to_non_nullable
               as bool?,
-      events: freezed == events
-          ? _self.events
-          : events // ignore: cast_nullable_to_non_nullable
+      util: freezed == util
+          ? _self.util
+          : util // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      zlib: freezed == zlib
+          ? _self.zlib
+          : zlib // ignore: cast_nullable_to_non_nullable
               as bool?,
       json: freezed == json
           ? _self.json
@@ -1319,16 +1472,31 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
     TResult Function(
-            bool? fetch,
-            bool? console,
+            bool? abort,
+            bool? assert_,
+            bool? asyncHooks,
             bool? buffer,
+            bool? childProcess,
+            bool? console,
+            bool? crypto,
+            bool? dns,
+            bool? events,
+            bool? exceptions,
+            bool? fetch,
+            bool? fs,
+            bool? navigator,
+            bool? net,
+            bool? os,
+            bool? path,
+            bool? perfHooks,
+            bool? process,
+            bool? streamWeb,
             bool? stringDecoder,
             bool? timers,
-            bool? stream,
-            bool? crypto,
-            bool? abort,
+            bool? tty,
             bool? url,
-            bool? events,
+            bool? util,
+            bool? zlib,
             bool? json)?
         $default, {
     required TResult orElse(),
@@ -1337,16 +1505,31 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
     switch (_that) {
       case _JsBuiltinOptions() when $default != null:
         return $default(
-            _that.fetch,
-            _that.console,
+            _that.abort,
+            _that.assert_,
+            _that.asyncHooks,
             _that.buffer,
+            _that.childProcess,
+            _that.console,
+            _that.crypto,
+            _that.dns,
+            _that.events,
+            _that.exceptions,
+            _that.fetch,
+            _that.fs,
+            _that.navigator,
+            _that.net,
+            _that.os,
+            _that.path,
+            _that.perfHooks,
+            _that.process,
+            _that.streamWeb,
             _that.stringDecoder,
             _that.timers,
-            _that.stream,
-            _that.crypto,
-            _that.abort,
+            _that.tty,
             _that.url,
-            _that.events,
+            _that.util,
+            _that.zlib,
             _that.json);
       case _:
         return orElse();
@@ -1369,16 +1552,31 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
     TResult Function(
-            bool? fetch,
-            bool? console,
+            bool? abort,
+            bool? assert_,
+            bool? asyncHooks,
             bool? buffer,
+            bool? childProcess,
+            bool? console,
+            bool? crypto,
+            bool? dns,
+            bool? events,
+            bool? exceptions,
+            bool? fetch,
+            bool? fs,
+            bool? navigator,
+            bool? net,
+            bool? os,
+            bool? path,
+            bool? perfHooks,
+            bool? process,
+            bool? streamWeb,
             bool? stringDecoder,
             bool? timers,
-            bool? stream,
-            bool? crypto,
-            bool? abort,
+            bool? tty,
             bool? url,
-            bool? events,
+            bool? util,
+            bool? zlib,
             bool? json)
         $default,
   ) {
@@ -1386,16 +1584,31 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
     switch (_that) {
       case _JsBuiltinOptions():
         return $default(
-            _that.fetch,
-            _that.console,
+            _that.abort,
+            _that.assert_,
+            _that.asyncHooks,
             _that.buffer,
+            _that.childProcess,
+            _that.console,
+            _that.crypto,
+            _that.dns,
+            _that.events,
+            _that.exceptions,
+            _that.fetch,
+            _that.fs,
+            _that.navigator,
+            _that.net,
+            _that.os,
+            _that.path,
+            _that.perfHooks,
+            _that.process,
+            _that.streamWeb,
             _that.stringDecoder,
             _that.timers,
-            _that.stream,
-            _that.crypto,
-            _that.abort,
+            _that.tty,
             _that.url,
-            _that.events,
+            _that.util,
+            _that.zlib,
             _that.json);
     }
   }
@@ -1415,16 +1628,31 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
     TResult? Function(
-            bool? fetch,
-            bool? console,
+            bool? abort,
+            bool? assert_,
+            bool? asyncHooks,
             bool? buffer,
+            bool? childProcess,
+            bool? console,
+            bool? crypto,
+            bool? dns,
+            bool? events,
+            bool? exceptions,
+            bool? fetch,
+            bool? fs,
+            bool? navigator,
+            bool? net,
+            bool? os,
+            bool? path,
+            bool? perfHooks,
+            bool? process,
+            bool? streamWeb,
             bool? stringDecoder,
             bool? timers,
-            bool? stream,
-            bool? crypto,
-            bool? abort,
+            bool? tty,
             bool? url,
-            bool? events,
+            bool? util,
+            bool? zlib,
             bool? json)?
         $default,
   ) {
@@ -1432,16 +1660,31 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
     switch (_that) {
       case _JsBuiltinOptions() when $default != null:
         return $default(
-            _that.fetch,
-            _that.console,
+            _that.abort,
+            _that.assert_,
+            _that.asyncHooks,
             _that.buffer,
+            _that.childProcess,
+            _that.console,
+            _that.crypto,
+            _that.dns,
+            _that.events,
+            _that.exceptions,
+            _that.fetch,
+            _that.fs,
+            _that.navigator,
+            _that.net,
+            _that.os,
+            _that.path,
+            _that.perfHooks,
+            _that.process,
+            _that.streamWeb,
             _that.stringDecoder,
             _that.timers,
-            _that.stream,
-            _that.crypto,
-            _that.abort,
+            _that.tty,
             _that.url,
-            _that.events,
+            _that.util,
+            _that.zlib,
             _that.json);
       case _:
         return null;
@@ -1453,39 +1696,84 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
 
 class _JsBuiltinOptions extends JsBuiltinOptions {
   const _JsBuiltinOptions(
-      {this.fetch,
-      this.console,
+      {this.abort,
+      this.assert_,
+      this.asyncHooks,
       this.buffer,
+      this.childProcess,
+      this.console,
+      this.crypto,
+      this.dns,
+      this.events,
+      this.exceptions,
+      this.fetch,
+      this.fs,
+      this.navigator,
+      this.net,
+      this.os,
+      this.path,
+      this.perfHooks,
+      this.process,
+      this.streamWeb,
       this.stringDecoder,
       this.timers,
-      this.stream,
-      this.crypto,
-      this.abort,
+      this.tty,
       this.url,
-      this.events,
+      this.util,
+      this.zlib,
       this.json})
       : super._();
 
   @override
-  final bool? fetch;
+  final bool? abort;
+  @override
+  final bool? assert_;
+  @override
+  final bool? asyncHooks;
+  @override
+  final bool? buffer;
+  @override
+  final bool? childProcess;
   @override
   final bool? console;
   @override
-  final bool? buffer;
+  final bool? crypto;
+  @override
+  final bool? dns;
+  @override
+  final bool? events;
+  @override
+  final bool? exceptions;
+  @override
+  final bool? fetch;
+  @override
+  final bool? fs;
+  @override
+  final bool? navigator;
+  @override
+  final bool? net;
+  @override
+  final bool? os;
+  @override
+  final bool? path;
+  @override
+  final bool? perfHooks;
+  @override
+  final bool? process;
+  @override
+  final bool? streamWeb;
   @override
   final bool? stringDecoder;
   @override
   final bool? timers;
   @override
-  final bool? stream;
-  @override
-  final bool? crypto;
-  @override
-  final bool? abort;
+  final bool? tty;
   @override
   final bool? url;
   @override
-  final bool? events;
+  final bool? util;
+  @override
+  final bool? zlib;
   @override
   final bool? json;
 
@@ -1502,27 +1790,75 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _JsBuiltinOptions &&
-            (identical(other.fetch, fetch) || other.fetch == fetch) &&
-            (identical(other.console, console) || other.console == console) &&
+            (identical(other.abort, abort) || other.abort == abort) &&
+            (identical(other.assert_, assert_) || other.assert_ == assert_) &&
+            (identical(other.asyncHooks, asyncHooks) ||
+                other.asyncHooks == asyncHooks) &&
             (identical(other.buffer, buffer) || other.buffer == buffer) &&
+            (identical(other.childProcess, childProcess) ||
+                other.childProcess == childProcess) &&
+            (identical(other.console, console) || other.console == console) &&
+            (identical(other.crypto, crypto) || other.crypto == crypto) &&
+            (identical(other.dns, dns) || other.dns == dns) &&
+            (identical(other.events, events) || other.events == events) &&
+            (identical(other.exceptions, exceptions) ||
+                other.exceptions == exceptions) &&
+            (identical(other.fetch, fetch) || other.fetch == fetch) &&
+            (identical(other.fs, fs) || other.fs == fs) &&
+            (identical(other.navigator, navigator) ||
+                other.navigator == navigator) &&
+            (identical(other.net, net) || other.net == net) &&
+            (identical(other.os, os) || other.os == os) &&
+            (identical(other.path, path) || other.path == path) &&
+            (identical(other.perfHooks, perfHooks) ||
+                other.perfHooks == perfHooks) &&
+            (identical(other.process, process) || other.process == process) &&
+            (identical(other.streamWeb, streamWeb) ||
+                other.streamWeb == streamWeb) &&
             (identical(other.stringDecoder, stringDecoder) ||
                 other.stringDecoder == stringDecoder) &&
             (identical(other.timers, timers) || other.timers == timers) &&
-            (identical(other.stream, stream) || other.stream == stream) &&
-            (identical(other.crypto, crypto) || other.crypto == crypto) &&
-            (identical(other.abort, abort) || other.abort == abort) &&
+            (identical(other.tty, tty) || other.tty == tty) &&
             (identical(other.url, url) || other.url == url) &&
-            (identical(other.events, events) || other.events == events) &&
+            (identical(other.util, util) || other.util == util) &&
+            (identical(other.zlib, zlib) || other.zlib == zlib) &&
             (identical(other.json, json) || other.json == json));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, fetch, console, buffer,
-      stringDecoder, timers, stream, crypto, abort, url, events, json);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        abort,
+        assert_,
+        asyncHooks,
+        buffer,
+        childProcess,
+        console,
+        crypto,
+        dns,
+        events,
+        exceptions,
+        fetch,
+        fs,
+        navigator,
+        net,
+        os,
+        path,
+        perfHooks,
+        process,
+        streamWeb,
+        stringDecoder,
+        timers,
+        tty,
+        url,
+        util,
+        zlib,
+        json
+      ]);
 
   @override
   String toString() {
-    return 'JsBuiltinOptions(fetch: $fetch, console: $console, buffer: $buffer, stringDecoder: $stringDecoder, timers: $timers, stream: $stream, crypto: $crypto, abort: $abort, url: $url, events: $events, json: $json)';
+    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
   }
 }
 
@@ -1535,16 +1871,31 @@ abstract mixin class _$JsBuiltinOptionsCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {bool? fetch,
-      bool? console,
+      {bool? abort,
+      bool? assert_,
+      bool? asyncHooks,
       bool? buffer,
+      bool? childProcess,
+      bool? console,
+      bool? crypto,
+      bool? dns,
+      bool? events,
+      bool? exceptions,
+      bool? fetch,
+      bool? fs,
+      bool? navigator,
+      bool? net,
+      bool? os,
+      bool? path,
+      bool? perfHooks,
+      bool? process,
+      bool? streamWeb,
       bool? stringDecoder,
       bool? timers,
-      bool? stream,
-      bool? crypto,
-      bool? abort,
+      bool? tty,
       bool? url,
-      bool? events,
+      bool? util,
+      bool? zlib,
       bool? json});
 }
 
@@ -1561,30 +1912,109 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
   @override
   @pragma('vm:prefer-inline')
   $Res call({
-    Object? fetch = freezed,
-    Object? console = freezed,
+    Object? abort = freezed,
+    Object? assert_ = freezed,
+    Object? asyncHooks = freezed,
     Object? buffer = freezed,
+    Object? childProcess = freezed,
+    Object? console = freezed,
+    Object? crypto = freezed,
+    Object? dns = freezed,
+    Object? events = freezed,
+    Object? exceptions = freezed,
+    Object? fetch = freezed,
+    Object? fs = freezed,
+    Object? navigator = freezed,
+    Object? net = freezed,
+    Object? os = freezed,
+    Object? path = freezed,
+    Object? perfHooks = freezed,
+    Object? process = freezed,
+    Object? streamWeb = freezed,
     Object? stringDecoder = freezed,
     Object? timers = freezed,
-    Object? stream = freezed,
-    Object? crypto = freezed,
-    Object? abort = freezed,
+    Object? tty = freezed,
     Object? url = freezed,
-    Object? events = freezed,
+    Object? util = freezed,
+    Object? zlib = freezed,
     Object? json = freezed,
   }) {
     return _then(_JsBuiltinOptions(
-      fetch: freezed == fetch
-          ? _self.fetch
-          : fetch // ignore: cast_nullable_to_non_nullable
+      abort: freezed == abort
+          ? _self.abort
+          : abort // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      assert_: freezed == assert_
+          ? _self.assert_
+          : assert_ // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      asyncHooks: freezed == asyncHooks
+          ? _self.asyncHooks
+          : asyncHooks // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      buffer: freezed == buffer
+          ? _self.buffer
+          : buffer // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      childProcess: freezed == childProcess
+          ? _self.childProcess
+          : childProcess // ignore: cast_nullable_to_non_nullable
               as bool?,
       console: freezed == console
           ? _self.console
           : console // ignore: cast_nullable_to_non_nullable
               as bool?,
-      buffer: freezed == buffer
-          ? _self.buffer
-          : buffer // ignore: cast_nullable_to_non_nullable
+      crypto: freezed == crypto
+          ? _self.crypto
+          : crypto // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      dns: freezed == dns
+          ? _self.dns
+          : dns // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      events: freezed == events
+          ? _self.events
+          : events // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      exceptions: freezed == exceptions
+          ? _self.exceptions
+          : exceptions // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      fetch: freezed == fetch
+          ? _self.fetch
+          : fetch // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      fs: freezed == fs
+          ? _self.fs
+          : fs // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      navigator: freezed == navigator
+          ? _self.navigator
+          : navigator // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      net: freezed == net
+          ? _self.net
+          : net // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      os: freezed == os
+          ? _self.os
+          : os // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      path: freezed == path
+          ? _self.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      perfHooks: freezed == perfHooks
+          ? _self.perfHooks
+          : perfHooks // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      process: freezed == process
+          ? _self.process
+          : process // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      streamWeb: freezed == streamWeb
+          ? _self.streamWeb
+          : streamWeb // ignore: cast_nullable_to_non_nullable
               as bool?,
       stringDecoder: freezed == stringDecoder
           ? _self.stringDecoder
@@ -1594,25 +2024,21 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
           ? _self.timers
           : timers // ignore: cast_nullable_to_non_nullable
               as bool?,
-      stream: freezed == stream
-          ? _self.stream
-          : stream // ignore: cast_nullable_to_non_nullable
-              as bool?,
-      crypto: freezed == crypto
-          ? _self.crypto
-          : crypto // ignore: cast_nullable_to_non_nullable
-              as bool?,
-      abort: freezed == abort
-          ? _self.abort
-          : abort // ignore: cast_nullable_to_non_nullable
+      tty: freezed == tty
+          ? _self.tty
+          : tty // ignore: cast_nullable_to_non_nullable
               as bool?,
       url: freezed == url
           ? _self.url
           : url // ignore: cast_nullable_to_non_nullable
               as bool?,
-      events: freezed == events
-          ? _self.events
-          : events // ignore: cast_nullable_to_non_nullable
+      util: freezed == util
+          ? _self.util
+          : util // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      zlib: freezed == zlib
+          ? _self.zlib
+          : zlib // ignore: cast_nullable_to_non_nullable
               as bool?,
       json: freezed == json
           ? _self.json
@@ -2700,12 +3126,886 @@ class _$JsCode_PathCopyWithImpl<$Res> implements $JsCode_PathCopyWith<$Res> {
 }
 
 /// @nodoc
+mixin _$JsError {
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is JsError);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+}
+
+/// @nodoc
+class $JsErrorCopyWith<$Res> {
+  $JsErrorCopyWith(JsError _, $Res Function(JsError) __);
+}
+
+/// Adds pattern-matching-related methods to [JsError].
+extension JsErrorPatterns on JsError {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(JsError_Promise value)? promise,
+    TResult Function(JsError_Module value)? module,
+    TResult Function(JsError_Context value)? context,
+    TResult Function(JsError_Storage value)? storage,
+    TResult Function(JsError_Io value)? io,
+    TResult Function(JsError_Runtime value)? runtime,
+    TResult Function(JsError_Generic value)? generic,
+    TResult Function(JsError_Engine value)? engine,
+    TResult Function(JsError_Bridge value)? bridge,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsError_Promise() when promise != null:
+        return promise(_that);
+      case JsError_Module() when module != null:
+        return module(_that);
+      case JsError_Context() when context != null:
+        return context(_that);
+      case JsError_Storage() when storage != null:
+        return storage(_that);
+      case JsError_Io() when io != null:
+        return io(_that);
+      case JsError_Runtime() when runtime != null:
+        return runtime(_that);
+      case JsError_Generic() when generic != null:
+        return generic(_that);
+      case JsError_Engine() when engine != null:
+        return engine(_that);
+      case JsError_Bridge() when bridge != null:
+        return bridge(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(JsError_Promise value) promise,
+    required TResult Function(JsError_Module value) module,
+    required TResult Function(JsError_Context value) context,
+    required TResult Function(JsError_Storage value) storage,
+    required TResult Function(JsError_Io value) io,
+    required TResult Function(JsError_Runtime value) runtime,
+    required TResult Function(JsError_Generic value) generic,
+    required TResult Function(JsError_Engine value) engine,
+    required TResult Function(JsError_Bridge value) bridge,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsError_Promise():
+        return promise(_that);
+      case JsError_Module():
+        return module(_that);
+      case JsError_Context():
+        return context(_that);
+      case JsError_Storage():
+        return storage(_that);
+      case JsError_Io():
+        return io(_that);
+      case JsError_Runtime():
+        return runtime(_that);
+      case JsError_Generic():
+        return generic(_that);
+      case JsError_Engine():
+        return engine(_that);
+      case JsError_Bridge():
+        return bridge(_that);
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(JsError_Promise value)? promise,
+    TResult? Function(JsError_Module value)? module,
+    TResult? Function(JsError_Context value)? context,
+    TResult? Function(JsError_Storage value)? storage,
+    TResult? Function(JsError_Io value)? io,
+    TResult? Function(JsError_Runtime value)? runtime,
+    TResult? Function(JsError_Generic value)? generic,
+    TResult? Function(JsError_Engine value)? engine,
+    TResult? Function(JsError_Bridge value)? bridge,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsError_Promise() when promise != null:
+        return promise(_that);
+      case JsError_Module() when module != null:
+        return module(_that);
+      case JsError_Context() when context != null:
+        return context(_that);
+      case JsError_Storage() when storage != null:
+        return storage(_that);
+      case JsError_Io() when io != null:
+        return io(_that);
+      case JsError_Runtime() when runtime != null:
+        return runtime(_that);
+      case JsError_Generic() when generic != null:
+        return generic(_that);
+      case JsError_Engine() when engine != null:
+        return engine(_that);
+      case JsError_Bridge() when bridge != null:
+        return bridge(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? promise,
+    TResult Function(String? module, String? method, String message)? module,
+    TResult Function(String field0)? context,
+    TResult Function(String field0)? storage,
+    TResult Function(String? path, String message)? io,
+    TResult Function(String field0)? runtime,
+    TResult Function(String field0)? generic,
+    TResult Function(String field0)? engine,
+    TResult Function(String field0)? bridge,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsError_Promise() when promise != null:
+        return promise(_that.field0);
+      case JsError_Module() when module != null:
+        return module(_that.module, _that.method, _that.message);
+      case JsError_Context() when context != null:
+        return context(_that.field0);
+      case JsError_Storage() when storage != null:
+        return storage(_that.field0);
+      case JsError_Io() when io != null:
+        return io(_that.path, _that.message);
+      case JsError_Runtime() when runtime != null:
+        return runtime(_that.field0);
+      case JsError_Generic() when generic != null:
+        return generic(_that.field0);
+      case JsError_Engine() when engine != null:
+        return engine(_that.field0);
+      case JsError_Bridge() when bridge != null:
+        return bridge(_that.field0);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) promise,
+    required TResult Function(String? module, String? method, String message)
+        module,
+    required TResult Function(String field0) context,
+    required TResult Function(String field0) storage,
+    required TResult Function(String? path, String message) io,
+    required TResult Function(String field0) runtime,
+    required TResult Function(String field0) generic,
+    required TResult Function(String field0) engine,
+    required TResult Function(String field0) bridge,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsError_Promise():
+        return promise(_that.field0);
+      case JsError_Module():
+        return module(_that.module, _that.method, _that.message);
+      case JsError_Context():
+        return context(_that.field0);
+      case JsError_Storage():
+        return storage(_that.field0);
+      case JsError_Io():
+        return io(_that.path, _that.message);
+      case JsError_Runtime():
+        return runtime(_that.field0);
+      case JsError_Generic():
+        return generic(_that.field0);
+      case JsError_Engine():
+        return engine(_that.field0);
+      case JsError_Bridge():
+        return bridge(_that.field0);
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? promise,
+    TResult? Function(String? module, String? method, String message)? module,
+    TResult? Function(String field0)? context,
+    TResult? Function(String field0)? storage,
+    TResult? Function(String? path, String message)? io,
+    TResult? Function(String field0)? runtime,
+    TResult? Function(String field0)? generic,
+    TResult? Function(String field0)? engine,
+    TResult? Function(String field0)? bridge,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case JsError_Promise() when promise != null:
+        return promise(_that.field0);
+      case JsError_Module() when module != null:
+        return module(_that.module, _that.method, _that.message);
+      case JsError_Context() when context != null:
+        return context(_that.field0);
+      case JsError_Storage() when storage != null:
+        return storage(_that.field0);
+      case JsError_Io() when io != null:
+        return io(_that.path, _that.message);
+      case JsError_Runtime() when runtime != null:
+        return runtime(_that.field0);
+      case JsError_Generic() when generic != null:
+        return generic(_that.field0);
+      case JsError_Engine() when engine != null:
+        return engine(_that.field0);
+      case JsError_Bridge() when bridge != null:
+        return bridge(_that.field0);
+      case _:
+        return null;
+    }
+  }
+}
+
+/// @nodoc
+
+class JsError_Promise extends JsError {
+  const JsError_Promise(this.field0) : super._();
+
+  final String field0;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsError_PromiseCopyWith<JsError_Promise> get copyWith =>
+      _$JsError_PromiseCopyWithImpl<JsError_Promise>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsError_Promise &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+}
+
+/// @nodoc
+abstract mixin class $JsError_PromiseCopyWith<$Res>
+    implements $JsErrorCopyWith<$Res> {
+  factory $JsError_PromiseCopyWith(
+          JsError_Promise value, $Res Function(JsError_Promise) _then) =
+      _$JsError_PromiseCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsError_PromiseCopyWithImpl<$Res>
+    implements $JsError_PromiseCopyWith<$Res> {
+  _$JsError_PromiseCopyWithImpl(this._self, this._then);
+
+  final JsError_Promise _self;
+  final $Res Function(JsError_Promise) _then;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsError_Promise(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsError_Module extends JsError {
+  const JsError_Module({this.module, this.method, required this.message})
+      : super._();
+
+  /// Optional module name where the error occurred
+  final String? module;
+
+  /// Optional method name where the error occurred
+  final String? method;
+
+  /// Error message
+  final String message;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsError_ModuleCopyWith<JsError_Module> get copyWith =>
+      _$JsError_ModuleCopyWithImpl<JsError_Module>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsError_Module &&
+            (identical(other.module, module) || other.module == module) &&
+            (identical(other.method, method) || other.method == method) &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, module, method, message);
+}
+
+/// @nodoc
+abstract mixin class $JsError_ModuleCopyWith<$Res>
+    implements $JsErrorCopyWith<$Res> {
+  factory $JsError_ModuleCopyWith(
+          JsError_Module value, $Res Function(JsError_Module) _then) =
+      _$JsError_ModuleCopyWithImpl;
+  @useResult
+  $Res call({String? module, String? method, String message});
+}
+
+/// @nodoc
+class _$JsError_ModuleCopyWithImpl<$Res>
+    implements $JsError_ModuleCopyWith<$Res> {
+  _$JsError_ModuleCopyWithImpl(this._self, this._then);
+
+  final JsError_Module _self;
+  final $Res Function(JsError_Module) _then;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? module = freezed,
+    Object? method = freezed,
+    Object? message = null,
+  }) {
+    return _then(JsError_Module(
+      module: freezed == module
+          ? _self.module
+          : module // ignore: cast_nullable_to_non_nullable
+              as String?,
+      method: freezed == method
+          ? _self.method
+          : method // ignore: cast_nullable_to_non_nullable
+              as String?,
+      message: null == message
+          ? _self.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsError_Context extends JsError {
+  const JsError_Context(this.field0) : super._();
+
+  final String field0;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsError_ContextCopyWith<JsError_Context> get copyWith =>
+      _$JsError_ContextCopyWithImpl<JsError_Context>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsError_Context &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+}
+
+/// @nodoc
+abstract mixin class $JsError_ContextCopyWith<$Res>
+    implements $JsErrorCopyWith<$Res> {
+  factory $JsError_ContextCopyWith(
+          JsError_Context value, $Res Function(JsError_Context) _then) =
+      _$JsError_ContextCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsError_ContextCopyWithImpl<$Res>
+    implements $JsError_ContextCopyWith<$Res> {
+  _$JsError_ContextCopyWithImpl(this._self, this._then);
+
+  final JsError_Context _self;
+  final $Res Function(JsError_Context) _then;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsError_Context(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsError_Storage extends JsError {
+  const JsError_Storage(this.field0) : super._();
+
+  final String field0;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsError_StorageCopyWith<JsError_Storage> get copyWith =>
+      _$JsError_StorageCopyWithImpl<JsError_Storage>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsError_Storage &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+}
+
+/// @nodoc
+abstract mixin class $JsError_StorageCopyWith<$Res>
+    implements $JsErrorCopyWith<$Res> {
+  factory $JsError_StorageCopyWith(
+          JsError_Storage value, $Res Function(JsError_Storage) _then) =
+      _$JsError_StorageCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsError_StorageCopyWithImpl<$Res>
+    implements $JsError_StorageCopyWith<$Res> {
+  _$JsError_StorageCopyWithImpl(this._self, this._then);
+
+  final JsError_Storage _self;
+  final $Res Function(JsError_Storage) _then;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsError_Storage(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsError_Io extends JsError {
+  const JsError_Io({this.path, required this.message}) : super._();
+
+  /// Optional file path where the error occurred
+  final String? path;
+
+  /// Error message
+  final String message;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsError_IoCopyWith<JsError_Io> get copyWith =>
+      _$JsError_IoCopyWithImpl<JsError_Io>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsError_Io &&
+            (identical(other.path, path) || other.path == path) &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, path, message);
+}
+
+/// @nodoc
+abstract mixin class $JsError_IoCopyWith<$Res>
+    implements $JsErrorCopyWith<$Res> {
+  factory $JsError_IoCopyWith(
+          JsError_Io value, $Res Function(JsError_Io) _then) =
+      _$JsError_IoCopyWithImpl;
+  @useResult
+  $Res call({String? path, String message});
+}
+
+/// @nodoc
+class _$JsError_IoCopyWithImpl<$Res> implements $JsError_IoCopyWith<$Res> {
+  _$JsError_IoCopyWithImpl(this._self, this._then);
+
+  final JsError_Io _self;
+  final $Res Function(JsError_Io) _then;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? path = freezed,
+    Object? message = null,
+  }) {
+    return _then(JsError_Io(
+      path: freezed == path
+          ? _self.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as String?,
+      message: null == message
+          ? _self.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsError_Runtime extends JsError {
+  const JsError_Runtime(this.field0) : super._();
+
+  final String field0;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsError_RuntimeCopyWith<JsError_Runtime> get copyWith =>
+      _$JsError_RuntimeCopyWithImpl<JsError_Runtime>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsError_Runtime &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+}
+
+/// @nodoc
+abstract mixin class $JsError_RuntimeCopyWith<$Res>
+    implements $JsErrorCopyWith<$Res> {
+  factory $JsError_RuntimeCopyWith(
+          JsError_Runtime value, $Res Function(JsError_Runtime) _then) =
+      _$JsError_RuntimeCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsError_RuntimeCopyWithImpl<$Res>
+    implements $JsError_RuntimeCopyWith<$Res> {
+  _$JsError_RuntimeCopyWithImpl(this._self, this._then);
+
+  final JsError_Runtime _self;
+  final $Res Function(JsError_Runtime) _then;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsError_Runtime(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsError_Generic extends JsError {
+  const JsError_Generic(this.field0) : super._();
+
+  final String field0;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsError_GenericCopyWith<JsError_Generic> get copyWith =>
+      _$JsError_GenericCopyWithImpl<JsError_Generic>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsError_Generic &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+}
+
+/// @nodoc
+abstract mixin class $JsError_GenericCopyWith<$Res>
+    implements $JsErrorCopyWith<$Res> {
+  factory $JsError_GenericCopyWith(
+          JsError_Generic value, $Res Function(JsError_Generic) _then) =
+      _$JsError_GenericCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsError_GenericCopyWithImpl<$Res>
+    implements $JsError_GenericCopyWith<$Res> {
+  _$JsError_GenericCopyWithImpl(this._self, this._then);
+
+  final JsError_Generic _self;
+  final $Res Function(JsError_Generic) _then;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsError_Generic(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsError_Engine extends JsError {
+  const JsError_Engine(this.field0) : super._();
+
+  final String field0;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsError_EngineCopyWith<JsError_Engine> get copyWith =>
+      _$JsError_EngineCopyWithImpl<JsError_Engine>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsError_Engine &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+}
+
+/// @nodoc
+abstract mixin class $JsError_EngineCopyWith<$Res>
+    implements $JsErrorCopyWith<$Res> {
+  factory $JsError_EngineCopyWith(
+          JsError_Engine value, $Res Function(JsError_Engine) _then) =
+      _$JsError_EngineCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsError_EngineCopyWithImpl<$Res>
+    implements $JsError_EngineCopyWith<$Res> {
+  _$JsError_EngineCopyWithImpl(this._self, this._then);
+
+  final JsError_Engine _self;
+  final $Res Function(JsError_Engine) _then;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsError_Engine(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsError_Bridge extends JsError {
+  const JsError_Bridge(this.field0) : super._();
+
+  final String field0;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsError_BridgeCopyWith<JsError_Bridge> get copyWith =>
+      _$JsError_BridgeCopyWithImpl<JsError_Bridge>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsError_Bridge &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+}
+
+/// @nodoc
+abstract mixin class $JsError_BridgeCopyWith<$Res>
+    implements $JsErrorCopyWith<$Res> {
+  factory $JsError_BridgeCopyWith(
+          JsError_Bridge value, $Res Function(JsError_Bridge) _then) =
+      _$JsError_BridgeCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsError_BridgeCopyWithImpl<$Res>
+    implements $JsError_BridgeCopyWith<$Res> {
+  _$JsError_BridgeCopyWithImpl(this._self, this._then);
+
+  final JsError_Bridge _self;
+  final $Res Function(JsError_Bridge) _then;
+
+  /// Create a copy of JsError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsError_Bridge(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
 mixin _$JsEvalOptions {
   bool? get global;
   bool? get strict;
   bool? get backtraceBarrier;
   bool? get promise;
-  JsBuiltinOptions? get builtinOptions;
 
   /// Create a copy of JsEvalOptions
   /// with the given fields replaced by the non-null parameter values.
@@ -2724,18 +4024,16 @@ mixin _$JsEvalOptions {
             (identical(other.strict, strict) || other.strict == strict) &&
             (identical(other.backtraceBarrier, backtraceBarrier) ||
                 other.backtraceBarrier == backtraceBarrier) &&
-            (identical(other.promise, promise) || other.promise == promise) &&
-            (identical(other.builtinOptions, builtinOptions) ||
-                other.builtinOptions == builtinOptions));
+            (identical(other.promise, promise) || other.promise == promise));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, global, strict, backtraceBarrier, promise, builtinOptions);
+  int get hashCode =>
+      Object.hash(runtimeType, global, strict, backtraceBarrier, promise);
 
   @override
   String toString() {
-    return 'JsEvalOptions(global: $global, strict: $strict, backtraceBarrier: $backtraceBarrier, promise: $promise, builtinOptions: $builtinOptions)';
+    return 'JsEvalOptions(global: $global, strict: $strict, backtraceBarrier: $backtraceBarrier, promise: $promise)';
   }
 }
 
@@ -2746,13 +4044,7 @@ abstract mixin class $JsEvalOptionsCopyWith<$Res> {
       _$JsEvalOptionsCopyWithImpl;
   @useResult
   $Res call(
-      {bool? global,
-      bool? strict,
-      bool? backtraceBarrier,
-      bool? promise,
-      JsBuiltinOptions? builtinOptions});
-
-  $JsBuiltinOptionsCopyWith<$Res>? get builtinOptions;
+      {bool? global, bool? strict, bool? backtraceBarrier, bool? promise});
 }
 
 /// @nodoc
@@ -2772,7 +4064,6 @@ class _$JsEvalOptionsCopyWithImpl<$Res>
     Object? strict = freezed,
     Object? backtraceBarrier = freezed,
     Object? promise = freezed,
-    Object? builtinOptions = freezed,
   }) {
     return _then(_self.copyWith(
       global: freezed == global
@@ -2791,25 +4082,7 @@ class _$JsEvalOptionsCopyWithImpl<$Res>
           ? _self.promise
           : promise // ignore: cast_nullable_to_non_nullable
               as bool?,
-      builtinOptions: freezed == builtinOptions
-          ? _self.builtinOptions
-          : builtinOptions // ignore: cast_nullable_to_non_nullable
-              as JsBuiltinOptions?,
     ));
-  }
-
-  /// Create a copy of JsEvalOptions
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $JsBuiltinOptionsCopyWith<$Res>? get builtinOptions {
-    if (_self.builtinOptions == null) {
-      return null;
-    }
-
-    return $JsBuiltinOptionsCopyWith<$Res>(_self.builtinOptions!, (value) {
-      return _then(_self.copyWith(builtinOptions: value));
-    });
   }
 }
 
@@ -2904,16 +4177,16 @@ extension JsEvalOptionsPatterns on JsEvalOptions {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(bool? global, bool? strict, bool? backtraceBarrier,
-            bool? promise, JsBuiltinOptions? builtinOptions)?
+    TResult Function(
+            bool? global, bool? strict, bool? backtraceBarrier, bool? promise)?
         raw,
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _JsEvalOptions() when raw != null:
-        return raw(_that.global, _that.strict, _that.backtraceBarrier,
-            _that.promise, _that.builtinOptions);
+        return raw(
+            _that.global, _that.strict, _that.backtraceBarrier, _that.promise);
       case _:
         return orElse();
     }
@@ -2935,18 +4208,14 @@ extension JsEvalOptionsPatterns on JsEvalOptions {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function(
-            bool? global,
-            bool? strict,
-            bool? backtraceBarrier,
-            bool? promise,
-            JsBuiltinOptions? builtinOptions)
+            bool? global, bool? strict, bool? backtraceBarrier, bool? promise)
         raw,
   }) {
     final _that = this;
     switch (_that) {
       case _JsEvalOptions():
-        return raw(_that.global, _that.strict, _that.backtraceBarrier,
-            _that.promise, _that.builtinOptions);
+        return raw(
+            _that.global, _that.strict, _that.backtraceBarrier, _that.promise);
     }
   }
 
@@ -2964,15 +4233,15 @@ extension JsEvalOptionsPatterns on JsEvalOptions {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(bool? global, bool? strict, bool? backtraceBarrier,
-            bool? promise, JsBuiltinOptions? builtinOptions)?
+    TResult? Function(
+            bool? global, bool? strict, bool? backtraceBarrier, bool? promise)?
         raw,
   }) {
     final _that = this;
     switch (_that) {
       case _JsEvalOptions() when raw != null:
-        return raw(_that.global, _that.strict, _that.backtraceBarrier,
-            _that.promise, _that.builtinOptions);
+        return raw(
+            _that.global, _that.strict, _that.backtraceBarrier, _that.promise);
       case _:
         return null;
     }
@@ -2983,11 +4252,7 @@ extension JsEvalOptionsPatterns on JsEvalOptions {
 
 class _JsEvalOptions extends JsEvalOptions {
   const _JsEvalOptions(
-      {this.global,
-      this.strict,
-      this.backtraceBarrier,
-      this.promise,
-      this.builtinOptions})
+      {this.global, this.strict, this.backtraceBarrier, this.promise})
       : super._();
 
   @override
@@ -2998,8 +4263,6 @@ class _JsEvalOptions extends JsEvalOptions {
   final bool? backtraceBarrier;
   @override
   final bool? promise;
-  @override
-  final JsBuiltinOptions? builtinOptions;
 
   /// Create a copy of JsEvalOptions
   /// with the given fields replaced by the non-null parameter values.
@@ -3018,18 +4281,16 @@ class _JsEvalOptions extends JsEvalOptions {
             (identical(other.strict, strict) || other.strict == strict) &&
             (identical(other.backtraceBarrier, backtraceBarrier) ||
                 other.backtraceBarrier == backtraceBarrier) &&
-            (identical(other.promise, promise) || other.promise == promise) &&
-            (identical(other.builtinOptions, builtinOptions) ||
-                other.builtinOptions == builtinOptions));
+            (identical(other.promise, promise) || other.promise == promise));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, global, strict, backtraceBarrier, promise, builtinOptions);
+  int get hashCode =>
+      Object.hash(runtimeType, global, strict, backtraceBarrier, promise);
 
   @override
   String toString() {
-    return 'JsEvalOptions.raw(global: $global, strict: $strict, backtraceBarrier: $backtraceBarrier, promise: $promise, builtinOptions: $builtinOptions)';
+    return 'JsEvalOptions.raw(global: $global, strict: $strict, backtraceBarrier: $backtraceBarrier, promise: $promise)';
   }
 }
 
@@ -3042,14 +4303,7 @@ abstract mixin class _$JsEvalOptionsCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {bool? global,
-      bool? strict,
-      bool? backtraceBarrier,
-      bool? promise,
-      JsBuiltinOptions? builtinOptions});
-
-  @override
-  $JsBuiltinOptionsCopyWith<$Res>? get builtinOptions;
+      {bool? global, bool? strict, bool? backtraceBarrier, bool? promise});
 }
 
 /// @nodoc
@@ -3069,7 +4323,6 @@ class __$JsEvalOptionsCopyWithImpl<$Res>
     Object? strict = freezed,
     Object? backtraceBarrier = freezed,
     Object? promise = freezed,
-    Object? builtinOptions = freezed,
   }) {
     return _then(_JsEvalOptions(
       global: freezed == global
@@ -3088,25 +4341,7 @@ class __$JsEvalOptionsCopyWithImpl<$Res>
           ? _self.promise
           : promise // ignore: cast_nullable_to_non_nullable
               as bool?,
-      builtinOptions: freezed == builtinOptions
-          ? _self.builtinOptions
-          : builtinOptions // ignore: cast_nullable_to_non_nullable
-              as JsBuiltinOptions?,
     ));
-  }
-
-  /// Create a copy of JsEvalOptions
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $JsBuiltinOptionsCopyWith<$Res>? get builtinOptions {
-    if (_self.builtinOptions == null) {
-      return null;
-    }
-
-    return $JsBuiltinOptionsCopyWith<$Res>(_self.builtinOptions!, (value) {
-      return _then(_self.copyWith(builtinOptions: value));
-    });
   }
 }
 
@@ -3556,7 +4791,7 @@ extension JsResultPatterns on JsResult {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(JsValue field0)? ok,
-    TResult Function(String field0)? err,
+    TResult Function(JsError field0)? err,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -3586,7 +4821,7 @@ extension JsResultPatterns on JsResult {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function(JsValue field0) ok,
-    required TResult Function(String field0) err,
+    required TResult Function(JsError field0) err,
   }) {
     final _that = this;
     switch (_that) {
@@ -3612,7 +4847,7 @@ extension JsResultPatterns on JsResult {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(JsValue field0)? ok,
-    TResult? Function(String field0)? err,
+    TResult? Function(JsError field0)? err,
   }) {
     final _that = this;
     switch (_that) {
@@ -3708,7 +4943,7 @@ class JsResult_Err extends JsResult {
   const JsResult_Err(this.field0) : super._();
 
   @override
-  final String field0;
+  final JsError field0;
 
   /// Create a copy of JsResult
   /// with the given fields replaced by the non-null parameter values.
@@ -3741,7 +4976,9 @@ abstract mixin class $JsResult_ErrCopyWith<$Res>
           JsResult_Err value, $Res Function(JsResult_Err) _then) =
       _$JsResult_ErrCopyWithImpl;
   @useResult
-  $Res call({String field0});
+  $Res call({JsError field0});
+
+  $JsErrorCopyWith<$Res> get field0;
 }
 
 /// @nodoc
@@ -3761,8 +4998,18 @@ class _$JsResult_ErrCopyWithImpl<$Res> implements $JsResult_ErrCopyWith<$Res> {
       null == field0
           ? _self.field0
           : field0 // ignore: cast_nullable_to_non_nullable
-              as String,
+              as JsError,
     ));
+  }
+
+  /// Create a copy of JsResult
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $JsErrorCopyWith<$Res> get field0 {
+    return $JsErrorCopyWith<$Res>(_self.field0, (value) {
+      return _then(_self.copyWith(field0: value));
+    });
   }
 }
 
