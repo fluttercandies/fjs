@@ -167,6 +167,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsCode dco_decode_box_autoadd_js_code(dynamic raw);
 
   @protected
+  JsError dco_decode_box_autoadd_js_error(dynamic raw);
+
+  @protected
   JsEvalOptions dco_decode_box_autoadd_js_eval_options(dynamic raw);
 
   @protected
@@ -206,6 +209,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsCode dco_decode_js_code(dynamic raw);
 
   @protected
+  JsError dco_decode_js_error(dynamic raw);
+
+  @protected
   JsEvalOptions dco_decode_js_eval_options(dynamic raw);
 
   @protected
@@ -230,6 +236,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   List<(String, JsValue)> dco_decode_list_record_string_js_value(dynamic raw);
 
   @protected
+  String? dco_decode_opt_String(dynamic raw);
+
+  @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
 
   @protected
@@ -237,6 +246,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   JsEvalOptions? dco_decode_opt_box_autoadd_js_eval_options(dynamic raw);
+
+  @protected
+  List<JsModule>? dco_decode_opt_list_js_module(dynamic raw);
 
   @protected
   List<JsValue>? dco_decode_opt_list_js_value(dynamic raw);
@@ -383,6 +395,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsCode sse_decode_box_autoadd_js_code(SseDeserializer deserializer);
 
   @protected
+  JsError sse_decode_box_autoadd_js_error(SseDeserializer deserializer);
+
+  @protected
   JsEvalOptions sse_decode_box_autoadd_js_eval_options(
       SseDeserializer deserializer);
 
@@ -423,6 +438,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsCode sse_decode_js_code(SseDeserializer deserializer);
 
   @protected
+  JsError sse_decode_js_error(SseDeserializer deserializer);
+
+  @protected
   JsEvalOptions sse_decode_js_eval_options(SseDeserializer deserializer);
 
   @protected
@@ -448,6 +466,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
       SseDeserializer deserializer);
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
@@ -457,6 +478,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   @protected
   JsEvalOptions? sse_decode_opt_box_autoadd_js_eval_options(
       SseDeserializer deserializer);
+
+  @protected
+  List<JsModule>? sse_decode_opt_list_js_module(SseDeserializer deserializer);
 
   @protected
   List<JsValue>? sse_decode_opt_list_js_value(SseDeserializer deserializer);
@@ -615,6 +639,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   void sse_encode_box_autoadd_js_code(JsCode self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_js_error(JsError self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_js_eval_options(
       JsEvalOptions self, SseSerializer serializer);
 
@@ -660,6 +687,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   void sse_encode_js_code(JsCode self, SseSerializer serializer);
 
   @protected
+  void sse_encode_js_error(JsError self, SseSerializer serializer);
+
+  @protected
   void sse_encode_js_eval_options(JsEvalOptions self, SseSerializer serializer);
 
   @protected
@@ -686,6 +716,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
       List<(String, JsValue)> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
@@ -695,6 +728,10 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   @protected
   void sse_encode_opt_box_autoadd_js_eval_options(
       JsEvalOptions? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_list_js_module(
+      List<JsModule>? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_list_js_value(

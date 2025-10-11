@@ -1,7 +1,46 @@
+//! # JavaScript Value Conversion
+//!
+//! This module provides type-safe conversion between JavaScript values and Rust types.
+//! It supports all primitive JavaScript types as well as complex structures like
+//! arrays and objects, enabling seamless data exchange between Dart and JavaScript.
+//!
+//! ## Features
+//!
+//! - **Primitive Types**: Numbers, strings, booleans, null/undefined
+//! - **Collections**: Arrays and objects with nested support
+//! - **BigInt Support**: Safe handling of large integers
+//! - **Type Safety**: Compile-time and runtime type checking
+//! - **Zero-copy**: Efficient conversion where possible
+
 use flutter_rust_bridge::frb;
 use rquickjs::{Ctx, FromAtom, FromJs, IntoJs, Null, Type};
 use std::collections::HashMap;
 
+/// Represents a JavaScript value with type-safe conversion.
+///
+/// This enum provides a comprehensive representation of all JavaScript value types,
+/// enabling safe and efficient conversion between JavaScript and Rust/Dart values.
+/// Each variant corresponds to a specific JavaScript type.
+///
+/// ## Variants
+///
+/// - `None`: Represents `null` or `undefined` in JavaScript
+/// - `Boolean`: Represents JavaScript boolean values
+/// - `Integer`: Represents JavaScript numbers that fit in 64-bit integers
+/// - `Float`: Represents JavaScript floating-point numbers
+/// - `Bigint`: Represents JavaScript BigInt values (stored as strings for precision)
+/// - `String`: Represents JavaScript string values
+/// - `Array`: Represents JavaScript arrays with nested value support
+/// - `Object`: Represents JavaScript objects with string keys and arbitrary values
+///
+/// ## Examples
+///
+/// ```rust
+/// // Creating values
+/// let num = JsValue::Integer(42);
+/// let str = JsValue::String("hello".to_string());
+/// let arr = JsValue::Array(vec![JsValue::Integer(1), JsValue::Integer(2)]);
+/// ```
 #[derive(Debug, Clone)]
 #[frb(dart_metadata = ("freezed"), dart_code = r#"
 
@@ -57,43 +96,99 @@ use std::collections::HashMap;
   bool get isObject => this is JsValue_Object;
 "#)]
 pub enum JsValue {
+    /// Represents null or undefined values in JavaScript
     None,
+    /// Represents boolean values (true/false)
     Boolean(bool),
+    /// Represents 64-bit integer values
     Integer(i64),
+    /// Represents floating-point number values
     Float(f64),
+    /// Represents BigInt values stored as strings for precision
     Bigint(String),
+    /// Represents string values
     String(String),
+    /// Represents arrays with nested value support
     Array(Vec<JsValue>),
+    /// Represents objects with string keys and arbitrary values
     Object(HashMap<String, JsValue>),
 }
 
 impl<'js> FromJs<'js> for JsValue {
+    /// Converts a JavaScript value to a JsValue enum.
+    ///
+    /// This method handles type conversion from QuickJS values to the FJS
+    /// JsValue representation, preserving type information and handling
+    /// complex nested structures.
+    ///
+    /// # Parameters
+    ///
+    /// - `ctx`: The JavaScript context
+    /// - `value`: The QuickJS value to convert
+    ///
+    /// # Returns
+    ///
+    /// Returns the converted JsValue or a conversion error.
+    ///
+    /// # Notes
+    ///
+    /// - BigInt values are converted to strings to preserve precision
+    /// - Function, Symbol, and other unsupported types are converted to None
+    /// - Arrays and Objects are recursively converted
     #[frb(ignore)]
     fn from_js(ctx: &Ctx<'js>, value: rquickjs::Value<'js>) -> rquickjs::Result<Self> {
         let v = match value.type_of() {
-            Type::String => JsValue::String(value.as_string().unwrap().to_string()?.into()),
+            Type::String => {
+                let s = value.as_string()
+                    .ok_or_else(|| rquickjs::Error::new_from_js("value", "String"))?;
+                JsValue::String(s.to_string()?)
+            }
             Type::Array => {
-                let mut vec = vec![];
-                let x1 = value.as_array().unwrap();
-                for x in x1.iter() {
-                    let value = JsValue::from_js(ctx, x.unwrap())?;
+                let arr = value.as_array()
+                    .ok_or_else(|| rquickjs::Error::new_from_js("value", "Array"))?;
+                let mut vec = Vec::with_capacity(arr.len());
+                for item in arr.iter() {
+                    let item = item?;
+                    let value = JsValue::from_js(ctx, item)?;
                     vec.push(value);
                 }
                 JsValue::Array(vec)
             }
             Type::Object => {
+                let obj = value.as_object()
+                    .ok_or_else(|| rquickjs::Error::new_from_js("value", "Object"))?;
                 let mut map = HashMap::new();
-                for x in value.as_object().unwrap().props() {
-                    let (k, v) = x?;
+                for prop in obj.props() {
+                    let (k, v) = prop?;
                     let value = JsValue::from_js(ctx, v)?;
                     map.insert(String::from_atom(k)?, value);
                 }
                 JsValue::Object(map)
             }
-            Type::Int => JsValue::Integer((value.as_int().unwrap() as i64).into()),
-            Type::Bool => JsValue::Boolean(value.as_bool().unwrap().into()),
-            Type::Float => JsValue::Float(value.as_float().unwrap().into()),
-            Type::BigInt => JsValue::Bigint(value.into_big_int().unwrap().to_i64()?.to_string()),
+            Type::Int => {
+                let i = value.as_int()
+                    .ok_or_else(|| rquickjs::Error::new_from_js("value", "Int"))?;
+                JsValue::Integer(i as i64)
+            }
+            Type::Bool => {
+                let b = value.as_bool()
+                    .ok_or_else(|| rquickjs::Error::new_from_js("value", "Bool"))?;
+                JsValue::Boolean(b)
+            }
+            Type::Float => {
+                let f = value.as_float()
+                    .ok_or_else(|| rquickjs::Error::new_from_js("value", "Float"))?;
+                JsValue::Float(f)
+            }
+            Type::BigInt => {
+                // Convert BigInt to string to avoid precision loss
+                // eval a JS expression to convert BigInt to string
+                let bigint_ref = value.as_ref();
+                let code = format!("(function(v){{ return String(v); }})");
+                let converter: rquickjs::Function = ctx.eval(code)?;
+                let result: rquickjs::String = converter.call((bigint_ref,))?;
+                JsValue::Bigint(result.to_string()?)
+            }
             Type::Uninitialized
             | Type::Undefined
             | Type::Null
@@ -110,6 +205,24 @@ impl<'js> FromJs<'js> for JsValue {
 }
 
 impl<'js> IntoJs<'js> for JsValue {
+    /// Converts a JsValue to a JavaScript value.
+    ///
+    /// This method handles type conversion from the FJS JsValue representation
+    /// to QuickJS values, enabling data to be passed to JavaScript code.
+    ///
+    /// # Parameters
+    ///
+    /// - `ctx`: The JavaScript context
+    ///
+    /// # Returns
+    ///
+    /// Returns the converted JavaScript value or a conversion error.
+    ///
+    /// # Notes
+    ///
+    /// - BigInt values are parsed from strings to create proper JavaScript BigInts
+    /// - Arrays and Objects are recursively converted
+    /// - Null values are converted to JavaScript null
     #[frb(ignore)]
     fn into_js(self, ctx: &Ctx<'js>) -> rquickjs::Result<rquickjs::Value<'js>> {
         match self {
