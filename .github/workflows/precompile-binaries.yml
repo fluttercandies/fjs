@@ -82,7 +82,8 @@ jobs:
         run: |
           export IPHONEOS_DEPLOYMENT_TARGET=12.0
           export PATH="$LLVM_PATH:$PATH"
-          export RUSTFLAGS="-C linker=$(brew --prefix llvm@16)/bin/clang -C ar=$(brew --prefix llvm@16)/bin/llvm-ar"
+          # Fix iOS simulator linking issue by setting correct SDK path
+          export RUSTFLAGS="-C linker=$(brew --prefix llvm@16)/bin/clang -C ar=$(brew --prefix llvm@16)/bin/llvm-ar -C link-arg=-syslibroot=$(xcrun --sdk iphonesimulator --show-sdk-path)"
           dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
