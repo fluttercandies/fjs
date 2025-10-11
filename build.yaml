@@ -4,5 +4,4 @@ targets:
       freezed:
         generate_for:
           include:
-            - lib/src/frb/api/js.dart
-            - lib/src/frb/api/value.dart
+            - lib/src/frb/api/*.dart

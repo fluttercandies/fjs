@@ -72,9 +72,17 @@ Future<void> main() async {
 ### 🔧 2. 创建 JavaScript 引擎
 
 ```dart
-// 创建运行时和上下文
-final runtime = JsAsyncRuntime();
-final context = await JsAsyncContext.from(rt: runtime);
+// 创建带内置选项的运行时
+final runtime = await JsAsyncRuntime.withOptions(
+  builtin: JsBuiltinOptions(
+    fetch: true,
+    console: true,
+    timers: true,
+  ),
+);
+
+// 创建上下文
+final context = await JsAsyncContext.from(runtime);
 
 // 创建支持桥接的引擎
 final engine = JsEngine(context);
@@ -101,16 +109,10 @@ final asyncResult = await engine.eval(JsCode.code('''
 '''));
 ```
 
-### 🌐 4. 启用内置模块
+### 🌐 4. 使用内置模块
 
 ```dart
-// 启用 fetch 和 console API
-await engine.enableBuiltinModule(const JsBuiltinOptions(
-  fetch: true,
-  console: true,
-  timers: true,
-));
-
+// 内置模块在运行时创建期间启用
 // 现在可以使用 fetch、console.log、setTimeout 等
 await engine.eval(JsCode.code('''
   console.log('你好，来自 JavaScript！');
@@ -121,7 +123,7 @@ await engine.eval(JsCode.code('''
 ### 📦 5. 使用模块
 
 ```dart
-// 声明模块
+// 声明单个模块
 const moduleCode = '''
 export function greet(name) {
   return `你好，${name}！`;
@@ -130,15 +132,26 @@ export function greet(name) {
 export const version = '1.0.0';
 ''';
 
-await engine.declareModule(
+await engine.declareNewModule(
   JsModule.code(module: 'greeting', code: moduleCode)
 );
+
+// 一次声明多个模块
+await engine.declareNewModules([
+  JsModule.code('math', 'export const add = (a, b) => a + b;'),
+  JsModule.code('string', 'export const reverse = (s) => s.split("").reverse().join("");'),
+]);
 
 // 使用模块
 await engine.eval(JsCode.code('''
   import { greet, version } from 'greeting';
+  import { add } from 'math';
+  import { reverse } from 'string';
+  
   console.log(greet('Flutter'));
   console.log('版本:', version);
+  console.log('加法 2 + 3:', add(2, 3));
+  console.log('反转 hello:', reverse('hello'));
 '''));
 ```
 
@@ -242,13 +255,11 @@ class JsEngine {
   // 执行 JavaScript 代码
   Future<JsValue> eval(JsCode source, {JsEvalOptions? options, Duration? timeout});
   
-  // 启用内置模块
-  Future<JsValue> enableBuiltinModule(JsBuiltinOptions options, {Duration? timeout});
-  
   // 模块操作
-  Future<JsValue> declareModule(JsModule module, {Duration? timeout});
+  Future<JsValue> declareNewModule(JsModule module, {Duration? timeout});
+  Future<JsValue> declareNewModules(List<JsModule> modules, {Duration? timeout});
   Future<JsValue> evaluateModule(JsModule module, {Duration? timeout});
-  Future<JsValue> importModule(String specifier, {Duration? timeout});
+  Future<JsValue> clearNewModules({Duration? timeout});
   
   // 清理
   Future<void> dispose();
@@ -317,11 +328,6 @@ sealed class JsValue {
 - **影响**: 在 Apple Silicon Mac 上开发时，运行 iOS 模拟器需要使用 Rosetta 2 转译
 - **生产环境**: 真实 iOS 设备 (arm64) 完全支持，性能正常
 - **最低系统要求**: 需要 iOS 12.0 或更高版本，由于原生库依赖
-
-### Android 平台限制
-
-- **Crypto 模块**: Android 平台不支持内置的 crypto 模块
-- **影响**: 在 Android 上需要加密功能的应用应使用 Dart 的 crypto 库或平台特定的实现
 
 ## 🤝 贡献
 

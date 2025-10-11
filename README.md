@@ -72,9 +72,17 @@ Future<void> main() async {
 ### 🔧 2. Create a JavaScript Engine
 
 ```dart
-// Create runtime and context
-final runtime = JsAsyncRuntime();
-final context = await JsAsyncContext.from(rt: runtime);
+// Create runtime with built-in options
+final runtime = await JsAsyncRuntime.withOptions(
+  builtin: JsBuiltinOptions(
+    fetch: true,
+    console: true,
+    timers: true,
+  ),
+);
+
+// Create context
+final context = await JsAsyncContext.from(runtime);
 
 // Create engine with bridge support
 final engine = JsEngine(context);
@@ -101,16 +109,10 @@ final asyncResult = await engine.eval(JsCode.code('''
 '''));
 ```
 
-### 🌐 4. Enable Built-in Modules
+### 🌐 4. Use Built-in Modules
 
 ```dart
-// Enable fetch and console APIs
-await engine.enableBuiltinModule(const JsBuiltinOptions(
-  fetch: true,
-  console: true,
-  timers: true,
-));
-
+// Built-in modules are enabled during runtime creation
 // Now you can use fetch, console.log, setTimeout, etc.
 await engine.eval(JsCode.code('''
   console.log('Hello from JavaScript!');
@@ -121,7 +123,7 @@ await engine.eval(JsCode.code('''
 ### 📦 5. Work with Modules
 
 ```dart
-// Declare a module
+// Declare a single module
 const moduleCode = '''
 export function greet(name) {
   return `Hello, ${name}!`;
@@ -130,15 +132,26 @@ export function greet(name) {
 export const version = '1.0.0';
 ''';
 
-await engine.declareModule(
+await engine.declareNewModule(
   JsModule.code(module: 'greeting', code: moduleCode)
 );
 
-// Use the module
+// Declare multiple modules at once
+await engine.declareNewModules([
+  JsModule.code('math', 'export const add = (a, b) => a + b;'),
+  JsModule.code('string', 'export const reverse = (s) => s.split("").reverse().join("");'),
+]);
+
+// Use the modules
 await engine.eval(JsCode.code('''
   import { greet, version } from 'greeting';
+  import { add } from 'math';
+  import { reverse } from 'string';
+  
   console.log(greet('Flutter'));
   console.log('Version:', version);
+  console.log('Add 2 + 3:', add(2, 3));
+  console.log('Reverse hello:', reverse('hello'));
 '''));
 ```
 
@@ -242,13 +255,11 @@ class JsEngine {
   // Execute JavaScript code
   Future<JsValue> eval(JsCode source, {JsEvalOptions? options, Duration? timeout});
   
-  // Enable built-in modules
-  Future<JsValue> enableBuiltinModule(JsBuiltinOptions options, {Duration? timeout});
-  
   // Module operations
-  Future<JsValue> declareModule(JsModule module, {Duration? timeout});
+  Future<JsValue> declareNewModule(JsModule module, {Duration? timeout});
+  Future<JsValue> declareNewModules(List<JsModule> modules, {Duration? timeout});
   Future<JsValue> evaluateModule(JsModule module, {Duration? timeout});
-  Future<JsValue> importModule(String specifier, {Duration? timeout});
+  Future<JsValue> clearNewModules({Duration? timeout});
   
   // Cleanup
   Future<void> dispose();
@@ -317,11 +328,6 @@ Check out the [example](example/) directory for more comprehensive examples incl
 - **Impact**: Development on Apple Silicon Macs will use Rosetta 2 translation when running iOS simulator
 - **Production**: Real iOS devices (arm64) are fully supported with normal performance
 - **Minimum iOS Version**: Requires iOS 12.0 or later due to native library dependencies
-
-### Android Platform Limitations
-
-- **Crypto Module**: The built-in crypto module is not supported on Android platform
-- **Impact**: Applications requiring cryptographic functions on Android should use Dart's crypto libraries or platform-specific implementations
 
 ## 🤝 Contributing
 
