@@ -73,6 +73,13 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           export IPHONEOS_DEPLOYMENT_TARGET=12.0
+          export MACOSX_DEPLOYMENT_TARGET=12.0
+          export SDKROOT=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          export CC=$(xcrun --find clang --sdk iphonesimulator)
+          export CXX=$(xcrun --find clang++ --sdk iphonesimulator)
+          export RUSTFLAGS="-C link-arg=-isysroot$SDKROOT -C link-arg=-L$SDKROOT/usr/lib"
+          # Fix bindgen target for clang 17
+          export BINDGEN_EXTRA_CLANG_ARGS="-target aarch64-apple-ios12.0-simulator"
           dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
