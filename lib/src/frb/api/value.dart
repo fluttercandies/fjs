@@ -15,25 +15,40 @@ part 'value.freezed.dart';
 sealed class JsValue with _$JsValue {
   const JsValue._();
 
+  /// Represents null or undefined values in JavaScript
   const factory JsValue.none() = JsValue_None;
+
+  /// Represents boolean values (true/false)
   const factory JsValue.boolean(
     bool field0,
   ) = JsValue_Boolean;
+
+  /// Represents 64-bit integer values
   const factory JsValue.integer(
     PlatformInt64 field0,
   ) = JsValue_Integer;
+
+  /// Represents floating-point number values
   const factory JsValue.float(
     double field0,
   ) = JsValue_Float;
+
+  /// Represents BigInt values stored as strings for precision
   const factory JsValue.bigint(
     String field0,
   ) = JsValue_Bigint;
+
+  /// Represents string values
   const factory JsValue.string(
     String field0,
   ) = JsValue_String;
+
+  /// Represents arrays with nested value support
   const factory JsValue.array(
     List<JsValue> field0,
   ) = JsValue_Array;
+
+  /// Represents objects with string keys and arbitrary values
   const factory JsValue.object(
     Map<String, JsValue> field0,
   ) = JsValue_Object;
