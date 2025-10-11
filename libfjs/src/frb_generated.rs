@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -23196171;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1548294233;
 
 // Section: executor
 
@@ -971,7 +971,7 @@ fn wire__crate__api__js__JsAsyncRuntime_set_memory_limit_impl(
         },
     )
 }
-fn wire__crate__api__js__JsAsyncRuntime_set_modules_impl(
+fn wire__crate__api__js__JsAsyncRuntime_with_options_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -979,7 +979,7 @@ fn wire__crate__api__js__JsAsyncRuntime_set_modules_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "JsAsyncRuntime_set_modules",
+            debug_name: "JsAsyncRuntime_with_options",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -993,34 +993,17 @@ fn wire__crate__api__js__JsAsyncRuntime_set_modules_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncRuntime>,
-            >>::sse_decode(&mut deserializer);
-            let api_modules = <Vec<crate::api::js::JsModule>>::sse_decode(&mut deserializer);
+            let api_builtin =
+                <Option<crate::api::js::JsBuiltinOptions>>::sse_decode(&mut deserializer);
+            let api_additional =
+                <Option<Vec<crate::api::js::JsModule>>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let mut api_that_guard = None;
-                        let decode_indices_ =
-                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
-                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                    &api_that, 0, false,
-                                )],
-                            );
-                        for i in decode_indices_ {
-                            match i {
-                                0 => {
-                                    api_that_guard =
-                                        Some(api_that.lockable_decode_async_ref().await)
-                                }
-                                _ => unreachable!(),
-                            }
-                        }
-                        let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::js::JsAsyncRuntime::set_modules(
-                            &*api_that_guard,
-                            api_modules,
+                        let output_ok = crate::api::js::JsAsyncRuntime::with_options(
+                            api_builtin,
+                            api_additional,
                         )
                         .await?;
                         Ok(output_ok)
@@ -2116,6 +2099,47 @@ fn wire__crate__api__js__JsRuntime_set_memory_limit_impl(
                 })?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__js__JsRuntime_with_options_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "JsRuntime_with_options",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_builtin =
+                <Option<crate::api::js::JsBuiltinOptions>>::sse_decode(&mut deserializer);
+            let api_additional =
+                <Option<Vec<crate::api::js::JsModule>>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::js::JsRuntime::with_options(api_builtin, api_additional)
+                                .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
         },
     )
 }
@@ -3392,6 +3416,65 @@ fn wire__crate__api__init_app_impl(
         },
     )
 }
+fn wire__crate__api__js__js_builtin_options_all_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "js_builtin_options_all",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(crate::api::js::JsBuiltinOptions::all())?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__js__js_error_to_string_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "js_error_to_string",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::api::js::JsError>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(crate::api::js::JsError::to_string(&api_that))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__js__js_eval_options_new_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -3417,8 +3500,6 @@ fn wire__crate__api__js__js_eval_options_new_impl(
             let api_strict = <Option<bool>>::sse_decode(&mut deserializer);
             let api_backtrace_barrier = <Option<bool>>::sse_decode(&mut deserializer);
             let api_promise = <Option<bool>>::sse_decode(&mut deserializer);
-            let api_builtin_options =
-                <Option<crate::api::js::JsBuiltinOptions>>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(crate::api::js::JsEvalOptions::new(
@@ -3426,7 +3507,6 @@ fn wire__crate__api__js__js_eval_options_new_impl(
                     api_strict,
                     api_backtrace_barrier,
                     api_promise,
-                    api_builtin_options,
                 ))?;
                 Ok(output_ok)
             })())
@@ -3791,34 +3871,29 @@ impl SseDecode for crate::api::js::JsAction {
             1 => {
                 let mut var_id = <u32>::sse_decode(deserializer);
                 let mut var_module = <crate::api::js::JsModule>::sse_decode(deserializer);
-                return crate::api::js::JsAction::DeclareModule {
+                return crate::api::js::JsAction::DeclareNewModule {
                     id: var_id,
                     module: var_module,
                 };
             }
             2 => {
                 let mut var_id = <u32>::sse_decode(deserializer);
-                let mut var_module = <crate::api::js::JsModule>::sse_decode(deserializer);
-                return crate::api::js::JsAction::EvaluateModule {
+                let mut var_modules = <Vec<crate::api::js::JsModule>>::sse_decode(deserializer);
+                return crate::api::js::JsAction::DeclareNewModules {
                     id: var_id,
-                    module: var_module,
+                    modules: var_modules,
                 };
             }
             3 => {
                 let mut var_id = <u32>::sse_decode(deserializer);
-                let mut var_specifier = <String>::sse_decode(deserializer);
-                return crate::api::js::JsAction::ImportModule {
-                    id: var_id,
-                    specifier: var_specifier,
-                };
+                return crate::api::js::JsAction::ClearNewModules { id: var_id };
             }
             4 => {
                 let mut var_id = <u32>::sse_decode(deserializer);
-                let mut var_builtinOptions =
-                    <crate::api::js::JsBuiltinOptions>::sse_decode(deserializer);
-                return crate::api::js::JsAction::EnableBuiltinModule {
+                let mut var_module = <crate::api::js::JsModule>::sse_decode(deserializer);
+                return crate::api::js::JsAction::EvaluateModule {
                     id: var_id,
-                    builtin_options: var_builtinOptions,
+                    module: var_module,
                 };
             }
             _ => {
@@ -3843,28 +3918,58 @@ impl SseDecode for crate::api::js::JsActionResult {
 impl SseDecode for crate::api::js::JsBuiltinOptions {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_fetch = <Option<bool>>::sse_decode(deserializer);
-        let mut var_console = <Option<bool>>::sse_decode(deserializer);
+        let mut var_abort = <Option<bool>>::sse_decode(deserializer);
+        let mut var_assert_ = <Option<bool>>::sse_decode(deserializer);
+        let mut var_asyncHooks = <Option<bool>>::sse_decode(deserializer);
         let mut var_buffer = <Option<bool>>::sse_decode(deserializer);
+        let mut var_childProcess = <Option<bool>>::sse_decode(deserializer);
+        let mut var_console = <Option<bool>>::sse_decode(deserializer);
+        let mut var_crypto = <Option<bool>>::sse_decode(deserializer);
+        let mut var_dns = <Option<bool>>::sse_decode(deserializer);
+        let mut var_events = <Option<bool>>::sse_decode(deserializer);
+        let mut var_exceptions = <Option<bool>>::sse_decode(deserializer);
+        let mut var_fetch = <Option<bool>>::sse_decode(deserializer);
+        let mut var_fs = <Option<bool>>::sse_decode(deserializer);
+        let mut var_navigator = <Option<bool>>::sse_decode(deserializer);
+        let mut var_net = <Option<bool>>::sse_decode(deserializer);
+        let mut var_os = <Option<bool>>::sse_decode(deserializer);
+        let mut var_path = <Option<bool>>::sse_decode(deserializer);
+        let mut var_perfHooks = <Option<bool>>::sse_decode(deserializer);
+        let mut var_process = <Option<bool>>::sse_decode(deserializer);
+        let mut var_streamWeb = <Option<bool>>::sse_decode(deserializer);
         let mut var_stringDecoder = <Option<bool>>::sse_decode(deserializer);
         let mut var_timers = <Option<bool>>::sse_decode(deserializer);
-        let mut var_stream = <Option<bool>>::sse_decode(deserializer);
-        let mut var_crypto = <Option<bool>>::sse_decode(deserializer);
-        let mut var_abort = <Option<bool>>::sse_decode(deserializer);
+        let mut var_tty = <Option<bool>>::sse_decode(deserializer);
         let mut var_url = <Option<bool>>::sse_decode(deserializer);
-        let mut var_events = <Option<bool>>::sse_decode(deserializer);
+        let mut var_util = <Option<bool>>::sse_decode(deserializer);
+        let mut var_zlib = <Option<bool>>::sse_decode(deserializer);
         let mut var_json = <Option<bool>>::sse_decode(deserializer);
         return crate::api::js::JsBuiltinOptions {
-            fetch: var_fetch,
-            console: var_console,
+            abort: var_abort,
+            assert: var_assert_,
+            async_hooks: var_asyncHooks,
             buffer: var_buffer,
+            child_process: var_childProcess,
+            console: var_console,
+            crypto: var_crypto,
+            dns: var_dns,
+            events: var_events,
+            exceptions: var_exceptions,
+            fetch: var_fetch,
+            fs: var_fs,
+            navigator: var_navigator,
+            net: var_net,
+            os: var_os,
+            path: var_path,
+            perf_hooks: var_perfHooks,
+            process: var_process,
+            stream_web: var_streamWeb,
             string_decoder: var_stringDecoder,
             timers: var_timers,
-            stream: var_stream,
-            crypto: var_crypto,
-            abort: var_abort,
+            tty: var_tty,
             url: var_url,
-            events: var_events,
+            util: var_util,
+            zlib: var_zlib,
             json: var_json,
         };
     }
@@ -3935,6 +4040,64 @@ impl SseDecode for crate::api::js::JsCode {
     }
 }
 
+impl SseDecode for crate::api::js::JsError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::js::JsError::Promise(var_field0);
+            }
+            1 => {
+                let mut var_module = <Option<String>>::sse_decode(deserializer);
+                let mut var_method = <Option<String>>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::js::JsError::Module {
+                    module: var_module,
+                    method: var_method,
+                    message: var_message,
+                };
+            }
+            2 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::js::JsError::Context(var_field0);
+            }
+            3 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::js::JsError::Storage(var_field0);
+            }
+            4 => {
+                let mut var_path = <Option<String>>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::js::JsError::Io {
+                    path: var_path,
+                    message: var_message,
+                };
+            }
+            5 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::js::JsError::Runtime(var_field0);
+            }
+            6 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::js::JsError::Generic(var_field0);
+            }
+            7 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::js::JsError::Engine(var_field0);
+            }
+            8 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::js::JsError::Bridge(var_field0);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::api::js::JsEvalOptions {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3942,14 +4105,11 @@ impl SseDecode for crate::api::js::JsEvalOptions {
         let mut var_strict = <Option<bool>>::sse_decode(deserializer);
         let mut var_backtraceBarrier = <Option<bool>>::sse_decode(deserializer);
         let mut var_promise = <Option<bool>>::sse_decode(deserializer);
-        let mut var_builtinOptions =
-            <Option<crate::api::js::JsBuiltinOptions>>::sse_decode(deserializer);
         return crate::api::js::JsEvalOptions {
             global: var_global,
             strict: var_strict,
             backtrace_barrier: var_backtraceBarrier,
             promise: var_promise,
-            builtin_options: var_builtinOptions,
         };
     }
 }
@@ -3976,7 +4136,7 @@ impl SseDecode for crate::api::js::JsResult {
                 return crate::api::js::JsResult::Ok(var_field0);
             }
             1 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
+                let mut var_field0 = <crate::api::js::JsError>::sse_decode(deserializer);
                 return crate::api::js::JsResult::Err(var_field0);
             }
             _ => {
@@ -4082,6 +4242,17 @@ impl SseDecode for Vec<(String, crate::api::value::JsValue)> {
     }
 }
 
+impl SseDecode for Option<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<String>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<bool> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4109,6 +4280,17 @@ impl SseDecode for Option<crate::api::js::JsEvalOptions> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::js::JsEvalOptions>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<Vec<crate::api::js::JsModule>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<Vec<crate::api::js::JsModule>>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -4244,13 +4426,17 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        17 => {
-            wire__crate__api__js__JsAsyncRuntime_set_modules_impl(port, ptr, rust_vec_len, data_len)
-        }
+        17 => wire__crate__api__js__JsAsyncRuntime_with_options_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         24 => wire__crate__api__js__JsEngineCore_dispose_impl(port, ptr, rust_vec_len, data_len),
         26 => wire__crate__api__js__JsEngineCore_exec_impl(port, ptr, rust_vec_len, data_len),
         29 => wire__crate__api__js__JsEngineCore_start_impl(port, ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__js__JsRuntime_with_options_impl(port, ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -4285,48 +4471,50 @@ fn pde_ffi_dispatcher_sync_impl(
         37 => wire__crate__api__js__JsRuntime_set_info_impl(ptr, rust_vec_len, data_len),
         38 => wire__crate__api__js__JsRuntime_set_max_stack_size_impl(ptr, rust_vec_len, data_len),
         39 => wire__crate__api__js__JsRuntime_set_memory_limit_impl(ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__js__MemoryUsage_array_count_impl(ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__js__MemoryUsage_atom_count_impl(ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__js__MemoryUsage_atom_size_impl(ptr, rust_vec_len, data_len),
-        43 => {
+        41 => wire__crate__api__js__MemoryUsage_array_count_impl(ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__js__MemoryUsage_atom_count_impl(ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__js__MemoryUsage_atom_size_impl(ptr, rust_vec_len, data_len),
+        44 => {
             wire__crate__api__js__MemoryUsage_binary_object_count_impl(ptr, rust_vec_len, data_len)
         }
-        44 => {
+        45 => {
             wire__crate__api__js__MemoryUsage_binary_object_size_impl(ptr, rust_vec_len, data_len)
         }
-        45 => wire__crate__api__js__MemoryUsage_c_func_count_impl(ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__js__MemoryUsage_fast_array_count_impl(ptr, rust_vec_len, data_len),
-        47 => {
+        46 => wire__crate__api__js__MemoryUsage_c_func_count_impl(ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__js__MemoryUsage_fast_array_count_impl(ptr, rust_vec_len, data_len),
+        48 => {
             wire__crate__api__js__MemoryUsage_fast_array_elements_impl(ptr, rust_vec_len, data_len)
         }
-        48 => wire__crate__api__js__MemoryUsage_js_func_code_size_impl(ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__js__MemoryUsage_js_func_count_impl(ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__js__MemoryUsage_js_func_pc2line_count_impl(
+        49 => wire__crate__api__js__MemoryUsage_js_func_code_size_impl(ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__js__MemoryUsage_js_func_count_impl(ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__js__MemoryUsage_js_func_pc2line_count_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => {
+        52 => {
             wire__crate__api__js__MemoryUsage_js_func_pc2line_size_impl(ptr, rust_vec_len, data_len)
         }
-        52 => wire__crate__api__js__MemoryUsage_js_func_size_impl(ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__js__MemoryUsage_malloc_count_impl(ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__js__MemoryUsage_malloc_limit_impl(ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__js__MemoryUsage_malloc_size_impl(ptr, rust_vec_len, data_len),
-        56 => wire__crate__api__js__MemoryUsage_memory_used_count_impl(ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__js__MemoryUsage_memory_used_size_impl(ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__js__MemoryUsage_obj_count_impl(ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__js__MemoryUsage_obj_size_impl(ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__js__MemoryUsage_prop_count_impl(ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__js__MemoryUsage_prop_size_impl(ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__js__MemoryUsage_shape_count_impl(ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__js__MemoryUsage_shape_size_impl(ptr, rust_vec_len, data_len),
-        64 => wire__crate__api__js__MemoryUsage_str_count_impl(ptr, rust_vec_len, data_len),
-        65 => wire__crate__api__js__MemoryUsage_str_size_impl(ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__js__js_eval_options_new_impl(ptr, rust_vec_len, data_len),
-        68 => wire__crate__api__js__js_module_code_impl(ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__js__js_module_new_impl(ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__js__js_module_path_impl(ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__js__MemoryUsage_js_func_size_impl(ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__js__MemoryUsage_malloc_count_impl(ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__js__MemoryUsage_malloc_limit_impl(ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__js__MemoryUsage_malloc_size_impl(ptr, rust_vec_len, data_len),
+        57 => wire__crate__api__js__MemoryUsage_memory_used_count_impl(ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__js__MemoryUsage_memory_used_size_impl(ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__js__MemoryUsage_obj_count_impl(ptr, rust_vec_len, data_len),
+        60 => wire__crate__api__js__MemoryUsage_obj_size_impl(ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__js__MemoryUsage_prop_count_impl(ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__js__MemoryUsage_prop_size_impl(ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__js__MemoryUsage_shape_count_impl(ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__js__MemoryUsage_shape_size_impl(ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__js__MemoryUsage_str_count_impl(ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__js__MemoryUsage_str_size_impl(ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__js__js_builtin_options_all_impl(ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__js__js_error_to_string_impl(ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__js__js_eval_options_new_impl(ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__js__js_module_code_impl(ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__js__js_module_new_impl(ptr, rust_vec_len, data_len),
+        73 => wire__crate__api__js__js_module_path_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -4438,31 +4626,25 @@ impl flutter_rust_bridge::IntoDart for crate::api::js::JsAction {
                 options.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::js::JsAction::DeclareModule { id, module } => [
+            crate::api::js::JsAction::DeclareNewModule { id, module } => [
                 1.into_dart(),
                 id.into_into_dart().into_dart(),
                 module.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::js::JsAction::EvaluateModule { id, module } => [
+            crate::api::js::JsAction::DeclareNewModules { id, modules } => [
                 2.into_dart(),
                 id.into_into_dart().into_dart(),
-                module.into_into_dart().into_dart(),
+                modules.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::js::JsAction::ImportModule { id, specifier } => [
-                3.into_dart(),
-                id.into_into_dart().into_dart(),
-                specifier.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::api::js::JsAction::EnableBuiltinModule {
-                id,
-                builtin_options,
-            } => [
+            crate::api::js::JsAction::ClearNewModules { id } => {
+                [3.into_dart(), id.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::js::JsAction::EvaluateModule { id, module } => [
                 4.into_dart(),
                 id.into_into_dart().into_dart(),
-                builtin_options.into_into_dart().into_dart(),
+                module.into_into_dart().into_dart(),
             ]
             .into_dart(),
             _ => {
@@ -4502,16 +4684,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::js::JsActionResult>
 impl flutter_rust_bridge::IntoDart for crate::api::js::JsBuiltinOptions {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.fetch.into_into_dart().into_dart(),
-            self.console.into_into_dart().into_dart(),
+            self.abort.into_into_dart().into_dart(),
+            self.assert.into_into_dart().into_dart(),
+            self.async_hooks.into_into_dart().into_dart(),
             self.buffer.into_into_dart().into_dart(),
+            self.child_process.into_into_dart().into_dart(),
+            self.console.into_into_dart().into_dart(),
+            self.crypto.into_into_dart().into_dart(),
+            self.dns.into_into_dart().into_dart(),
+            self.events.into_into_dart().into_dart(),
+            self.exceptions.into_into_dart().into_dart(),
+            self.fetch.into_into_dart().into_dart(),
+            self.fs.into_into_dart().into_dart(),
+            self.navigator.into_into_dart().into_dart(),
+            self.net.into_into_dart().into_dart(),
+            self.os.into_into_dart().into_dart(),
+            self.path.into_into_dart().into_dart(),
+            self.perf_hooks.into_into_dart().into_dart(),
+            self.process.into_into_dart().into_dart(),
+            self.stream_web.into_into_dart().into_dart(),
             self.string_decoder.into_into_dart().into_dart(),
             self.timers.into_into_dart().into_dart(),
-            self.stream.into_into_dart().into_dart(),
-            self.crypto.into_into_dart().into_dart(),
-            self.abort.into_into_dart().into_dart(),
+            self.tty.into_into_dart().into_dart(),
             self.url.into_into_dart().into_dart(),
-            self.events.into_into_dart().into_dart(),
+            self.util.into_into_dart().into_dart(),
+            self.zlib.into_into_dart().into_dart(),
             self.json.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -4600,6 +4797,60 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::js::JsCode> for crate::api::j
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::js::JsError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::js::JsError::Promise(field0) => {
+                [0.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::js::JsError::Module {
+                module,
+                method,
+                message,
+            } => [
+                1.into_dart(),
+                module.into_into_dart().into_dart(),
+                method.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::js::JsError::Context(field0) => {
+                [2.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::js::JsError::Storage(field0) => {
+                [3.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::js::JsError::Io { path, message } => [
+                4.into_dart(),
+                path.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::js::JsError::Runtime(field0) => {
+                [5.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::js::JsError::Generic(field0) => {
+                [6.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::js::JsError::Engine(field0) => {
+                [7.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::js::JsError::Bridge(field0) => {
+                [8.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::js::JsError {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::js::JsError> for crate::api::js::JsError {
+    fn into_into_dart(self) -> crate::api::js::JsError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::js::JsEvalOptions {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4607,7 +4858,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::js::JsEvalOptions {
             self.strict.into_into_dart().into_dart(),
             self.backtrace_barrier.into_into_dart().into_dart(),
             self.promise.into_into_dart().into_dart(),
-            self.builtin_options.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4881,28 +5131,24 @@ impl SseEncode for crate::api::js::JsAction {
                 <crate::api::js::JsCode>::sse_encode(source, serializer);
                 <Option<crate::api::js::JsEvalOptions>>::sse_encode(options, serializer);
             }
-            crate::api::js::JsAction::DeclareModule { id, module } => {
+            crate::api::js::JsAction::DeclareNewModule { id, module } => {
                 <i32>::sse_encode(1, serializer);
                 <u32>::sse_encode(id, serializer);
                 <crate::api::js::JsModule>::sse_encode(module, serializer);
             }
-            crate::api::js::JsAction::EvaluateModule { id, module } => {
+            crate::api::js::JsAction::DeclareNewModules { id, modules } => {
                 <i32>::sse_encode(2, serializer);
                 <u32>::sse_encode(id, serializer);
-                <crate::api::js::JsModule>::sse_encode(module, serializer);
+                <Vec<crate::api::js::JsModule>>::sse_encode(modules, serializer);
             }
-            crate::api::js::JsAction::ImportModule { id, specifier } => {
+            crate::api::js::JsAction::ClearNewModules { id } => {
                 <i32>::sse_encode(3, serializer);
                 <u32>::sse_encode(id, serializer);
-                <String>::sse_encode(specifier, serializer);
             }
-            crate::api::js::JsAction::EnableBuiltinModule {
-                id,
-                builtin_options,
-            } => {
+            crate::api::js::JsAction::EvaluateModule { id, module } => {
                 <i32>::sse_encode(4, serializer);
                 <u32>::sse_encode(id, serializer);
-                <crate::api::js::JsBuiltinOptions>::sse_encode(builtin_options, serializer);
+                <crate::api::js::JsModule>::sse_encode(module, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -4922,16 +5168,31 @@ impl SseEncode for crate::api::js::JsActionResult {
 impl SseEncode for crate::api::js::JsBuiltinOptions {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Option<bool>>::sse_encode(self.fetch, serializer);
-        <Option<bool>>::sse_encode(self.console, serializer);
+        <Option<bool>>::sse_encode(self.abort, serializer);
+        <Option<bool>>::sse_encode(self.assert, serializer);
+        <Option<bool>>::sse_encode(self.async_hooks, serializer);
         <Option<bool>>::sse_encode(self.buffer, serializer);
+        <Option<bool>>::sse_encode(self.child_process, serializer);
+        <Option<bool>>::sse_encode(self.console, serializer);
+        <Option<bool>>::sse_encode(self.crypto, serializer);
+        <Option<bool>>::sse_encode(self.dns, serializer);
+        <Option<bool>>::sse_encode(self.events, serializer);
+        <Option<bool>>::sse_encode(self.exceptions, serializer);
+        <Option<bool>>::sse_encode(self.fetch, serializer);
+        <Option<bool>>::sse_encode(self.fs, serializer);
+        <Option<bool>>::sse_encode(self.navigator, serializer);
+        <Option<bool>>::sse_encode(self.net, serializer);
+        <Option<bool>>::sse_encode(self.os, serializer);
+        <Option<bool>>::sse_encode(self.path, serializer);
+        <Option<bool>>::sse_encode(self.perf_hooks, serializer);
+        <Option<bool>>::sse_encode(self.process, serializer);
+        <Option<bool>>::sse_encode(self.stream_web, serializer);
         <Option<bool>>::sse_encode(self.string_decoder, serializer);
         <Option<bool>>::sse_encode(self.timers, serializer);
-        <Option<bool>>::sse_encode(self.stream, serializer);
-        <Option<bool>>::sse_encode(self.crypto, serializer);
-        <Option<bool>>::sse_encode(self.abort, serializer);
+        <Option<bool>>::sse_encode(self.tty, serializer);
         <Option<bool>>::sse_encode(self.url, serializer);
-        <Option<bool>>::sse_encode(self.events, serializer);
+        <Option<bool>>::sse_encode(self.util, serializer);
+        <Option<bool>>::sse_encode(self.zlib, serializer);
         <Option<bool>>::sse_encode(self.json, serializer);
     }
 }
@@ -4998,6 +5259,60 @@ impl SseEncode for crate::api::js::JsCode {
     }
 }
 
+impl SseEncode for crate::api::js::JsError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::js::JsError::Promise(field0) => {
+                <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::js::JsError::Module {
+                module,
+                method,
+                message,
+            } => {
+                <i32>::sse_encode(1, serializer);
+                <Option<String>>::sse_encode(module, serializer);
+                <Option<String>>::sse_encode(method, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::api::js::JsError::Context(field0) => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::js::JsError::Storage(field0) => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::js::JsError::Io { path, message } => {
+                <i32>::sse_encode(4, serializer);
+                <Option<String>>::sse_encode(path, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::api::js::JsError::Runtime(field0) => {
+                <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::js::JsError::Generic(field0) => {
+                <i32>::sse_encode(6, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::js::JsError::Engine(field0) => {
+                <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::js::JsError::Bridge(field0) => {
+                <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for crate::api::js::JsEvalOptions {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5005,7 +5320,6 @@ impl SseEncode for crate::api::js::JsEvalOptions {
         <Option<bool>>::sse_encode(self.strict, serializer);
         <Option<bool>>::sse_encode(self.backtrace_barrier, serializer);
         <Option<bool>>::sse_encode(self.promise, serializer);
-        <Option<crate::api::js::JsBuiltinOptions>>::sse_encode(self.builtin_options, serializer);
     }
 }
 
@@ -5027,7 +5341,7 @@ impl SseEncode for crate::api::js::JsResult {
             }
             crate::api::js::JsResult::Err(field0) => {
                 <i32>::sse_encode(1, serializer);
-                <String>::sse_encode(field0, serializer);
+                <crate::api::js::JsError>::sse_encode(field0, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -5120,6 +5434,16 @@ impl SseEncode for Vec<(String, crate::api::value::JsValue)> {
     }
 }
 
+impl SseEncode for Option<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <String>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<bool> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5146,6 +5470,16 @@ impl SseEncode for Option<crate::api::js::JsEvalOptions> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::js::JsEvalOptions>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<Vec<crate::api::js::JsModule>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <Vec<crate::api::js::JsModule>>::sse_encode(value, serializer);
         }
     }
 }
