@@ -152,12 +152,13 @@ impl JsRuntime {
         let runtime = rquickjs::Runtime::new()?;
 
         // Handle builtin module options
-        let (module_resolver, module_loader, global_attachment) = if let Some(builtin_options) = builtin {
-            let builder = builtin_options.to_module_builder();
-            builder.build()
-        } else {
-            ModuleBuilder::new().build()
-        };
+        let (module_resolver, module_loader, global_attachment) =
+            if let Some(builtin_options) = builtin {
+                let builder = builtin_options.to_module_builder();
+                builder.build()
+            } else {
+                ModuleBuilder::new().build()
+            };
 
         let mut builtin_resolver = BuiltinResolver::default();
         let mut builtin_loader = BuiltinLoader::default();
@@ -491,15 +492,16 @@ impl JsAsyncRuntime {
         additional: Option<Vec<JsModule>>,
     ) -> anyhow::Result<Self> {
         let runtime = rquickjs::AsyncRuntime::new()?;
-        
+
         // Handle builtin module options
-        let (module_resolver, module_loader, global_attachment) = if let Some(builtin_options) = builtin {
-            let builder = builtin_options.to_module_builder();
-            builder.build()
-        } else {
-            ModuleBuilder::new().build()
-        };
-        
+        let (module_resolver, module_loader, global_attachment) =
+            if let Some(builtin_options) = builtin {
+                let builder = builtin_options.to_module_builder();
+                builder.build()
+            } else {
+                ModuleBuilder::new().build()
+            };
+
         let mut builtin_resolver = BuiltinResolver::default();
         let mut builtin_loader = BuiltinLoader::default();
 
@@ -881,6 +883,18 @@ pub enum JsAction {
         id: u32,
         /// The module to evaluate
         module: JsModule,
+    },
+    /// Get all newly declared modules from the dynamic module storage.
+    GetDeclaredModules {
+        /// Unique identifier for this action
+        id: u32,
+    },
+    /// Check if a specific module is declared in the dynamic module storage.
+    IsModuleDeclared {
+        /// Unique identifier for this action
+        id: u32,
+        /// The name of the module to check
+        module_name: String,
     },
 }
 
@@ -1285,6 +1299,36 @@ impl JsEngineCore {
                     id,
                     result: last_result,
                 };
+                cb(JsCallback::Handler(res)).await;
+            }
+            JsAction::GetDeclaredModules { id } => {
+                let res = if let Some(modules_storage) =
+                    ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>()
+                {
+                    let modules = modules_storage.read().unwrap();
+                    let module_names = modules.keys().cloned().map(JsValue::String).collect();
+                    JsResult::Ok(JsValue::Array(module_names))
+                } else {
+                    JsResult::Err(JsError::storage(
+                        "Dynamic modules storage not initialized".to_string(),
+                    ))
+                };
+                let res = JsActionResult { id, result: res };
+                cb(JsCallback::Handler(res)).await;
+            }
+            JsAction::IsModuleDeclared { id, module_name } => {
+                let res = if let Some(modules_storage) =
+                    ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>()
+                {
+                    let modules = modules_storage.read().unwrap();
+                    let is_declared = modules.contains_key(&module_name);
+                    JsResult::Ok(JsValue::Boolean(is_declared))
+                } else {
+                    JsResult::Err(JsError::storage(
+                        "Dynamic modules storage not initialized".to_string(),
+                    ))
+                };
+                let res = JsActionResult { id, result: res };
                 cb(JsCallback::Handler(res)).await;
             }
         }
@@ -1983,7 +2027,7 @@ impl JsModule {
 /// - `bridge`: The bridge callback function
 ///
 /// # Returns
-    ///
+///
 /// Returns an error if registration fails.
 fn register_fjs<'js>(
     ctx: rquickjs::Ctx<'js>,
@@ -2007,7 +2051,7 @@ fn register_fjs<'js>(
 /// - `bridge`: The bridge callback function
 ///
 /// # Returns
-    ///
+///
 /// Returns a new JavaScript function or an error if creation fails.
 fn new_bridge_call<'js>(
     ctx: rquickjs::Ctx<'js>,

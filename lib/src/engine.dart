@@ -517,4 +517,85 @@ class JsEngine {
       timeout: timeout,
     );
   }
+
+  /// Gets all newly declared modules from the dynamic module storage.
+  ///
+  /// This method returns a list of all module names that are currently
+  /// declared in the engine's dynamic module storage.
+  ///
+  /// # Parameters
+  ///
+  /// - [timeout]: Optional timeout for the operation
+  ///
+  /// # Returns
+  ///
+  /// Returns a [Future] that completes with a list of module names as strings.
+  ///
+  /// # Example
+  ///
+  /// ```dart
+  /// // Get all declared modules
+  /// final modules = await engine.getDeclaredModules();
+  /// print('Available modules: $modules');
+  /// // Output: Available modules: [math, utils, string]
+  /// ```
+  Future<List<String>> getDeclaredModules({Duration? timeout}) async {
+    final nextId = _nextId;
+    final result = await _exec(
+      nextId,
+      JsAction.getDeclaredModules(id: nextId),
+      timeout: timeout,
+    );
+    
+    // Convert JsValue to List<String>
+    if (result.value is List) {
+      return (result.value as List)
+          .map((item) => item.toString())
+          .toList();
+    } else {
+      throw JsError.engine('Unexpected result type: expected List<String>');
+    }
+  }
+
+  /// Checks if a specific module is declared in the dynamic module storage.
+  ///
+  /// This method allows you to check whether a module with the given name
+  /// exists in the engine's dynamic module storage.
+  ///
+  /// # Parameters
+  ///
+  /// - [moduleName]: The name of the module to check
+  /// - [timeout]: Optional timeout for the operation
+  ///
+  /// # Returns
+  ///
+  /// Returns a [Future] that completes with `true` if the module is declared,
+  /// `false` otherwise.
+  ///
+  /// # Example
+  ///
+  /// ```dart
+  /// // Check if a module is declared
+  /// final isDeclared = await engine.isModuleDeclared('math');
+  /// if (isDeclared) {
+  ///   print('Math module is available');
+  /// } else {
+  ///   print('Math module is not available');
+  /// }
+  /// ```
+  Future<bool> isModuleDeclared(String moduleName, {Duration? timeout}) async {
+    final nextId = _nextId;
+    final result = await _exec(
+      nextId,
+      JsAction.isModuleDeclared(id: nextId, moduleName: moduleName),
+      timeout: timeout,
+    );
+    
+    // Convert JsValue to bool
+    if (result.value is bool) {
+      return result.value as bool;
+    } else {
+      throw JsError.engine('Unexpected result type: expected bool');
+    }
+  }
 }
