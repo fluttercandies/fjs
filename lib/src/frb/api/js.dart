@@ -639,6 +639,21 @@ sealed class JsAction with _$JsAction {
     /// The module to evaluate
     required JsModule module,
   }) = JsAction_EvaluateModule;
+
+  /// Get all newly declared modules from the dynamic module storage.
+  const factory JsAction.getDeclaredModules({
+    /// Unique identifier for this action
+    required int id,
+  }) = JsAction_GetDeclaredModules;
+
+  /// Check if a specific module is declared in the dynamic module storage.
+  const factory JsAction.isModuleDeclared({
+    /// Unique identifier for this action
+    required int id,
+
+    /// The name of the module to check
+    required String moduleName,
+  }) = JsAction_IsModuleDeclared;
 }
 
 /// Represents the result of a JavaScript action execution.
