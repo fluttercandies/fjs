@@ -2623,6 +2623,15 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
           id: dco_decode_u_32(raw[1]),
           module: dco_decode_box_autoadd_js_module(raw[2]),
         );
+      case 5:
+        return JsAction_GetDeclaredModules(
+          id: dco_decode_u_32(raw[1]),
+        );
+      case 6:
+        return JsAction_IsModuleDeclared(
+          id: dco_decode_u_32(raw[1]),
+          moduleName: dco_decode_String(raw[2]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -3270,6 +3279,14 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         var var_id = sse_decode_u_32(deserializer);
         var var_module = sse_decode_box_autoadd_js_module(deserializer);
         return JsAction_EvaluateModule(id: var_id, module: var_module);
+      case 5:
+        var var_id = sse_decode_u_32(deserializer);
+        return JsAction_GetDeclaredModules(id: var_id);
+      case 6:
+        var var_id = sse_decode_u_32(deserializer);
+        var var_moduleName = sse_decode_String(deserializer);
+        return JsAction_IsModuleDeclared(
+            id: var_id, moduleName: var_moduleName);
       default:
         throw UnimplementedError('');
     }
@@ -3998,6 +4015,16 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_i_32(4, serializer);
         sse_encode_u_32(id, serializer);
         sse_encode_box_autoadd_js_module(module, serializer);
+      case JsAction_GetDeclaredModules(id: final id):
+        sse_encode_i_32(5, serializer);
+        sse_encode_u_32(id, serializer);
+      case JsAction_IsModuleDeclared(
+          id: final id,
+          moduleName: final moduleName
+        ):
+        sse_encode_i_32(6, serializer);
+        sse_encode_u_32(id, serializer);
+        sse_encode_String(moduleName, serializer);
     }
   }
 

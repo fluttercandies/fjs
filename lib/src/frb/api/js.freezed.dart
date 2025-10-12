@@ -93,6 +93,8 @@ extension JsActionPatterns on JsAction {
     TResult Function(JsAction_DeclareNewModules value)? declareNewModules,
     TResult Function(JsAction_ClearNewModules value)? clearNewModules,
     TResult Function(JsAction_EvaluateModule value)? evaluateModule,
+    TResult Function(JsAction_GetDeclaredModules value)? getDeclaredModules,
+    TResult Function(JsAction_IsModuleDeclared value)? isModuleDeclared,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -107,6 +109,10 @@ extension JsActionPatterns on JsAction {
         return clearNewModules(_that);
       case JsAction_EvaluateModule() when evaluateModule != null:
         return evaluateModule(_that);
+      case JsAction_GetDeclaredModules() when getDeclaredModules != null:
+        return getDeclaredModules(_that);
+      case JsAction_IsModuleDeclared() when isModuleDeclared != null:
+        return isModuleDeclared(_that);
       case _:
         return orElse();
     }
@@ -133,6 +139,9 @@ extension JsActionPatterns on JsAction {
         declareNewModules,
     required TResult Function(JsAction_ClearNewModules value) clearNewModules,
     required TResult Function(JsAction_EvaluateModule value) evaluateModule,
+    required TResult Function(JsAction_GetDeclaredModules value)
+        getDeclaredModules,
+    required TResult Function(JsAction_IsModuleDeclared value) isModuleDeclared,
   }) {
     final _that = this;
     switch (_that) {
@@ -146,6 +155,10 @@ extension JsActionPatterns on JsAction {
         return clearNewModules(_that);
       case JsAction_EvaluateModule():
         return evaluateModule(_that);
+      case JsAction_GetDeclaredModules():
+        return getDeclaredModules(_that);
+      case JsAction_IsModuleDeclared():
+        return isModuleDeclared(_that);
     }
   }
 
@@ -168,6 +181,8 @@ extension JsActionPatterns on JsAction {
     TResult? Function(JsAction_DeclareNewModules value)? declareNewModules,
     TResult? Function(JsAction_ClearNewModules value)? clearNewModules,
     TResult? Function(JsAction_EvaluateModule value)? evaluateModule,
+    TResult? Function(JsAction_GetDeclaredModules value)? getDeclaredModules,
+    TResult? Function(JsAction_IsModuleDeclared value)? isModuleDeclared,
   }) {
     final _that = this;
     switch (_that) {
@@ -181,6 +196,10 @@ extension JsActionPatterns on JsAction {
         return clearNewModules(_that);
       case JsAction_EvaluateModule() when evaluateModule != null:
         return evaluateModule(_that);
+      case JsAction_GetDeclaredModules() when getDeclaredModules != null:
+        return getDeclaredModules(_that);
+      case JsAction_IsModuleDeclared() when isModuleDeclared != null:
+        return isModuleDeclared(_that);
       case _:
         return null;
     }
@@ -205,6 +224,8 @@ extension JsActionPatterns on JsAction {
     TResult Function(int id, List<JsModule> modules)? declareNewModules,
     TResult Function(int id)? clearNewModules,
     TResult Function(int id, JsModule module)? evaluateModule,
+    TResult Function(int id)? getDeclaredModules,
+    TResult Function(int id, String moduleName)? isModuleDeclared,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -219,6 +240,10 @@ extension JsActionPatterns on JsAction {
         return clearNewModules(_that.id);
       case JsAction_EvaluateModule() when evaluateModule != null:
         return evaluateModule(_that.id, _that.module);
+      case JsAction_GetDeclaredModules() when getDeclaredModules != null:
+        return getDeclaredModules(_that.id);
+      case JsAction_IsModuleDeclared() when isModuleDeclared != null:
+        return isModuleDeclared(_that.id, _that.moduleName);
       case _:
         return orElse();
     }
@@ -245,6 +270,8 @@ extension JsActionPatterns on JsAction {
     required TResult Function(int id, List<JsModule> modules) declareNewModules,
     required TResult Function(int id) clearNewModules,
     required TResult Function(int id, JsModule module) evaluateModule,
+    required TResult Function(int id) getDeclaredModules,
+    required TResult Function(int id, String moduleName) isModuleDeclared,
   }) {
     final _that = this;
     switch (_that) {
@@ -258,6 +285,10 @@ extension JsActionPatterns on JsAction {
         return clearNewModules(_that.id);
       case JsAction_EvaluateModule():
         return evaluateModule(_that.id, _that.module);
+      case JsAction_GetDeclaredModules():
+        return getDeclaredModules(_that.id);
+      case JsAction_IsModuleDeclared():
+        return isModuleDeclared(_that.id, _that.moduleName);
     }
   }
 
@@ -280,6 +311,8 @@ extension JsActionPatterns on JsAction {
     TResult? Function(int id, List<JsModule> modules)? declareNewModules,
     TResult? Function(int id)? clearNewModules,
     TResult? Function(int id, JsModule module)? evaluateModule,
+    TResult? Function(int id)? getDeclaredModules,
+    TResult? Function(int id, String moduleName)? isModuleDeclared,
   }) {
     final _that = this;
     switch (_that) {
@@ -293,6 +326,10 @@ extension JsActionPatterns on JsAction {
         return clearNewModules(_that.id);
       case JsAction_EvaluateModule() when evaluateModule != null:
         return evaluateModule(_that.id, _that.module);
+      case JsAction_GetDeclaredModules() when getDeclaredModules != null:
+        return getDeclaredModules(_that.id);
+      case JsAction_IsModuleDeclared() when isModuleDeclared != null:
+        return isModuleDeclared(_that.id, _that.moduleName);
       case _:
         return null;
     }
@@ -756,6 +793,158 @@ class _$JsAction_EvaluateModuleCopyWithImpl<$Res>
     return $JsModuleCopyWith<$Res>(_self.module, (value) {
       return _then(_self.copyWith(module: value));
     });
+  }
+}
+
+/// @nodoc
+
+class JsAction_GetDeclaredModules extends JsAction {
+  const JsAction_GetDeclaredModules({required this.id}) : super._();
+
+  /// Unique identifier for this action
+  @override
+  final int id;
+
+  /// Create a copy of JsAction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsAction_GetDeclaredModulesCopyWith<JsAction_GetDeclaredModules>
+      get copyWith => _$JsAction_GetDeclaredModulesCopyWithImpl<
+          JsAction_GetDeclaredModules>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsAction_GetDeclaredModules &&
+            (identical(other.id, id) || other.id == id));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, id);
+
+  @override
+  String toString() {
+    return 'JsAction.getDeclaredModules(id: $id)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsAction_GetDeclaredModulesCopyWith<$Res>
+    implements $JsActionCopyWith<$Res> {
+  factory $JsAction_GetDeclaredModulesCopyWith(
+          JsAction_GetDeclaredModules value,
+          $Res Function(JsAction_GetDeclaredModules) _then) =
+      _$JsAction_GetDeclaredModulesCopyWithImpl;
+  @override
+  @useResult
+  $Res call({int id});
+}
+
+/// @nodoc
+class _$JsAction_GetDeclaredModulesCopyWithImpl<$Res>
+    implements $JsAction_GetDeclaredModulesCopyWith<$Res> {
+  _$JsAction_GetDeclaredModulesCopyWithImpl(this._self, this._then);
+
+  final JsAction_GetDeclaredModules _self;
+  final $Res Function(JsAction_GetDeclaredModules) _then;
+
+  /// Create a copy of JsAction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+  }) {
+    return _then(JsAction_GetDeclaredModules(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsAction_IsModuleDeclared extends JsAction {
+  const JsAction_IsModuleDeclared({required this.id, required this.moduleName})
+      : super._();
+
+  /// Unique identifier for this action
+  @override
+  final int id;
+
+  /// The name of the module to check
+  final String moduleName;
+
+  /// Create a copy of JsAction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsAction_IsModuleDeclaredCopyWith<JsAction_IsModuleDeclared> get copyWith =>
+      _$JsAction_IsModuleDeclaredCopyWithImpl<JsAction_IsModuleDeclared>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsAction_IsModuleDeclared &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.moduleName, moduleName) ||
+                other.moduleName == moduleName));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, id, moduleName);
+
+  @override
+  String toString() {
+    return 'JsAction.isModuleDeclared(id: $id, moduleName: $moduleName)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsAction_IsModuleDeclaredCopyWith<$Res>
+    implements $JsActionCopyWith<$Res> {
+  factory $JsAction_IsModuleDeclaredCopyWith(JsAction_IsModuleDeclared value,
+          $Res Function(JsAction_IsModuleDeclared) _then) =
+      _$JsAction_IsModuleDeclaredCopyWithImpl;
+  @override
+  @useResult
+  $Res call({int id, String moduleName});
+}
+
+/// @nodoc
+class _$JsAction_IsModuleDeclaredCopyWithImpl<$Res>
+    implements $JsAction_IsModuleDeclaredCopyWith<$Res> {
+  _$JsAction_IsModuleDeclaredCopyWithImpl(this._self, this._then);
+
+  final JsAction_IsModuleDeclared _self;
+  final $Res Function(JsAction_IsModuleDeclared) _then;
+
+  /// Create a copy of JsAction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? moduleName = null,
+  }) {
+    return _then(JsAction_IsModuleDeclared(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as int,
+      moduleName: null == moduleName
+          ? _self.moduleName
+          : moduleName // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
   }
 }
 

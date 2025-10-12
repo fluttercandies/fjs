@@ -3896,6 +3896,18 @@ impl SseDecode for crate::api::js::JsAction {
                     module: var_module,
                 };
             }
+            5 => {
+                let mut var_id = <u32>::sse_decode(deserializer);
+                return crate::api::js::JsAction::GetDeclaredModules { id: var_id };
+            }
+            6 => {
+                let mut var_id = <u32>::sse_decode(deserializer);
+                let mut var_moduleName = <String>::sse_decode(deserializer);
+                return crate::api::js::JsAction::IsModuleDeclared {
+                    id: var_id,
+                    module_name: var_moduleName,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -4647,6 +4659,15 @@ impl flutter_rust_bridge::IntoDart for crate::api::js::JsAction {
                 module.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::js::JsAction::GetDeclaredModules { id } => {
+                [5.into_dart(), id.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::js::JsAction::IsModuleDeclared { id, module_name } => [
+                6.into_dart(),
+                id.into_into_dart().into_dart(),
+                module_name.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -5149,6 +5170,15 @@ impl SseEncode for crate::api::js::JsAction {
                 <i32>::sse_encode(4, serializer);
                 <u32>::sse_encode(id, serializer);
                 <crate::api::js::JsModule>::sse_encode(module, serializer);
+            }
+            crate::api::js::JsAction::GetDeclaredModules { id } => {
+                <i32>::sse_encode(5, serializer);
+                <u32>::sse_encode(id, serializer);
+            }
+            crate::api::js::JsAction::IsModuleDeclared { id, module_name } => {
+                <i32>::sse_encode(6, serializer);
+                <u32>::sse_encode(id, serializer);
+                <String>::sse_encode(module_name, serializer);
             }
             _ => {
                 unimplemented!("");
