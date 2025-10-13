@@ -25,6 +25,7 @@
 - 📱 **Cross Platform**: Supports Android, iOS, Linux, macOS, and Windows
 - 🎯 **Type Safe**: Strongly typed APIs with Dart integration
 - 🧠 **Memory Management**: Built-in garbage collection and memory limits
+- 🔍 **Module Management**: Dynamic module declaration, tracking, and introspection capabilities
 
 ## 📦 Installation
 
@@ -141,6 +142,17 @@ await engine.declareNewModules([
   JsModule.code('math', 'export const add = (a, b) => a + b;'),
   JsModule.code('string', 'export const reverse = (s) => s.split("").reverse().join("");'),
 ]);
+
+// Check if specific modules are declared
+final isMathDeclared = await engine.isModuleDeclared('math');
+final isUtilsDeclared = await engine.isModuleDeclared('utils');
+print('Math module declared: $isMathDeclared'); // true
+print('Utils module declared: $isUtilsDeclared'); // false
+
+// Get all declared modules
+final declaredModules = await engine.getDeclaredModules();
+print('Available modules: $declaredModules');
+// Output: Available modules: [greeting, math, string]
 
 // Use the modules
 await engine.eval(JsCode.code('''
