@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/fjs_service.dart';
 
@@ -13,6 +14,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
   final TextEditingController _codeController = TextEditingController();
   final TextEditingController _resultController = TextEditingController();
   bool _isExecuting = false;
+  bool _copiedToClipboard = false;
 
   @override
   void dispose() {
@@ -21,7 +23,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
     super.dispose();
   }
 
-  Future<void> _executeCode() async {
+  Future<void> _executeCode(JsExecutionMode mode) async {
     if (_codeController.text.trim().isEmpty) return;
 
     setState(() {
@@ -31,7 +33,13 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
 
     try {
       final fjsService = Provider.of<FjsService>(context, listen: false);
-      final result = await fjsService.executeCode(_codeController.text);
+      
+      dynamic result;
+      if (mode == JsExecutionMode.script) {
+        result = await fjsService.executeAsScript(_codeController.text);
+      } else {
+        result = await fjsService.executeAsModule(_codeController.text);
+      }
 
       setState(() {
         _resultController.text = result.toString();
@@ -52,6 +60,97 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
     _resultController.clear();
   }
 
+  Future<void> _copyResultToClipboard() async {
+    if (_resultController.text.trim().isEmpty) return;
+
+    try {
+      await Clipboard.setData(ClipboardData(text: _resultController.text));
+      
+      setState(() {
+        _copiedToClipboard = true;
+      });
+
+      // Reset the copied state after 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _copiedToClipboard = false;
+          });
+        }
+      });
+
+      // Show a snackbar for better feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Result copied to clipboard!'),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error message if copy fails
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to copy: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _copyCodeToClipboard() async {
+    if (_codeController.text.trim().isEmpty) return;
+
+    try {
+      await Clipboard.setData(ClipboardData(text: _codeController.text));
+
+      // Show a snackbar for feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Code copied to clipboard!'),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error message if copy fails
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to copy: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,11 +161,6 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
             icon: const Icon(Icons.clear_all),
             onPressed: _clearAll,
             tooltip: 'Clear All',
-          ),
-          IconButton(
-            icon: const Icon(Icons.play_circle_outline),
-            onPressed: _executeCode,
-            tooltip: 'Execute Code',
           ),
         ],
       ),
@@ -92,6 +186,25 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const Spacer(),
+                          // Copy code button
+                          if (_codeController.text.trim().isNotEmpty)
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: IconButton.filled(
+                                onPressed: _isExecuting ? null : _copyCodeToClipboard,
+                                icon: const Icon(Icons.copy, size: 18),
+                                iconSize: 18,
+                                style: IconButton.styleFrom(
+                                  minimumSize: const Size(36, 36),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                tooltip: 'Copy Code',
+                              ),
+                            ),
+                          const SizedBox(width: 8),
                           if (_isExecuting)
                             const SizedBox(
                               width: 16,
@@ -126,21 +239,76 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      // Mode description
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, 
+                              size: 20, 
+                              color: Colors.blue.shade700
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Script mode: uses eval(), no import support\nModule mode: supports import/export statements',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
                             child: FilledButton.icon(
-                              onPressed: _isExecuting ? null : _executeCode,
-                              icon: const Icon(Icons.play_arrow),
+                              onPressed: _isExecuting 
+                                  ? null 
+                                  : () => _executeCode(JsExecutionMode.script),
+                              icon: const Icon(Icons.code),
                               label: Text(
-                                  _isExecuting ? 'Executing...' : 'Execute'),
+                                _isExecuting ? 'Executing...' : 'Run as Script'
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.green,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: _isExecuting ? null : _clearAll,
-                            icon: const Icon(Icons.clear),
-                            label: const Text('Clear'),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: _isExecuting 
+                                  ? null 
+                                  : () => _executeCode(JsExecutionMode.module),
+                              icon: const Icon(Icons.integration_instructions),
+                              label: Text(
+                                _isExecuting ? 'Executing...' : 'Run as Module'
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _isExecuting ? null : _clearAll,
+                              icon: const Icon(Icons.clear),
+                              label: const Text('Clear All'),
+                            ),
                           ),
                         ],
                       ),
@@ -168,6 +336,43 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
                             'Result',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
+                          const Spacer(),
+                          // Copy button with dynamic state
+                          if (_resultController.text.trim().isNotEmpty)
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _copiedToClipboard 
+                                    ? Colors.green.shade100 
+                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _copiedToClipboard 
+                                      ? Colors.green.shade300 
+                                      : Colors.transparent,
+                                ),
+                              ),
+                              child: IconButton.filled(
+                                onPressed: _isExecuting ? null : _copyResultToClipboard,
+                                icon: Icon(
+                                  _copiedToClipboard 
+                                      ? Icons.check_circle 
+                                      : Icons.copy,
+                                  size: 18,
+                                ),
+                                iconSize: 18,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _copiedToClipboard 
+                                      ? Colors.green.shade200 
+                                      : null,
+                                  foregroundColor: _copiedToClipboard 
+                                      ? Colors.green.shade700 
+                                      : null,
+                                  minimumSize: const Size(36, 36),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                tooltip: _copiedToClipboard ? 'Copied!' : 'Copy Result',
+                              ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -217,9 +422,29 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _executeCode,
-        child: const Icon(Icons.play_arrow),
+      floatingActionButton: Consumer<FjsService>(
+        builder: (context, fjsService, _) {
+          return FloatingActionButton.extended(
+            onPressed: _isExecuting 
+                ? null 
+                : () {
+                    // Auto-detect mode based on code
+                    final hasImport = RegExp(
+                      r'^\s*import\s+.*\s+from\s+["\x27"]',
+                      multiLine: true,
+                    ).hasMatch(_codeController.text);
+                    
+                    _executeCode(
+                      hasImport 
+                          ? JsExecutionMode.module 
+                          : JsExecutionMode.script
+                    );
+                  },
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Auto Run'),
+            tooltip: 'Auto-detect and execute (Module mode for imports)',
+          );
+        },
       ),
     );
   }
