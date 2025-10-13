@@ -142,6 +142,17 @@ await engine.declareNewModules([
   JsModule.code('string', 'export const reverse = (s) => s.split("").reverse().join("");'),
 ]);
 
+// 检查特定模块是否已声明
+final isMathDeclared = await engine.isModuleDeclared('math');
+final isUtilsDeclared = await engine.isModuleDeclared('utils');
+print('Math 模块已声明: $isMathDeclared'); // true
+print('Utils 模块已声明: $isUtilsDeclared'); // false
+
+// 获取所有已声明的模块
+final declaredModules = await engine.getDeclaredModules();
+print('可用模块: $declaredModules');
+// 输出: 可用模块: [greeting, math, string]
+
 // 使用模块
 await engine.eval(JsCode.code('''
   import { greet, version } from 'greeting';

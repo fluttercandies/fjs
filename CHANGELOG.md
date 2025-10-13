@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0
+
+* **BREAKING**: Complete refactor of example application architecture
+* **FEATURE**: Added asset-based JavaScript example system with dynamic loading
+* **FEATURE**: Implemented comprehensive example categorization with 12 distinct categories
+* **FEATURE**: Created modular example management with 93 individual JavaScript files
+* **FEATURE**: Added automatic file caching mechanism for improved performance
+* **FEATURE**: Added module declaration management actions to JavaScript engine
+* **FEATURE**: Added `getDeclaredModules()` method to retrieve all dynamically declared modules
+* **FEATURE**: Added `isModuleDeclared()` method to check if a specific module is declared
+* **IMPROVEMENT**: Enhanced module tracking and introspection capabilities
+* **IMPROVEMENT**: Standardized all JavaScript examples to use `console.log()` instead of `export` statements
+* **IMPROVEMENT**: Removed Chinese comments, all code uses clean English documentation
+* **REMOVED**: Eliminated all events-related examples to simplify the codebase
+
 ## 1.1.0
 
 * **FEATURE**: Enhanced API design with improved high-level interface
@@ -15,25 +30,44 @@
 * **PERF**: Better error handling and recovery mechanisms
 * **INTERNAL**: Updated dependencies for better compatibility
 * **INTERNAL**: Enhanced build system for faster development cycles
+* **INTERNAL**: Improved Rust FFI bindings and async runtime support
+* **INTERNAL**: Added comprehensive error types and proper error propagation
 
 ## 1.0.9
 
 * Bug fixes and stability improvements
+* **INTERNAL**: Fixed module resolution edge cases
+* **INTERNAL**: Improved async context synchronization
 
 ## 1.0.3
 
 * Precompiled binaries support for macOS, iOS, Linux, Windows, and Android
+* **INTERNAL**: Enhanced cargo configuration for better cross-platform builds
 
 ## 1.0.2
 
-* Improved flate2 configuration with zlib-rs backend
+* **INTERNAL**: Improved flate2 configuration with zlib-rs backend
+* **INTERNAL**: Fixed build configuration for Windows targets
+
+## 1.0.1
+
+* **FIX**: Resolved memory management issues in long-running scripts
+* **FIX**: Fixed module loading edge cases and circular dependencies
+* **FIX**: Improved error messages for better debugging
+* **INTERNAL**: Added comprehensive test suite for JavaScript runtime operations
+* **INTERNAL**: Enhanced async runtime performance and stability
 
 ## 1.0.0
 
 * **BREAKING CHANGE**: First stable release with enhanced compatibility
-* Improved cross-platform support
-* Stabilized API interface
+* **IMPROVEMENT**: Improved cross-platform support with better build configuration
+* **IMPROVEMENT**: Stabilized API interface and error handling
+* **IMPROVEMENT**: Enhanced module system with dynamic loading capabilities
+* **INTERNAL**: Migrated to Rust-based build system for better performance
+* **INTERNAL**: Improved FFI bindings for async runtime operations
 
 ## 0.0.1
 
 * Initial release with basic functionality
+* **INTERNAL**: Core JavaScript runtime integration with Flutter
+* **INTERNAL**: Basic module loading and execution support
