@@ -8,50 +8,36 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'value.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+            // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `from_js`, `into_js`
 
-@freezed
-sealed class JsValue with _$JsValue {
-  const JsValue._();
 
-  /// Represents null or undefined values in JavaScript
-  const factory JsValue.none() = JsValue_None;
+            
 
-  /// Represents boolean values (true/false)
-  const factory JsValue.boolean(
-    bool field0,
-  ) = JsValue_Boolean;
+            @freezed
+                sealed class JsValue with _$JsValue  {
+                    const JsValue._();
 
-  /// Represents 64-bit integer values
-  const factory JsValue.integer(
-    PlatformInt64 field0,
-  ) = JsValue_Integer;
+                     /// Represents null or undefined values in JavaScript
+const factory JsValue.none() = JsValue_None;
+ /// Represents boolean values (true/false)
+const factory JsValue.boolean(  bool field0,) = JsValue_Boolean;
+ /// Represents 64-bit integer values
+const factory JsValue.integer(  PlatformInt64 field0,) = JsValue_Integer;
+ /// Represents floating-point number values
+const factory JsValue.float(  double field0,) = JsValue_Float;
+ /// Represents BigInt values stored as strings for precision
+const factory JsValue.bigint(  String field0,) = JsValue_Bigint;
+ /// Represents string values
+const factory JsValue.string(  String field0,) = JsValue_String;
+ /// Represents arrays with nested value support
+const factory JsValue.array(  List<JsValue> field0,) = JsValue_Array;
+ /// Represents objects with string keys and arbitrary values
+const factory JsValue.object(  Map<String, JsValue> field0,) = JsValue_Object;
 
-  /// Represents floating-point number values
-  const factory JsValue.float(
-    double field0,
-  ) = JsValue_Float;
+                    
 
-  /// Represents BigInt values stored as strings for precision
-  const factory JsValue.bigint(
-    String field0,
-  ) = JsValue_Bigint;
-
-  /// Represents string values
-  const factory JsValue.string(
-    String field0,
-  ) = JsValue_String;
-
-  /// Represents arrays with nested value support
-  const factory JsValue.array(
-    List<JsValue> field0,
-  ) = JsValue_Array;
-
-  /// Represents objects with string keys and arbitrary values
-  const factory JsValue.object(
-    Map<String, JsValue> field0,
-  ) = JsValue_Object;
+                    
 
   static JsValue from(Object? any) {
     if (any == null) {
@@ -103,4 +89,6 @@ sealed class JsValue with _$JsValue {
   bool get isArray => this is JsValue_Array;
 
   bool get isObject => this is JsValue_Object;
-}
+
+                }
+            

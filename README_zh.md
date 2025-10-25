@@ -25,6 +25,7 @@
 - 📱 **跨平台**: 支持 Android、iOS、Linux、macOS 和 Windows
 - 🎯 **类型安全**: 与 Dart 集成的强类型 API
 - 🧠 **内存管理**: 内置垃圾回收和内存限制
+- **🆕 字节支持**: 直接从 `Uint8List` 传递 JavaScript 代码，提升性能
 
 ## 📦 安装
 
@@ -235,6 +236,45 @@ final result = await engine.eval(JsCode.path('/path/to/script.js'));
 // 或使用上下文的 evalFile 方法
 final context = await JsAsyncContext.from(rt: runtime);
 final result = await context.evalFile(path: '/path/to/script.js');
+
+// 从字节加载（新功能 - 更高效的网络/文件操作）
+final file = File('script.js');
+final jsBytes = await file.readAsBytes(); // 返回 Uint8List
+final module = JsModule.bytes(module: 'my-module', bytes: jsBytes);
+await engine.declareNewModule(module);
+```
+
+### JsCode - 新增字节支持
+
+```dart
+sealed class JsCode {
+  // 内联 JavaScript 代码作为字符串
+  const factory JsCode.code(String field0);
+  
+  // 包含 JavaScript 代码的文件路径
+  const factory JsCode.path(String field0);
+  
+  // 包含 JavaScript 代码的原始字节（UTF-8 编码）
+  const factory JsCode.bytes(Uint8List field0);
+}
+```
+
+### JsModule - 新增字节构造器
+
+```dart
+sealed class JsModule {
+  // 从内联代码创建模块
+  static JsModule code({required String module, required String code});
+  
+  // 从文件路径创建模块
+  static JsModule path({required String module, required String path});
+  
+  // 从原始字节创建模块（性能优化）
+  static JsModule bytes({required String module, required List<int> bytes});
+  
+  // 使用自定义 JsCode 源创建模块
+  const factory JsModule({required String name, required JsCode source});
+}
 ```
 
 ## 🧩 内置模块
@@ -318,6 +358,7 @@ sealed class JsValue {
 3. **使用超时**: 始终为 JavaScript 执行设置合理的超时
 4. **只启用需要的模块**: 只启用您实际使用的内置模块
 5. **批量操作**: 将相关的 JavaScript 操作组合在一起
+6. **对二进制数据使用字节**: 当 JavaScript 代码已经是二进制格式（网络、文件）时使用 `JsCode.bytes()` 以避免不必要的字符串转换
 
 ## 🎯 示例
 
