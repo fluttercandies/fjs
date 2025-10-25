@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0
+
+* **FEATURE**: Added `JsCode.bytes()` variant for direct `Uint8List` support from Dart
+* **FEATURE**: Added `JsModule.bytes()` constructor for creating modules from bytes
+* **PERFORMANCE**: Significant performance improvement when JavaScript code is already in bytes format
+* **PERFORMANCE**: Eliminated unnecessary UTF-8 String conversions for network and file-based JavaScript code
+* **PERFORMANCE**: Direct bytes-to-rquickjs pipeline using `Into<Vec<u8>>` API compatibility
+* **IMPROVEMENT**: Optimized dynamic module storage from `HashMap<String, String>` to `HashMap<String, Vec<u8>>`
+* **IMPROVEMENT**: Enhanced `get_raw_source_code()` to return `Vec<u8>` instead of `String`
+* **IMPROVEMENT**: Updated file reading operations to use `read_to_end()` instead of `read_to_string()` for better efficiency
+* **DOCS**: Enhanced API documentation with bytes-specific usage patterns and examples
+* **DOCS**: Added detailed bytes usage examples to README.md and README_zh.md
+
 ## 1.2.0
 
 * **BREAKING**: Complete refactor of example application architecture

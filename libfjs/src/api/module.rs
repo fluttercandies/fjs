@@ -61,7 +61,7 @@ impl Resolver for DynamicModuleResolver {
         _base: &str,
         name: &str,
     ) -> rquickjs::Result<String> {
-        if let Some(_modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>() {
+        if let Some(_modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
             return Ok(name.to_string());
         }
         Ok(name.to_string())
@@ -96,7 +96,7 @@ impl Loader for DynamicModuleLoader {
         ctx: &Ctx<'js>,
         name: &str,
     ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
-        if let Some(modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>() {
+        if let Some(modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
             let modules = modules_storage.read().unwrap();
             if let Some(source) = modules.get(name) {
                 return Module::declare(ctx.clone(), name, source.clone());
