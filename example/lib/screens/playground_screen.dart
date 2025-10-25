@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -42,7 +43,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
       }
 
       setState(() {
-        _resultController.text = result.toString();
+        _resultController.text = JsonEncoder.withIndent('  ').convert(result.value);
       });
     } catch (e) {
       setState(() {
