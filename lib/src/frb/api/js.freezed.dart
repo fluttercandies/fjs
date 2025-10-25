@@ -2952,25 +2952,19 @@ class _$JsCallbackResult_BridgeCopyWithImpl<$Res>
 
 /// @nodoc
 mixin _$JsCode {
-  String get field0;
-
-  /// Create a copy of JsCode
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @pragma('vm:prefer-inline')
-  $JsCodeCopyWith<JsCode> get copyWith =>
-      _$JsCodeCopyWithImpl<JsCode>(this as JsCode, _$identity);
+  Object get field0;
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is JsCode &&
-            (identical(other.field0, field0) || other.field0 == field0));
+            const DeepCollectionEquality().equals(other.field0, field0));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, field0);
+  int get hashCode =>
+      Object.hash(runtimeType, const DeepCollectionEquality().hash(field0));
 
   @override
   String toString() {
@@ -2979,34 +2973,8 @@ mixin _$JsCode {
 }
 
 /// @nodoc
-abstract mixin class $JsCodeCopyWith<$Res> {
-  factory $JsCodeCopyWith(JsCode value, $Res Function(JsCode) _then) =
-      _$JsCodeCopyWithImpl;
-  @useResult
-  $Res call({String field0});
-}
-
-/// @nodoc
-class _$JsCodeCopyWithImpl<$Res> implements $JsCodeCopyWith<$Res> {
-  _$JsCodeCopyWithImpl(this._self, this._then);
-
-  final JsCode _self;
-  final $Res Function(JsCode) _then;
-
-  /// Create a copy of JsCode
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? field0 = null,
-  }) {
-    return _then(_self.copyWith(
-      field0: null == field0
-          ? _self.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
-              as String,
-    ));
-  }
+class $JsCodeCopyWith<$Res> {
+  $JsCodeCopyWith(JsCode _, $Res Function(JsCode) __);
 }
 
 /// Adds pattern-matching-related methods to [JsCode].
@@ -3027,6 +2995,7 @@ extension JsCodePatterns on JsCode {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(JsCode_Code value)? code,
     TResult Function(JsCode_Path value)? path,
+    TResult Function(JsCode_Bytes value)? bytes,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -3035,6 +3004,8 @@ extension JsCodePatterns on JsCode {
         return code(_that);
       case JsCode_Path() when path != null:
         return path(_that);
+      case JsCode_Bytes() when bytes != null:
+        return bytes(_that);
       case _:
         return orElse();
     }
@@ -3057,6 +3028,7 @@ extension JsCodePatterns on JsCode {
   TResult map<TResult extends Object?>({
     required TResult Function(JsCode_Code value) code,
     required TResult Function(JsCode_Path value) path,
+    required TResult Function(JsCode_Bytes value) bytes,
   }) {
     final _that = this;
     switch (_that) {
@@ -3064,6 +3036,8 @@ extension JsCodePatterns on JsCode {
         return code(_that);
       case JsCode_Path():
         return path(_that);
+      case JsCode_Bytes():
+        return bytes(_that);
     }
   }
 
@@ -3083,6 +3057,7 @@ extension JsCodePatterns on JsCode {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(JsCode_Code value)? code,
     TResult? Function(JsCode_Path value)? path,
+    TResult? Function(JsCode_Bytes value)? bytes,
   }) {
     final _that = this;
     switch (_that) {
@@ -3090,6 +3065,8 @@ extension JsCodePatterns on JsCode {
         return code(_that);
       case JsCode_Path() when path != null:
         return path(_that);
+      case JsCode_Bytes() when bytes != null:
+        return bytes(_that);
       case _:
         return null;
     }
@@ -3111,6 +3088,7 @@ extension JsCodePatterns on JsCode {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(String field0)? code,
     TResult Function(String field0)? path,
+    TResult Function(Uint8List field0)? bytes,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -3119,6 +3097,8 @@ extension JsCodePatterns on JsCode {
         return code(_that.field0);
       case JsCode_Path() when path != null:
         return path(_that.field0);
+      case JsCode_Bytes() when bytes != null:
+        return bytes(_that.field0);
       case _:
         return orElse();
     }
@@ -3141,6 +3121,7 @@ extension JsCodePatterns on JsCode {
   TResult when<TResult extends Object?>({
     required TResult Function(String field0) code,
     required TResult Function(String field0) path,
+    required TResult Function(Uint8List field0) bytes,
   }) {
     final _that = this;
     switch (_that) {
@@ -3148,6 +3129,8 @@ extension JsCodePatterns on JsCode {
         return code(_that.field0);
       case JsCode_Path():
         return path(_that.field0);
+      case JsCode_Bytes():
+        return bytes(_that.field0);
     }
   }
 
@@ -3167,6 +3150,7 @@ extension JsCodePatterns on JsCode {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(String field0)? code,
     TResult? Function(String field0)? path,
+    TResult? Function(Uint8List field0)? bytes,
   }) {
     final _that = this;
     switch (_that) {
@@ -3174,6 +3158,8 @@ extension JsCodePatterns on JsCode {
         return code(_that.field0);
       case JsCode_Path() when path != null:
         return path(_that.field0);
+      case JsCode_Bytes() when bytes != null:
+        return bytes(_that.field0);
       case _:
         return null;
     }
@@ -3190,7 +3176,6 @@ class JsCode_Code extends JsCode {
 
   /// Create a copy of JsCode
   /// with the given fields replaced by the non-null parameter values.
-  @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
   $JsCode_CodeCopyWith<JsCode_Code> get copyWith =>
@@ -3219,7 +3204,6 @@ abstract mixin class $JsCode_CodeCopyWith<$Res>
   factory $JsCode_CodeCopyWith(
           JsCode_Code value, $Res Function(JsCode_Code) _then) =
       _$JsCode_CodeCopyWithImpl;
-  @override
   @useResult
   $Res call({String field0});
 }
@@ -3233,7 +3217,6 @@ class _$JsCode_CodeCopyWithImpl<$Res> implements $JsCode_CodeCopyWith<$Res> {
 
   /// Create a copy of JsCode
   /// with the given fields replaced by the non-null parameter values.
-  @override
   @pragma('vm:prefer-inline')
   $Res call({
     Object? field0 = null,
@@ -3257,7 +3240,6 @@ class JsCode_Path extends JsCode {
 
   /// Create a copy of JsCode
   /// with the given fields replaced by the non-null parameter values.
-  @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
   $JsCode_PathCopyWith<JsCode_Path> get copyWith =>
@@ -3286,7 +3268,6 @@ abstract mixin class $JsCode_PathCopyWith<$Res>
   factory $JsCode_PathCopyWith(
           JsCode_Path value, $Res Function(JsCode_Path) _then) =
       _$JsCode_PathCopyWithImpl;
-  @override
   @useResult
   $Res call({String field0});
 }
@@ -3300,7 +3281,6 @@ class _$JsCode_PathCopyWithImpl<$Res> implements $JsCode_PathCopyWith<$Res> {
 
   /// Create a copy of JsCode
   /// with the given fields replaced by the non-null parameter values.
-  @override
   @pragma('vm:prefer-inline')
   $Res call({
     Object? field0 = null,
@@ -3310,6 +3290,71 @@ class _$JsCode_PathCopyWithImpl<$Res> implements $JsCode_PathCopyWith<$Res> {
           ? _self.field0
           : field0 // ignore: cast_nullable_to_non_nullable
               as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsCode_Bytes extends JsCode {
+  const JsCode_Bytes(this.field0) : super._();
+
+  @override
+  final Uint8List field0;
+
+  /// Create a copy of JsCode
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsCode_BytesCopyWith<JsCode_Bytes> get copyWith =>
+      _$JsCode_BytesCopyWithImpl<JsCode_Bytes>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsCode_Bytes &&
+            const DeepCollectionEquality().equals(other.field0, field0));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, const DeepCollectionEquality().hash(field0));
+
+  @override
+  String toString() {
+    return 'JsCode.bytes(field0: $field0)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsCode_BytesCopyWith<$Res>
+    implements $JsCodeCopyWith<$Res> {
+  factory $JsCode_BytesCopyWith(
+          JsCode_Bytes value, $Res Function(JsCode_Bytes) _then) =
+      _$JsCode_BytesCopyWithImpl;
+  @useResult
+  $Res call({Uint8List field0});
+}
+
+/// @nodoc
+class _$JsCode_BytesCopyWithImpl<$Res> implements $JsCode_BytesCopyWith<$Res> {
+  _$JsCode_BytesCopyWithImpl(this._self, this._then);
+
+  final JsCode_Bytes _self;
+  final $Res Function(JsCode_Bytes) _then;
+
+  /// Create a copy of JsCode
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsCode_Bytes(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
     ));
   }
 }

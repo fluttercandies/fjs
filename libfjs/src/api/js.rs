@@ -659,7 +659,7 @@ impl JsAsyncContext {
         let context = rquickjs::AsyncContext::full(&rt.rt).await?;
 
         // Initialize dynamic module storage
-        let dynamic_modules = Arc::new(RwLock::new(HashMap::<String, String>::new()));
+        let dynamic_modules = Arc::new(RwLock::new(HashMap::<String, Vec<u8>>::new()));
 
         async_with!(context => |ctx| {
             // Add dynamic modules storage to context user data
@@ -1171,7 +1171,7 @@ impl JsEngineCore {
                     Err(e) => JsResult::Err(JsError::io(
                         match &source {
                             JsCode::Path(p) => Some(p.clone()),
-                            JsCode::Code(_) => None,
+                            JsCode::Code(_) | JsCode::Bytes(_) => None,
                         },
                         e.to_string(),
                     )),
@@ -1191,13 +1191,13 @@ impl JsEngineCore {
                     Err(e) => JsResult::Err(JsError::io(
                         match &source {
                             JsCode::Path(p) => Some(p.clone()),
-                            JsCode::Code(_) => None,
+                            JsCode::Code(_) | JsCode::Bytes(_) => None,
                         },
                         e.to_string(),
                     )),
                     Ok(source_code) => {
                         if let Some(modules_storage) =
-                            ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>()
+                            ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>()
                         {
                             modules_storage
                                 .write()
@@ -1222,14 +1222,14 @@ impl JsEngineCore {
                     Err(e) => JsResult::Err(JsError::io(
                         match &source {
                             JsCode::Path(p) => Some(p.clone()),
-                            JsCode::Code(_) => None,
+                            JsCode::Code(_) | JsCode::Bytes(_) => None,
                         },
                         e.to_string(),
                     )),
                     Ok(source_code) => {
                         // Ensure module is stored in dynamic module storage
                         if let Some(modules_storage) =
-                            ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>()
+                            ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>()
                         {
                             modules_storage
                                 .write()
@@ -1251,7 +1251,7 @@ impl JsEngineCore {
             }
             JsAction::ClearNewModules { id } => {
                 let res = if let Some(modules_storage) =
-                    ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>()
+                    ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>()
                 {
                     modules_storage.write().unwrap().clear();
                     JsResult::Ok(JsValue::None)
@@ -1270,13 +1270,13 @@ impl JsEngineCore {
                         Err(e) => JsResult::Err(JsError::io(
                             match &module.source {
                                 JsCode::Path(p) => Some(p.clone()),
-                                JsCode::Code(_) => None,
+                                JsCode::Code(_) | JsCode::Bytes(_) => None,
                             },
                             e.to_string(),
                         )),
                         Ok(source_code) => {
                             if let Some(modules_storage) =
-                                ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>()
+                                ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>()
                             {
                                 modules_storage
                                     .write()
@@ -1303,7 +1303,7 @@ impl JsEngineCore {
             }
             JsAction::GetDeclaredModules { id } => {
                 let res = if let Some(modules_storage) =
-                    ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>()
+                    ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>()
                 {
                     let modules = modules_storage.read().unwrap();
                     let module_names = modules.keys().cloned().map(JsValue::String).collect();
@@ -1318,7 +1318,7 @@ impl JsEngineCore {
             }
             JsAction::IsModuleDeclared { id, module_name } => {
                 let res = if let Some(modules_storage) =
-                    ctx.userdata::<Arc<RwLock<HashMap<String, String>>>>()
+                    ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>()
                 {
                     let modules = modules_storage.read().unwrap();
                     let is_declared = modules.contains_key(&module_name);
@@ -1353,9 +1353,9 @@ impl JsEngineCore {
 /// Returns an error if:
 /// - The file cannot be read
 /// - The file size exceeds the maximum allowed size
-async fn get_raw_source_code(source: JsCode) -> anyhow::Result<String> {
+async fn get_raw_source_code(source: JsCode) -> anyhow::Result<Vec<u8>> {
     let code = match source {
-        JsCode::Code(code) => code,
+        JsCode::Code(code) => code.into_bytes(),
         JsCode::Path(path) => {
             // Check file size before reading
             let metadata = tokio::fs::metadata(&path).await?;
@@ -1371,10 +1371,11 @@ async fn get_raw_source_code(source: JsCode) -> anyhow::Result<String> {
             }
 
             let mut f = tokio::fs::File::open(&path).await?;
-            let mut codes = String::with_capacity(file_size as usize);
-            f.read_to_string(&mut codes).await?;
+            let mut codes = Vec::with_capacity(file_size as usize);
+            f.read_to_end(&mut codes).await?;
             codes
         }
+        JsCode::Bytes(bytes) => bytes,
     };
     Ok(code)
 }
@@ -1934,8 +1935,8 @@ pub struct JsModule {
 
 /// Represents the source of JavaScript code.
 ///
-/// This enum provides two ways to specify JavaScript source:
-/// inline code as a string, or a file path to load code from.
+/// This enum provides three ways to specify JavaScript source:
+/// inline code as a string, a file path to load code from, or raw bytes.
 #[frb(dart_metadata = ("freezed"))]
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum JsCode {
@@ -1943,6 +1944,8 @@ pub enum JsCode {
     Code(String),
     /// File path containing JavaScript code
     Path(String),
+    /// Raw bytes containing JavaScript code (UTF-8 encoded)
+    Bytes(Vec<u8>),
 }
 
 impl JsModule {
@@ -2012,6 +2015,33 @@ impl JsModule {
         JsModule {
             name: module,
             source: JsCode::Path(path),
+        }
+    }
+
+    /// Creates a module from raw bytes.
+    ///
+    /// # Parameters
+    ///
+    /// - `module`: The module name
+    /// - `bytes`: The raw bytes containing JavaScript code (UTF-8 encoded)
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `JsModule` instance.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let module = JsModule::bytes(
+    ///     "my-module".to_string(),
+    ///     vec![101, 120, 112, 111, 114, 116] // "export"
+    /// );
+    /// ```
+    #[frb(sync)]
+    pub fn bytes(module: String, bytes: Vec<u8>) -> Self {
+        JsModule {
+            name: module,
+            source: JsCode::Bytes(bytes),
         }
     }
 }

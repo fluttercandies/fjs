@@ -236,6 +236,12 @@ final result = await engine.eval(JsCode.path('/path/to/script.js'));
 // Or use evalFile method on context
 final context = await JsAsyncContext.from(rt: runtime);
 final result = await context.evalFile(path: '/path/to/script.js');
+
+// Load from bytes (NEW - more efficient for network/file operations)
+final file = File('script.js');
+final jsBytes = await file.readAsBytes(); // Returns Uint8List
+final module = JsModule.bytes(module: 'my-module', bytes: jsBytes);
+await engine.declareNewModule(module);
 ```
 
 ## 🧩 Built-in Modules
@@ -312,6 +318,43 @@ sealed class JsValue {
 }
 ```
 
+### JsCode
+
+JavaScript source code representation (NEW bytes support):
+
+```dart
+sealed class JsCode {
+  // Inline JavaScript code as string
+  const factory JsCode.code(String field0);
+  
+  // File path containing JavaScript code  
+  const factory JsCode.path(String field0);
+  
+  // Raw bytes containing JavaScript code (UTF-8 encoded)
+  const factory JsCode.bytes(Uint8List field0);
+}
+```
+
+### JsModule
+
+JavaScript module representation (NEW bytes support):
+
+```dart
+sealed class JsModule {
+  // Create module from inline code
+  static JsModule code({required String module, required String code});
+  
+  // Create module from file path
+  static JsModule path({required String module, required String path});
+  
+  // Create module from raw bytes (PERFORMANCE OPTIMIZED)
+  static JsModule bytes({required String module, required List<int> bytes});
+  
+  // Create module with custom JsCode source
+  const factory JsModule({required String name, required JsCode source});
+}
+```
+
 ## ⚡ Performance Tips
 
 1. **Reuse Engines**: Create one engine instance and reuse it for multiple evaluations
@@ -319,6 +362,7 @@ sealed class JsValue {
 3. **Use Timeouts**: Always set reasonable timeouts for JavaScript execution
 4. **Enable Only Needed Modules**: Only enable built-in modules you actually use
 5. **Batch Operations**: Group related JavaScript operations together
+6. **Use Bytes for Binary Data**: Use `JsCode.bytes()` when JavaScript code is already in binary format (network, files) to avoid unnecessary String conversions
 
 ## 🎯 Examples
 
@@ -330,6 +374,11 @@ Check out the [example](example/) directory for more comprehensive examples incl
 - Built-in API usage
 - Error handling
 - Performance testing
+- **NEW**: Bytes support for direct Uint8List JavaScript code execution
+
+## 📄 Additional Documentation
+
+- [Example Application](example/) - Complete Flutter app demonstrating FJS capabilities
 
 ## ⚠️ Known Issues
 

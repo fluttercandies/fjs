@@ -9,957 +9,966 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'value.dart';
 part 'js.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `context`, `from_promise_result`, `from_result`, `generic`, `get_raw_source_code`, `handle_action`, `io`, `module`, `new_bridge_call`, `promise`, `register_fjs`, `runtime`, `storage`, `to_module_builder`
+            // These functions are ignored because they are not marked as `pub`: `context`, `from_promise_result`, `from_result`, `generic`, `get_raw_source_code`, `handle_action`, `io`, `module`, `new_bridge_call`, `promise`, `register_fjs`, `runtime`, `storage`, `to_module_builder`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `cmp`, `cmp`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `hash`, `hash`, `partial_cmp`, `partial_cmp`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `default`, `default`
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncContext>>
-abstract class JsAsyncContext implements RustOpaqueInterface {
-  /// Evaluates JavaScript code with default options asynchronously.
-  ///
-  /// # Parameters
-  ///
-  /// - `code`: The JavaScript code to execute
-  ///
-  /// # Returns
-  ///
-  /// Returns the execution result as a `JsResult`.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let result = context.eval("Math.random()".to_string()).await?;
-  /// let async_result = context.eval("await Promise.resolve(42)".to_string()).await?;
-  /// ```
-  Future<JsResult> eval({required String code});
-
-  /// Evaluates JavaScript code from a file with default options asynchronously.
-  ///
-  /// # Parameters
-  ///
-  /// - `path`: Path to the JavaScript file
-  ///
-  /// # Returns
-  ///
-  /// Returns the execution result as a `JsResult`.
-  ///
-  /// # Errors
-  ///
-  /// Returns an error if the file cannot be read or execution fails.
-  Future<JsResult> evalFile({required String path});
-
-  /// Evaluates JavaScript code from a file with custom options asynchronously.
-  ///
-  /// # Parameters
-  ///
-  /// - `path`: Path to the JavaScript file
-  /// - `options`: Evaluation options
-  ///
-  /// # Returns
-  ///
-  /// Returns the execution result as a `JsResult`.
-  Future<JsResult> evalFileWithOptions(
-      {required String path, required JsEvalOptions options});
-
-  /// Evaluates a specific function from a module asynchronously.
-  ///
-  /// # Parameters
-  ///
-  /// - `module`: The name of the module containing the function
-  /// - `method`: The name of the function to call
-  /// - `params`: Optional parameters to pass to the function
-  ///
-  /// # Returns
-  ///
-  /// Returns the execution result as a `JsResult`.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let result = context.eval_function(
-  ///     "my-module".to_string(),
-  ///     "myFunction".to_string(),
-  ///     Some(vec![JsValue::integer(42)])
-  /// ).await?;
-  /// ```
-  Future<JsResult> evalFunction(
-      {required String module, required String method, List<JsValue>? params});
-
-  /// Evaluates JavaScript code with custom options asynchronously.
-  ///
-  /// # Parameters
-  ///
-  /// - `code`: The JavaScript code to execute
-  /// - `options`: Evaluation options
-  ///
-  /// # Returns
-  ///
-  /// Returns the execution result as a `JsResult`.
-  ///
-  /// # Notes
-  ///
-  /// This method supports promise evaluation and top-level await.
-  Future<JsResult> evalWithOptions(
-      {required String code, required JsEvalOptions options});
-
-  /// Creates a new asynchronous JavaScript context from a runtime.
-  ///
-  /// # Parameters
-  ///
-  /// - `rt`: The asynchronous runtime to create the context from
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsAsyncContext` instance or an error if creation fails.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let runtime = JsAsyncRuntime::new().await?;
-  /// let context = JsAsyncContext::from(&runtime).await?;
-  /// let result = context.eval("await Promise.resolve(42)".to_string()).await?;
-  /// ```
-  static Future<JsAsyncContext> from({required JsAsyncRuntime rt}) =>
-      LibFjs.instance.api.crateApiJsJsAsyncContextFrom(rt: rt);
-}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncRuntime>>
-abstract class JsAsyncRuntime implements RustOpaqueInterface {
-  /// Executes a pending job if one is available asynchronously.
-  ///
-  /// # Returns
-  ///
-  /// Returns `true` if a job was executed, `false` if no jobs were pending.
-  ///
-  /// # Errors
-  ///
-  /// Returns an error if job execution fails.
-  Future<bool> executePendingJob();
-
-  /// Puts the runtime into idle state, waiting for events.
-  ///
-  /// This method should be called when the runtime is not actively executing
-  /// JavaScript code but needs to remain responsive to events.
-  Future<void> idle();
-
-  /// Checks if there are pending jobs to be executed asynchronously.
-  ///
-  /// # Returns
-  ///
-  /// Returns `true` if there are pending jobs, `false` otherwise.
-  Future<bool> isJobPending();
-
-  /// Returns the current memory usage statistics asynchronously.
-  ///
-  /// # Returns
-  ///
-  /// Returns a `MemoryUsage` struct containing detailed memory statistics.
-  Future<MemoryUsage> memoryUsage();
-
-  /// Creates a new asynchronous JavaScript runtime with default configuration.
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsAsyncRuntime` instance or an error if initialization fails.
-  factory JsAsyncRuntime() => LibFjs.instance.api.crateApiJsJsAsyncRuntimeNew();
-
-  /// Forces garbage collection to run immediately asynchronously.
-  Future<void> runGc();
-
-  /// Sets the garbage collection threshold asynchronously.
-  ///
-  /// # Parameters
-  ///
-  /// - `threshold`: GC threshold in bytes
-  Future<void> setGcThreshold({required BigInt threshold});
-
-  /// Sets runtime information for debugging purposes asynchronously.
-  ///
-  /// # Parameters
-  ///
-  /// - `info`: Information string to set
-  ///
-  /// # Errors
-  ///
-  /// Returns an error if setting the info fails.
-  Future<void> setInfo({required String info});
-
-  /// Sets the maximum stack size for JavaScript execution asynchronously.
-  ///
-  /// # Parameters
-  ///
-  /// - `limit`: Maximum stack size in bytes
-  Future<void> setMaxStackSize({required BigInt limit});
-
-  /// Sets the memory limit for the runtime asynchronously.
-  ///
-  /// # Parameters
-  ///
-  /// - `limit`: Maximum memory limit in bytes
-  Future<void> setMemoryLimit({required BigInt limit});
-
-  /// Creates a new asynchronous JavaScript runtime with custom configuration.
-  ///
-  /// # Parameters
-  ///
-  /// - `builtin`: Optional configuration for builtin Node.js modules
-  /// - `additional`: Optional list of additional JavaScript modules to load
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsAsyncRuntime` instance with the specified configuration.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let builtin = JsBuiltinOptions::all();
-  /// let additional = vec![JsModule::code("my-module", "export const value = 42;")];
-  /// let runtime = JsAsyncRuntime::with_options(Some(builtin), Some(additional)).await?;
-  /// ```
-  static Future<JsAsyncRuntime> withOptions(
-          {JsBuiltinOptions? builtin, List<JsModule>? additional}) =>
-      LibFjs.instance.api.crateApiJsJsAsyncRuntimeWithOptions(
-          builtin: builtin, additional: additional);
-}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsContext>>
-abstract class JsContext implements RustOpaqueInterface {
-  /// Evaluates JavaScript code with default options.
-  ///
-  /// # Parameters
-  ///
-  /// - `code`: The JavaScript code to execute
-  ///
-  /// # Returns
-  ///
-  /// Returns the execution result as a `JsResult`.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let result = context.eval("Math.random()".to_string())?;
-  /// ```
-  JsResult eval({required String code});
-
-  /// Evaluates JavaScript code from a file with default options.
-  ///
-  /// # Parameters
-  ///
-  /// - `path`: Path to the JavaScript file
-  ///
-  /// # Returns
-  ///
-  /// Returns the execution result as a `JsResult`.
-  ///
-  /// # Errors
-  ///
-  /// Returns an error if the file cannot be read or execution fails.
-  JsResult evalFile({required String path});
-
-  /// Evaluates JavaScript code from a file with custom options.
-  ///
-  /// # Parameters
-  ///
-  /// - `path`: Path to the JavaScript file
-  /// - `options`: Evaluation options
-  ///
-  /// # Returns
-  ///
-  /// Returns the execution result as a `JsResult`.
-  ///
-  /// # Notes
-  ///
-  /// Promise evaluation is not supported in synchronous contexts.
-  JsResult evalFileWithOptions(
-      {required String path, required JsEvalOptions options});
-
-  /// Evaluates JavaScript code with custom options.
-  ///
-  /// # Parameters
-  ///
-  /// - `code`: The JavaScript code to execute
-  /// - `options`: Evaluation options
-  ///
-  /// # Returns
-  ///
-  /// Returns the execution result as a `JsResult`.
-  ///
-  /// # Notes
-  ///
-  /// Promise evaluation is not supported in synchronous contexts.
-  /// Use `JsAsyncContext` for asynchronous operations.
-  JsResult evalWithOptions(
-      {required String code, required JsEvalOptions options});
-
-  /// Creates a new JavaScript context from a runtime.
-  ///
-  /// # Parameters
-  ///
-  /// - `rt`: The runtime to create the context from
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsContext` instance or an error if creation fails.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let runtime = JsRuntime::new()?;
-  /// let context = JsContext::new(&runtime)?;
-  /// let result = context.eval("2 + 2".to_string())?;
-  /// ```
-  factory JsContext({required JsRuntime rt}) =>
-      LibFjs.instance.api.crateApiJsJsContextNew(rt: rt);
-}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngineCore>>
-abstract class JsEngineCore implements RustOpaqueInterface {
-  /// Returns the asynchronous context used by this engine.
-  ///
-  /// # Returns
-  ///
-  /// Returns the `JsAsyncContext` instance.
-  JsAsyncContext get context;
-
-  /// Disposes the engine and cleans up resources.
-  ///
-  /// This method marks the engine as disposed and prevents further operations.
-  /// The actual cleanup happens when all references are dropped.
-  ///
-  /// # Errors
-  ///
-  /// Returns an error if the engine is already disposed.
-  @override
-  Future<void> dispose();
-
-  /// Checks if the engine has been disposed.
-  ///
-  /// # Returns
-  ///
-  /// Returns `true` if the engine is disposed, `false` otherwise.
-  bool get disposed;
-
-  /// Executes an action on the engine.
-  ///
-  /// # Parameters
-  ///
-  /// - `action`: The action to execute
-  ///
-  /// # Errors
-  ///
-  /// Returns an error if the engine is disposed or if sending the action fails.
-  Future<void> exec({required JsAction action});
-
-  /// Creates a new JavaScript engine core with the given context.
-  ///
-  /// # Parameters
-  ///
-  /// - `context`: The asynchronous context to use for JavaScript execution
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsEngineCore` instance or an error if creation fails.
-  factory JsEngineCore({required JsAsyncContext context}) =>
-      LibFjs.instance.api.crateApiJsJsEngineCoreNew(context: context);
-
-  /// Checks if the engine is currently running.
-  ///
-  /// # Returns
-  ///
-  /// Returns `true` if the engine is running, `false` otherwise.
-  bool get running;
-
-  /// Starts the engine event loop with a bridge callback.
-  ///
-  /// # Parameters
-  ///
-  /// - `bridge`: Callback function for handling communication between JavaScript and Dart
-  ///
-  /// # Errors
-  ///
-  /// Returns an error if the engine is already disposed or already running.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// engine.start(|callback| {
-  ///     match callback {
-  ///         JsCallback::Initialized => {
-  ///             println!("Engine initialized");
-  ///             JsCallbackResult::Initialized
-  ///         }
-  ///         JsCallback::Handler(result) => {
-  ///             println!("Action completed: {:?}", result);
-  ///             JsCallbackResult::Handler
-  ///         }
-  ///         JsCallback::Bridge(value) => {
-  ///             println!("Bridge call: {:?}", value);
-  ///             JsCallbackResult::Bridge(JsResult::Ok(value))
-  ///         }
-  ///     }
-  /// }).await?;
-  /// ```
-  Future<void> start(
-      {required FutureOr<JsCallbackResult> Function(JsCallback) bridge});
-}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsRuntime>>
-abstract class JsRuntime implements RustOpaqueInterface {
-  /// Executes a pending job if one is available.
-  ///
-  /// # Returns
-  ///
-  /// Returns `true` if a job was executed, `false` if no jobs were pending.
-  ///
-  /// # Errors
-  ///
-  /// Returns an error if job execution fails.
-  bool executePendingJob();
-
-  /// Checks if there are pending jobs to be executed.
-  ///
-  /// # Returns
-  ///
-  /// Returns `true` if there are pending jobs, `false` otherwise.
-  bool isJobPending();
-
-  /// Returns the current memory usage statistics.
-  ///
-  /// # Returns
-  ///
-  /// Returns a `MemoryUsage` struct containing detailed memory statistics.
-  MemoryUsage memoryUsage();
-
-  /// Creates a new JavaScript runtime with default configuration.
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsRuntime` instance or an error if initialization fails.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let runtime = JsRuntime::new()?;
-  /// let context = JsContext::new(&runtime)?;
-  /// ```
-  factory JsRuntime() => LibFjs.instance.api.crateApiJsJsRuntimeNew();
-
-  /// Forces garbage collection to run immediately.
-  void runGc();
-
-  /// Sets dump flags for debugging and profiling.
-  ///
-  /// # Parameters
-  ///
-  /// - `flags`: Bitmask of dump flags
-  void setDumpFlags({required BigInt flags});
-
-  /// Sets the garbage collection threshold.
-  ///
-  /// # Parameters
-  ///
-  /// - `threshold`: GC threshold in bytes
-  void setGcThreshold({required BigInt threshold});
-
-  /// Sets runtime information for debugging purposes.
-  ///
-  /// # Parameters
-  ///
-  /// - `info`: Information string to set
-  ///
-  /// # Errors
-  ///
-  /// Returns an error if setting the info fails.
-  void setInfo({required String info});
-
-  /// Sets the maximum stack size for JavaScript execution.
-  ///
-  /// # Parameters
-  ///
-  /// - `limit`: Maximum stack size in bytes
-  void setMaxStackSize({required BigInt limit});
-
-  /// Sets the memory limit for the runtime.
-  ///
-  /// # Parameters
-  ///
-  /// - `limit`: Maximum memory limit in bytes
-  void setMemoryLimit({required BigInt limit});
-
-  /// Creates a new JavaScript runtime with custom builtin modules and additional modules.
-  ///
-  /// # Parameters
-  ///
-  /// - `builtin`: Optional configuration for builtin Node.js modules
-  /// - `additional`: Optional list of additional JavaScript modules to load
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsRuntime` instance with the specified configuration.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let builtin = JsBuiltinOptions::all();
-  /// let additional = vec![JsModule::code("my-module", "export const value = 42;")];
-  /// let runtime = JsAsyncRuntime::with_options(Some(builtin), Some(additional)).await?;
-  /// ```
-  static Future<JsRuntime> withOptions(
-          {JsBuiltinOptions? builtin, List<JsModule>? additional}) =>
-      LibFjs.instance.api.crateApiJsJsRuntimeWithOptions(
-          builtin: builtin, additional: additional);
-}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MemoryUsage>>
-abstract class MemoryUsage implements RustOpaqueInterface {
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get arrayCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get atomCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get atomSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get binaryObjectCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get binaryObjectSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get cFuncCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get fastArrayCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get fastArrayElements;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get jsFuncCodeSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get jsFuncCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get jsFuncPc2LineCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get jsFuncPc2LineSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get jsFuncSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get mallocCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get mallocLimit;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get mallocSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get memoryUsedCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get memoryUsedSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get objCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get objSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get propCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get propSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get shapeCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get shapeSize;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get strCount;
-
-  /// Returns the memory usage statistic for the given field.
-  PlatformInt64 get strSize;
-}
+
+            
+
+            
+                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncContext>>
+                abstract class JsAsyncContext implements RustOpaqueInterface {
+                    /// Evaluates JavaScript code with default options asynchronously.
+///
+/// # Parameters
+///
+/// - `code`: The JavaScript code to execute
+///
+/// # Returns
+///
+/// Returns the execution result as a `JsResult`.
+///
+/// # Examples
+///
+/// ```rust
+/// let result = context.eval("Math.random()".to_string()).await?;
+/// let async_result = context.eval("await Promise.resolve(42)".to_string()).await?;
+/// ```
+ Future<JsResult>  eval({required String code });
+
+
+/// Evaluates JavaScript code from a file with default options asynchronously.
+///
+/// # Parameters
+///
+/// - `path`: Path to the JavaScript file
+///
+/// # Returns
+///
+/// Returns the execution result as a `JsResult`.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or execution fails.
+ Future<JsResult>  evalFile({required String path });
+
+
+/// Evaluates JavaScript code from a file with custom options asynchronously.
+///
+/// # Parameters
+///
+/// - `path`: Path to the JavaScript file
+/// - `options`: Evaluation options
+///
+/// # Returns
+///
+/// Returns the execution result as a `JsResult`.
+ Future<JsResult>  evalFileWithOptions({required String path , required JsEvalOptions options });
+
+
+/// Evaluates a specific function from a module asynchronously.
+///
+/// # Parameters
+///
+/// - `module`: The name of the module containing the function
+/// - `method`: The name of the function to call
+/// - `params`: Optional parameters to pass to the function
+///
+/// # Returns
+///
+/// Returns the execution result as a `JsResult`.
+///
+/// # Examples
+///
+/// ```rust
+/// let result = context.eval_function(
+///     "my-module".to_string(),
+///     "myFunction".to_string(),
+///     Some(vec![JsValue::integer(42)])
+/// ).await?;
+/// ```
+ Future<JsResult>  evalFunction({required String module , required String method , List<JsValue>? params });
+
+
+/// Evaluates JavaScript code with custom options asynchronously.
+///
+/// # Parameters
+///
+/// - `code`: The JavaScript code to execute
+/// - `options`: Evaluation options
+///
+/// # Returns
+///
+/// Returns the execution result as a `JsResult`.
+///
+/// # Notes
+///
+/// This method supports promise evaluation and top-level await.
+ Future<JsResult>  evalWithOptions({required String code , required JsEvalOptions options });
+
+
+/// Creates a new asynchronous JavaScript context from a runtime.
+///
+/// # Parameters
+///
+/// - `rt`: The asynchronous runtime to create the context from
+///
+/// # Returns
+///
+/// Returns a new `JsAsyncContext` instance or an error if creation fails.
+///
+/// # Examples
+///
+/// ```rust
+/// let runtime = JsAsyncRuntime::new().await?;
+/// let context = JsAsyncContext::from(&runtime).await?;
+/// let result = context.eval("await Promise.resolve(42)".to_string()).await?;
+/// ```
+static Future<JsAsyncContext>  from({required JsAsyncRuntime rt })=>LibFjs.instance.api.crateApiJsJsAsyncContextFrom(rt: rt);
+
+
+
+                    
+                }
+                
+
+
+                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncRuntime>>
+                abstract class JsAsyncRuntime implements RustOpaqueInterface {
+                    /// Executes a pending job if one is available asynchronously.
+///
+/// # Returns
+///
+/// Returns `true` if a job was executed, `false` if no jobs were pending.
+///
+/// # Errors
+///
+/// Returns an error if job execution fails.
+ Future<bool>  executePendingJob();
+
+
+/// Puts the runtime into idle state, waiting for events.
+///
+/// This method should be called when the runtime is not actively executing
+/// JavaScript code but needs to remain responsive to events.
+ Future<void>  idle();
+
+
+/// Checks if there are pending jobs to be executed asynchronously.
+///
+/// # Returns
+///
+/// Returns `true` if there are pending jobs, `false` otherwise.
+ Future<bool>  isJobPending();
+
+
+/// Returns the current memory usage statistics asynchronously.
+///
+/// # Returns
+///
+/// Returns a `MemoryUsage` struct containing detailed memory statistics.
+ Future<MemoryUsage>  memoryUsage();
+
+
+/// Creates a new asynchronous JavaScript runtime with default configuration.
+///
+/// # Returns
+///
+/// Returns a new `JsAsyncRuntime` instance or an error if initialization fails.
+factory JsAsyncRuntime()=>LibFjs.instance.api.crateApiJsJsAsyncRuntimeNew();
+
+
+/// Forces garbage collection to run immediately asynchronously.
+ Future<void>  runGc();
+
+
+/// Sets the garbage collection threshold asynchronously.
+///
+/// # Parameters
+///
+/// - `threshold`: GC threshold in bytes
+ Future<void>  setGcThreshold({required BigInt threshold });
+
+
+/// Sets runtime information for debugging purposes asynchronously.
+///
+/// # Parameters
+///
+/// - `info`: Information string to set
+///
+/// # Errors
+///
+/// Returns an error if setting the info fails.
+ Future<void>  setInfo({required String info });
+
+
+/// Sets the maximum stack size for JavaScript execution asynchronously.
+///
+/// # Parameters
+///
+/// - `limit`: Maximum stack size in bytes
+ Future<void>  setMaxStackSize({required BigInt limit });
+
+
+/// Sets the memory limit for the runtime asynchronously.
+///
+/// # Parameters
+///
+/// - `limit`: Maximum memory limit in bytes
+ Future<void>  setMemoryLimit({required BigInt limit });
+
+
+/// Creates a new asynchronous JavaScript runtime with custom configuration.
+///
+/// # Parameters
+///
+/// - `builtin`: Optional configuration for builtin Node.js modules
+/// - `additional`: Optional list of additional JavaScript modules to load
+///
+/// # Returns
+///
+/// Returns a new `JsAsyncRuntime` instance with the specified configuration.
+///
+/// # Examples
+///
+/// ```rust
+/// let builtin = JsBuiltinOptions::all();
+/// let additional = vec![JsModule::code("my-module", "export const value = 42;")];
+/// let runtime = JsAsyncRuntime::with_options(Some(builtin), Some(additional)).await?;
+/// ```
+static Future<JsAsyncRuntime>  withOptions({JsBuiltinOptions? builtin , List<JsModule>? additional })=>LibFjs.instance.api.crateApiJsJsAsyncRuntimeWithOptions(builtin: builtin, additional: additional);
+
+
+
+                    
+                }
+                
+
+
+                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsContext>>
+                abstract class JsContext implements RustOpaqueInterface {
+                    /// Evaluates JavaScript code with default options.
+///
+/// # Parameters
+///
+/// - `code`: The JavaScript code to execute
+///
+/// # Returns
+///
+/// Returns the execution result as a `JsResult`.
+///
+/// # Examples
+///
+/// ```rust
+/// let result = context.eval("Math.random()".to_string())?;
+/// ```
+ JsResult  eval({required String code });
+
+
+/// Evaluates JavaScript code from a file with default options.
+///
+/// # Parameters
+///
+/// - `path`: Path to the JavaScript file
+///
+/// # Returns
+///
+/// Returns the execution result as a `JsResult`.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or execution fails.
+ JsResult  evalFile({required String path });
+
+
+/// Evaluates JavaScript code from a file with custom options.
+///
+/// # Parameters
+///
+/// - `path`: Path to the JavaScript file
+/// - `options`: Evaluation options
+///
+/// # Returns
+///
+/// Returns the execution result as a `JsResult`.
+///
+/// # Notes
+///
+/// Promise evaluation is not supported in synchronous contexts.
+ JsResult  evalFileWithOptions({required String path , required JsEvalOptions options });
+
+
+/// Evaluates JavaScript code with custom options.
+///
+/// # Parameters
+///
+/// - `code`: The JavaScript code to execute
+/// - `options`: Evaluation options
+///
+/// # Returns
+///
+/// Returns the execution result as a `JsResult`.
+///
+/// # Notes
+///
+/// Promise evaluation is not supported in synchronous contexts.
+/// Use `JsAsyncContext` for asynchronous operations.
+ JsResult  evalWithOptions({required String code , required JsEvalOptions options });
+
+
+/// Creates a new JavaScript context from a runtime.
+///
+/// # Parameters
+///
+/// - `rt`: The runtime to create the context from
+///
+/// # Returns
+///
+/// Returns a new `JsContext` instance or an error if creation fails.
+///
+/// # Examples
+///
+/// ```rust
+/// let runtime = JsRuntime::new()?;
+/// let context = JsContext::new(&runtime)?;
+/// let result = context.eval("2 + 2".to_string())?;
+/// ```
+factory JsContext({required JsRuntime rt })=>LibFjs.instance.api.crateApiJsJsContextNew(rt: rt);
+
+
+
+                    
+                }
+                
+
+
+                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngineCore>>
+                abstract class JsEngineCore implements RustOpaqueInterface {
+                    /// Returns the asynchronous context used by this engine.
+///
+/// # Returns
+///
+/// Returns the `JsAsyncContext` instance.
+ JsAsyncContext get context;
+
+
+/// Disposes the engine and cleans up resources.
+///
+/// This method marks the engine as disposed and prevents further operations.
+/// The actual cleanup happens when all references are dropped.
+///
+/// # Errors
+///
+/// Returns an error if the engine is already disposed.
+ Future<void>  dispose();
+
+
+/// Checks if the engine has been disposed.
+///
+/// # Returns
+///
+/// Returns `true` if the engine is disposed, `false` otherwise.
+ bool get disposed;
+
+
+/// Executes an action on the engine.
+///
+/// # Parameters
+///
+/// - `action`: The action to execute
+///
+/// # Errors
+///
+/// Returns an error if the engine is disposed or if sending the action fails.
+ Future<void>  exec({required JsAction action });
+
+
+/// Creates a new JavaScript engine core with the given context.
+///
+/// # Parameters
+///
+/// - `context`: The asynchronous context to use for JavaScript execution
+///
+/// # Returns
+///
+/// Returns a new `JsEngineCore` instance or an error if creation fails.
+factory JsEngineCore({required JsAsyncContext context })=>LibFjs.instance.api.crateApiJsJsEngineCoreNew(context: context);
+
+
+/// Checks if the engine is currently running.
+///
+/// # Returns
+///
+/// Returns `true` if the engine is running, `false` otherwise.
+ bool get running;
+
+
+/// Starts the engine event loop with a bridge callback.
+///
+/// # Parameters
+///
+/// - `bridge`: Callback function for handling communication between JavaScript and Dart
+///
+/// # Errors
+///
+/// Returns an error if the engine is already disposed or already running.
+///
+/// # Examples
+///
+/// ```rust
+/// engine.start(|callback| {
+///     match callback {
+///         JsCallback::Initialized => {
+///             println!("Engine initialized");
+///             JsCallbackResult::Initialized
+///         }
+///         JsCallback::Handler(result) => {
+///             println!("Action completed: {:?}", result);
+///             JsCallbackResult::Handler
+///         }
+///         JsCallback::Bridge(value) => {
+///             println!("Bridge call: {:?}", value);
+///             JsCallbackResult::Bridge(JsResult::Ok(value))
+///         }
+///     }
+/// }).await?;
+/// ```
+ Future<void>  start({required FutureOr<JsCallbackResult> Function(JsCallback) bridge });
+
+
+
+                    
+                }
+                
+
+
+                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsRuntime>>
+                abstract class JsRuntime implements RustOpaqueInterface {
+                    /// Executes a pending job if one is available.
+///
+/// # Returns
+///
+/// Returns `true` if a job was executed, `false` if no jobs were pending.
+///
+/// # Errors
+///
+/// Returns an error if job execution fails.
+ bool  executePendingJob();
+
+
+/// Checks if there are pending jobs to be executed.
+///
+/// # Returns
+///
+/// Returns `true` if there are pending jobs, `false` otherwise.
+ bool  isJobPending();
+
+
+/// Returns the current memory usage statistics.
+///
+/// # Returns
+///
+/// Returns a `MemoryUsage` struct containing detailed memory statistics.
+ MemoryUsage  memoryUsage();
+
+
+/// Creates a new JavaScript runtime with default configuration.
+///
+/// # Returns
+///
+/// Returns a new `JsRuntime` instance or an error if initialization fails.
+///
+/// # Examples
+///
+/// ```rust
+/// let runtime = JsRuntime::new()?;
+/// let context = JsContext::new(&runtime)?;
+/// ```
+factory JsRuntime()=>LibFjs.instance.api.crateApiJsJsRuntimeNew();
+
+
+/// Forces garbage collection to run immediately.
+ void  runGc();
+
+
+/// Sets dump flags for debugging and profiling.
+///
+/// # Parameters
+///
+/// - `flags`: Bitmask of dump flags
+ void  setDumpFlags({required BigInt flags });
+
+
+/// Sets the garbage collection threshold.
+///
+/// # Parameters
+///
+/// - `threshold`: GC threshold in bytes
+ void  setGcThreshold({required BigInt threshold });
+
+
+/// Sets runtime information for debugging purposes.
+///
+/// # Parameters
+///
+/// - `info`: Information string to set
+///
+/// # Errors
+///
+/// Returns an error if setting the info fails.
+ void  setInfo({required String info });
+
+
+/// Sets the maximum stack size for JavaScript execution.
+///
+/// # Parameters
+///
+/// - `limit`: Maximum stack size in bytes
+ void  setMaxStackSize({required BigInt limit });
+
+
+/// Sets the memory limit for the runtime.
+///
+/// # Parameters
+///
+/// - `limit`: Maximum memory limit in bytes
+ void  setMemoryLimit({required BigInt limit });
+
+
+/// Creates a new JavaScript runtime with custom builtin modules and additional modules.
+///
+/// # Parameters
+///
+/// - `builtin`: Optional configuration for builtin Node.js modules
+/// - `additional`: Optional list of additional JavaScript modules to load
+///
+/// # Returns
+///
+/// Returns a new `JsRuntime` instance with the specified configuration.
+///
+/// # Examples
+///
+/// ```rust
+/// let builtin = JsBuiltinOptions::all();
+/// let additional = vec![JsModule::code("my-module", "export const value = 42;")];
+/// let runtime = JsAsyncRuntime::with_options(Some(builtin), Some(additional)).await?;
+/// ```
+static Future<JsRuntime>  withOptions({JsBuiltinOptions? builtin , List<JsModule>? additional })=>LibFjs.instance.api.crateApiJsJsRuntimeWithOptions(builtin: builtin, additional: additional);
+
+
+
+                    
+                }
+                
+
+
+                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MemoryUsage>>
+                abstract class MemoryUsage implements RustOpaqueInterface {
+                    /// Returns the memory usage statistic for the given field.
+ PlatformInt64 get arrayCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get atomCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get atomSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get binaryObjectCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get binaryObjectSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get cFuncCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get fastArrayCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get fastArrayElements;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get jsFuncCodeSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get jsFuncCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get jsFuncPc2LineCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get jsFuncPc2LineSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get jsFuncSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get mallocCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get mallocLimit;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get mallocSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get memoryUsedCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get memoryUsedSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get objCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get objSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get propCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get propSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get shapeCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get shapeSize;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get strCount;
+
+
+/// Returns the memory usage statistic for the given field.
+ PlatformInt64 get strSize;
+
+
+
+                    
+                }
+                
 
 @freezed
-sealed class JsAction with _$JsAction {
-  const JsAction._();
+                sealed class JsAction with _$JsAction  {
+                    const JsAction._();
 
-  /// Evaluate JavaScript code with optional evaluation options.
-  const factory JsAction.eval({
-    /// Unique identifier for this action
-    required int id,
+                     /// Evaluate JavaScript code with optional evaluation options.
+const factory JsAction.eval({ /// Unique identifier for this action
+  required int id ,/// The source code to evaluate (either inline code or file path)
+  required JsCode source ,/// Optional evaluation options
+  JsEvalOptions? options , }) = JsAction_Eval;
+ /// Declare a new module in the dynamic module storage.
+const factory JsAction.declareNewModule({ /// Unique identifier for this action
+  required int id ,/// The module to declare
+  required JsModule module , }) = JsAction_DeclareNewModule;
+ /// Declare multiple new modules in the dynamic module storage.
+const factory JsAction.declareNewModules({ /// Unique identifier for this action
+  required int id ,/// List of modules to declare
+  required List<JsModule> modules , }) = JsAction_DeclareNewModules;
+ /// Clear all modules from the dynamic module storage.
+const factory JsAction.clearNewModules({ /// Unique identifier for this action
+  required int id , }) = JsAction_ClearNewModules;
+ /// Evaluate a module and return its result.
+const factory JsAction.evaluateModule({ /// Unique identifier for this action
+  required int id ,/// The module to evaluate
+  required JsModule module , }) = JsAction_EvaluateModule;
+ /// Get all newly declared modules from the dynamic module storage.
+const factory JsAction.getDeclaredModules({ /// Unique identifier for this action
+  required int id , }) = JsAction_GetDeclaredModules;
+ /// Check if a specific module is declared in the dynamic module storage.
+const factory JsAction.isModuleDeclared({ /// Unique identifier for this action
+  required int id ,/// The name of the module to check
+  required String moduleName , }) = JsAction_IsModuleDeclared;
 
-    /// The source code to evaluate (either inline code or file path)
-    required JsCode source,
+                    
 
-    /// Optional evaluation options
-    JsEvalOptions? options,
-  }) = JsAction_Eval;
-
-  /// Declare a new module in the dynamic module storage.
-  const factory JsAction.declareNewModule({
-    /// Unique identifier for this action
-    required int id,
-
-    /// The module to declare
-    required JsModule module,
-  }) = JsAction_DeclareNewModule;
-
-  /// Declare multiple new modules in the dynamic module storage.
-  const factory JsAction.declareNewModules({
-    /// Unique identifier for this action
-    required int id,
-
-    /// List of modules to declare
-    required List<JsModule> modules,
-  }) = JsAction_DeclareNewModules;
-
-  /// Clear all modules from the dynamic module storage.
-  const factory JsAction.clearNewModules({
-    /// Unique identifier for this action
-    required int id,
-  }) = JsAction_ClearNewModules;
-
-  /// Evaluate a module and return its result.
-  const factory JsAction.evaluateModule({
-    /// Unique identifier for this action
-    required int id,
-
-    /// The module to evaluate
-    required JsModule module,
-  }) = JsAction_EvaluateModule;
-
-  /// Get all newly declared modules from the dynamic module storage.
-  const factory JsAction.getDeclaredModules({
-    /// Unique identifier for this action
-    required int id,
-  }) = JsAction_GetDeclaredModules;
-
-  /// Check if a specific module is declared in the dynamic module storage.
-  const factory JsAction.isModuleDeclared({
-    /// Unique identifier for this action
-    required int id,
-
-    /// The name of the module to check
-    required String moduleName,
-  }) = JsAction_IsModuleDeclared;
-}
+                    
+                }
 
 /// Represents the result of a JavaScript action execution.
 ///
 /// This struct contains the result of an action execution along with
 /// the action's unique identifier for correlation purposes.
 @freezed
-sealed class JsActionResult with _$JsActionResult {
-  const factory JsActionResult({
-    required int id,
-    required JsResult result,
-  }) = _JsActionResult;
-}
+sealed class JsActionResult with _$JsActionResult  {
+                
+                const factory JsActionResult({ required  int id, required  JsResult result,}) = _JsActionResult;
+                
+                
+                
+            }
 
 /// Options for configuring builtin Node.js modules.
 ///
 /// This struct provides fine-grained control over which Node.js
 /// compatibility modules should be available in the runtime.
 @freezed
-sealed class JsBuiltinOptions with _$JsBuiltinOptions {
-  const JsBuiltinOptions._();
-  const factory JsBuiltinOptions({
-    bool? abort,
-    bool? assert_,
-    bool? asyncHooks,
-    bool? buffer,
-    bool? childProcess,
-    bool? console,
-    bool? crypto,
-    bool? dns,
-    bool? events,
-    bool? exceptions,
-    bool? fetch,
-    bool? fs,
-    bool? navigator,
-    bool? net,
-    bool? os,
-    bool? path,
-    bool? perfHooks,
-    bool? process,
-    bool? streamWeb,
-    bool? stringDecoder,
-    bool? timers,
-    bool? tty,
-    bool? url,
-    bool? util,
-    bool? zlib,
-    bool? json,
-  }) = _JsBuiltinOptions;
+sealed class JsBuiltinOptions with _$JsBuiltinOptions  {
+                const JsBuiltinOptions._();
+                const factory JsBuiltinOptions({  bool? abort,  bool? assert_,  bool? asyncHooks,  bool? buffer,  bool? childProcess,  bool? console,  bool? crypto,  bool? dns,  bool? events,  bool? exceptions,  bool? fetch,  bool? fs,  bool? navigator,  bool? net,  bool? os,  bool? path,  bool? perfHooks,  bool? process,  bool? streamWeb,  bool? stringDecoder,  bool? timers,  bool? tty,  bool? url,  bool? util,  bool? zlib,  bool? json,}) = _JsBuiltinOptions;
+                /// Creates builtin options with all modules enabled.
+///
+/// # Returns
+///
+/// Returns a `JsBuiltinOptions` instance with all available modules enabled.
+static JsBuiltinOptions  all()=>LibFjs.instance.api.crateApiJsJsBuiltinOptionsAll();
 
-  /// Creates builtin options with all modules enabled.
-  ///
-  /// # Returns
-  ///
-  /// Returns a `JsBuiltinOptions` instance with all available modules enabled.
-  static JsBuiltinOptions all() =>
-      LibFjs.instance.api.crateApiJsJsBuiltinOptionsAll();
-}
+
+                
+                
+            }
 
 @freezed
-sealed class JsCallback with _$JsCallback {
-  const JsCallback._();
+                sealed class JsCallback with _$JsCallback  {
+                    const JsCallback._();
 
-  /// Indicates that the engine has been initialized and is ready
-  const factory JsCallback.initialized() = JsCallback_Initialized;
+                     /// Indicates that the engine has been initialized and is ready
+const factory JsCallback.initialized() = JsCallback_Initialized;
+ /// Indicates the result of an action execution
+const factory JsCallback.handler(  JsActionResult field0,) = JsCallback_Handler;
+ /// Indicates a bridge call from JavaScript to Dart
+const factory JsCallback.bridge(  JsValue field0,) = JsCallback_Bridge;
 
-  /// Indicates the result of an action execution
-  const factory JsCallback.handler(
-    JsActionResult field0,
-  ) = JsCallback_Handler;
+                    
 
-  /// Indicates a bridge call from JavaScript to Dart
-  const factory JsCallback.bridge(
-    JsValue field0,
-  ) = JsCallback_Bridge;
-}
+                    
+                }
 
 @freezed
-sealed class JsCallbackResult with _$JsCallbackResult {
-  const JsCallbackResult._();
+                sealed class JsCallbackResult with _$JsCallbackResult  {
+                    const JsCallbackResult._();
 
-  /// Indicates successful initialization handling
-  const factory JsCallbackResult.initialized() = JsCallbackResult_Initialized;
+                     /// Indicates successful initialization handling
+const factory JsCallbackResult.initialized() = JsCallbackResult_Initialized;
+ /// Indicates successful action handling
+const factory JsCallbackResult.handler() = JsCallbackResult_Handler;
+ /// Indicates the result of a bridge call
+const factory JsCallbackResult.bridge(  JsResult field0,) = JsCallbackResult_Bridge;
 
-  /// Indicates successful action handling
-  const factory JsCallbackResult.handler() = JsCallbackResult_Handler;
+                    
 
-  /// Indicates the result of a bridge call
-  const factory JsCallbackResult.bridge(
-    JsResult field0,
-  ) = JsCallbackResult_Bridge;
-}
-
-@freezed
-sealed class JsCode with _$JsCode {
-  const JsCode._();
-
-  /// Inline JavaScript code
-  const factory JsCode.code(
-    String field0,
-  ) = JsCode_Code;
-
-  /// File path containing JavaScript code
-  const factory JsCode.path(
-    String field0,
-  ) = JsCode_Path;
-}
+                    
+                }
 
 @freezed
-sealed class JsError with _$JsError {
-  const JsError._();
+                sealed class JsCode with _$JsCode  {
+                    const JsCode._();
 
-  /// Promise-related errors (async operation failures)
-  const factory JsError.promise(
-    String field0,
-  ) = JsError_Promise;
+                     /// Inline JavaScript code
+const factory JsCode.code(  String field0,) = JsCode_Code;
+ /// File path containing JavaScript code
+const factory JsCode.path(  String field0,) = JsCode_Path;
+ /// Raw bytes containing JavaScript code (UTF-8 encoded)
+const factory JsCode.bytes(  Uint8List field0,) = JsCode_Bytes;
 
-  /// Module-related errors (import/export failures)
-  const factory JsError.module({
-    /// Optional module name where the error occurred
-    String? module,
+                    
 
-    /// Optional method name where the error occurred
-    String? method,
+                    
+                }
 
-    /// Error message
-    required String message,
-  }) = JsError_Module;
+@freezed
+                sealed class JsError with _$JsError  {
+                    const JsError._();
 
-  /// Context attachment errors (global object setup failures)
-  const factory JsError.context(
-    String field0,
-  ) = JsError_Context;
+                     /// Promise-related errors (async operation failures)
+const factory JsError.promise(  String field0,) = JsError_Promise;
+ /// Module-related errors (import/export failures)
+const factory JsError.module({ /// Optional module name where the error occurred
+  String? module ,/// Optional method name where the error occurred
+  String? method ,/// Error message
+  required String message , }) = JsError_Module;
+ /// Context attachment errors (global object setup failures)
+const factory JsError.context(  String field0,) = JsError_Context;
+ /// Storage initialization errors (dynamic module storage failures)
+const factory JsError.storage(  String field0,) = JsError_Storage;
+ /// File I/O errors (file reading failures)
+const factory JsError.io({ /// Optional file path where the error occurred
+  String? path ,/// Error message
+  required String message , }) = JsError_Io;
+ /// JavaScript runtime errors from QuickJS engine
+const factory JsError.runtime(  String field0,) = JsError_Runtime;
+ /// Generic catch-all errors
+const factory JsError.generic(  String field0,) = JsError_Generic;
+ /// Engine lifecycle errors
+const factory JsError.engine(  String field0,) = JsError_Engine;
+ /// Bridge communication errors
+const factory JsError.bridge(  String field0,) = JsError_Bridge;
 
-  /// Storage initialization errors (dynamic module storage failures)
-  const factory JsError.storage(
-    String field0,
-  ) = JsError_Storage;
+                    
 
-  /// File I/O errors (file reading failures)
-  const factory JsError.io({
-    /// Optional file path where the error occurred
-    String? path,
+                    /// Converts the error to a string representation.
+///
+/// This method provides a human-readable description of the error,
+/// including contextual information when available.
+///
+/// # Returns
+///
+/// Returns a string describing the error.
+ String  toString()=>LibFjs.instance.api.crateApiJsJsErrorToString(that: this, );
 
-    /// Error message
-    required String message,
-  }) = JsError_Io;
 
-  /// JavaScript runtime errors from QuickJS engine
-  const factory JsError.runtime(
-    String field0,
-  ) = JsError_Runtime;
-
-  /// Generic catch-all errors
-  const factory JsError.generic(
-    String field0,
-  ) = JsError_Generic;
-
-  /// Engine lifecycle errors
-  const factory JsError.engine(
-    String field0,
-  ) = JsError_Engine;
-
-  /// Bridge communication errors
-  const factory JsError.bridge(
-    String field0,
-  ) = JsError_Bridge;
-
-  /// Converts the error to a string representation.
-  ///
-  /// This method provides a human-readable description of the error,
-  /// including contextual information when available.
-  ///
-  /// # Returns
-  ///
-  /// Returns a string describing the error.
-  @override
-  String toString() => LibFjs.instance.api.crateApiJsJsErrorToString(
-        that: this,
-      );
-}
+                }
 
 /// Options for JavaScript code evaluation.
 ///
 /// This struct provides configuration options for how JavaScript
 /// code should be executed and evaluated.
 @freezed
-sealed class JsEvalOptions with _$JsEvalOptions {
-  const JsEvalOptions._();
-  const factory JsEvalOptions.raw({
-    bool? global,
-    bool? strict,
-    bool? backtraceBarrier,
-    bool? promise,
-  }) = _JsEvalOptions;
+sealed class JsEvalOptions with _$JsEvalOptions  {
+                const JsEvalOptions._();
+                const factory JsEvalOptions.raw({  bool? global,  bool? strict,  bool? backtraceBarrier,  bool? promise,}) = _JsEvalOptions;
+                /// Creates new evaluation options with the specified parameters.
+///
+/// # Parameters
+///
+/// - `global`: Whether to evaluate in global scope
+/// - `strict`: Whether to enforce strict mode
+/// - `backtrace_barrier`: Whether to create backtrace barriers
+/// - `promise`: Whether to enable promise support
+///
+/// # Returns
+///
+/// Returns a new `JsEvalOptions` instance.
+factory JsEvalOptions({bool? global , bool? strict , bool? backtraceBarrier , bool? promise })=>LibFjs.instance.api.crateApiJsJsEvalOptionsNew(global: global, strict: strict, backtraceBarrier: backtraceBarrier, promise: promise);
 
-  /// Creates new evaluation options with the specified parameters.
-  ///
-  /// # Parameters
-  ///
-  /// - `global`: Whether to evaluate in global scope
-  /// - `strict`: Whether to enforce strict mode
-  /// - `backtrace_barrier`: Whether to create backtrace barriers
-  /// - `promise`: Whether to enable promise support
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsEvalOptions` instance.
-  factory JsEvalOptions(
-          {bool? global,
-          bool? strict,
-          bool? backtraceBarrier,
-          bool? promise}) =>
-      LibFjs.instance.api.crateApiJsJsEvalOptionsNew(
-          global: global,
-          strict: strict,
-          backtraceBarrier: backtraceBarrier,
-          promise: promise);
-}
+
+                
+                
+            }
 
 /// Represents a JavaScript module.
 ///
 /// This struct defines a module with a name and source code,
 /// which can be loaded and executed in the JavaScript runtime.
 @freezed
-sealed class JsModule with _$JsModule {
-  const JsModule._();
-  const factory JsModule.raw({
-    required String name,
-    required JsCode source,
-  }) = _JsModule;
+sealed class JsModule with _$JsModule  {
+                const JsModule._();
+                const factory JsModule.raw({ required  String name, required  JsCode source,}) = _JsModule;
+                /// Creates a module from raw bytes.
+///
+/// # Parameters
+///
+/// - `module`: The module name
+/// - `bytes`: The raw bytes containing JavaScript code (UTF-8 encoded)
+///
+/// # Returns
+///
+/// Returns a new `JsModule` instance.
+///
+/// # Examples
+///
+/// ```rust
+/// let module = JsModule::bytes(
+///     "my-module".to_string(),
+///     vec![101, 120, 112, 111, 114, 116] // "export"
+/// );
+/// ```
+static JsModule  bytes({required String module , required List<int> bytes })=>LibFjs.instance.api.crateApiJsJsModuleBytes(module: module, bytes: bytes);
 
-  /// Creates a module from inline code.
-  ///
-  /// # Parameters
-  ///
-  /// - `module`: The module name
-  /// - `code`: The inline JavaScript code
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsModule` instance.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let module = JsModule::code(
-  ///     "my-module".to_string(),
-  ///     "export const value = 42;".to_string()
-  /// );
-  /// ```
-  static JsModule code({required String module, required String code}) =>
-      LibFjs.instance.api.crateApiJsJsModuleCode(module: module, code: code);
 
-  /// Creates a new module with the given name and source.
-  ///
-  /// # Parameters
-  ///
-  /// - `name`: The module name
-  /// - `source`: The module source code
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsModule` instance.
-  factory JsModule({required String name, required JsCode source}) =>
-      LibFjs.instance.api.crateApiJsJsModuleNew(name: name, source: source);
+/// Creates a module from inline code.
+///
+/// # Parameters
+///
+/// - `module`: The module name
+/// - `code`: The inline JavaScript code
+///
+/// # Returns
+///
+/// Returns a new `JsModule` instance.
+///
+/// # Examples
+///
+/// ```rust
+/// let module = JsModule::code(
+///     "my-module".to_string(),
+///     "export const value = 42;".to_string()
+/// );
+/// ```
+static JsModule  code({required String module , required String code })=>LibFjs.instance.api.crateApiJsJsModuleCode(module: module, code: code);
 
-  /// Creates a module from a file path.
-  ///
-  /// # Parameters
-  ///
-  /// - `module`: The module name
-  /// - `path`: The file path containing JavaScript code
-  ///
-  /// # Returns
-  ///
-  /// Returns a new `JsModule` instance.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// let module = JsModule::path(
-  ///     "my-module".to_string(),
-  ///     "/path/to/module.js".to_string()
-  /// );
-  /// ```
-  static JsModule path({required String module, required String path}) =>
-      LibFjs.instance.api.crateApiJsJsModulePath(module: module, path: path);
-}
+
+/// Creates a new module with the given name and source.
+///
+/// # Parameters
+///
+/// - `name`: The module name
+/// - `source`: The module source code
+///
+/// # Returns
+///
+/// Returns a new `JsModule` instance.
+factory JsModule({required String name , required JsCode source })=>LibFjs.instance.api.crateApiJsJsModuleNew(name: name, source: source);
+
+
+/// Creates a module from a file path.
+///
+/// # Parameters
+///
+/// - `module`: The module name
+/// - `path`: The file path containing JavaScript code
+///
+/// # Returns
+///
+/// Returns a new `JsModule` instance.
+///
+/// # Examples
+///
+/// ```rust
+/// let module = JsModule::path(
+///     "my-module".to_string(),
+///     "/path/to/module.js".to_string()
+/// );
+/// ```
+static JsModule  path({required String module , required String path })=>LibFjs.instance.api.crateApiJsJsModulePath(module: module, path: path);
+
+
+                
+                
+            }
 
 @freezed
-sealed class JsResult with _$JsResult {
-  const JsResult._();
+                sealed class JsResult with _$JsResult  {
+                    const JsResult._();
 
-  /// Successful execution result
-  const factory JsResult.ok(
-    JsValue field0,
-  ) = JsResult_Ok;
+                     /// Successful execution result
+const factory JsResult.ok(  JsValue field0,) = JsResult_Ok;
+ /// Error during execution
+const factory JsResult.err(  JsError field0,) = JsResult_Err;
 
-  /// Error during execution
-  const factory JsResult.err(
-    JsError field0,
-  ) = JsResult_Err;
+                    
 
+                    
   bool get isOk => this is JsResult_Ok;
   bool get isErr => this is JsResult_Err;
   JsValue get ok => (this as JsResult_Ok).field0;
   JsError get err => (this as JsResult_Err).field0;
-}
+
+                }
+            
