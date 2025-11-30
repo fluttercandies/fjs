@@ -21,6 +21,7 @@
 //! - **Storage**: Manage dynamic module state
 //! - **Builders**: Configure runtime module systems
 
+use crate::api::source::JsBuiltinOptions;
 use flutter_rust_bridge::frb;
 use llrt_utils::module::ModuleInfo;
 use rquickjs::loader::{Loader, ModuleLoader, Resolver};
@@ -42,29 +43,32 @@ pub struct DynamicModuleResolver {}
 impl Resolver for DynamicModuleResolver {
     /// Resolves a dynamic module name.
     ///
-    /// This method simply returns the module name as-is, assuming that
-    /// the module exists in the dynamic module storage. The actual
-    /// loading is handled by the `DynamicModuleLoader`.
+    /// This method checks if the module exists in the dynamic module storage.
+    /// If found, returns the module name; otherwise returns a resolving error.
     ///
     /// # Parameters
     ///
     /// - `ctx`: The JavaScript context
-    /// - `_base`: The base path (not used for dynamic modules)
+    /// - `base`: The base path for resolution
     /// - `name`: The module name to resolve
     ///
     /// # Returns
     ///
-    /// Returns the resolved module name.
+    /// Returns the resolved module name if found in storage.
     fn resolve<'js>(
         &mut self,
         ctx: &Ctx<'js>,
-        _base: &str,
+        base: &str,
         name: &str,
     ) -> rquickjs::Result<String> {
-        if let Some(_modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
-            return Ok(name.to_string());
+        if let Some(modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
+            let modules = modules_storage.read().unwrap();
+            if modules.contains_key(name) {
+                return Ok(name.to_string());
+            }
         }
-        Ok(name.to_string())
+        // Not found in dynamic storage, let other resolvers try
+        Err(rquickjs::Error::new_resolving(base, name))
     }
 }
 
@@ -158,20 +162,27 @@ impl ModuleNames<'_> {
 /// Manages global object attachments for JavaScript contexts.
 ///
 /// This struct handles the attachment of global objects, functions,
-    /// and module names to JavaScript contexts. It ensures that global
-/// state is properly initialized and maintained across context usage.
+/// and module names to JavaScript contexts. Each context will be
+/// initialized independently when attach() is called.
 #[frb(ignore)]
 #[derive(Debug, Default, Clone)]
 pub struct GlobalAttachment {
-    /// Inner implementation with atomic initialization tracking
+    /// Inner implementation with initialization data
     inner: Arc<GlobalAttachmentInner>,
+}
+
+/// Marker type to track if a context has been initialized with global attachments.
+#[frb(ignore)]
+struct GlobalAttachmentInitialized;
+
+unsafe impl<'js> JsLifetime<'js> for GlobalAttachmentInitialized {
+    type Changed<'to> = GlobalAttachmentInitialized;
 }
 
 /// Inner implementation of global attachment management.
 ///
 /// This struct contains the actual data for global attachments,
-/// including module names, initialization functions, and an atomic
-/// flag to track initialization state.
+/// including module names and initialization functions.
 #[frb(ignore)]
 #[derive(Debug, Default)]
 struct GlobalAttachmentInner {
@@ -179,8 +190,6 @@ struct GlobalAttachmentInner {
     names: HashSet<String>,
     /// List of initialization functions to call
     functions: Vec<fn(&Ctx<'_>) -> rquickjs::Result<()>>,
-    /// Atomic flag to track if initialization has occurred
-    initialized: std::sync::atomic::AtomicBool,
 }
 
 impl GlobalAttachment {
@@ -234,8 +243,8 @@ impl GlobalAttachment {
     /// Attaches the global state to a JavaScript context.
     ///
     /// This method applies all registered module names and initialization functions
-    /// to the given context. It uses atomic operations to ensure that initialization
-    /// only happens once, even if called multiple times.
+    /// to the given context. It uses context-level userdata to ensure that each
+    /// context is only initialized once.
     ///
     /// # Parameters
     ///
@@ -245,15 +254,13 @@ impl GlobalAttachment {
     ///
     /// Returns Ok if attachment succeeds, or an error if initialization fails.
     pub fn attach(&self, ctx: &Ctx<'_>) -> rquickjs::Result<()> {
-        // Only initialize once using atomic flag
-        if self
-            .inner
-            .initialized
-            .swap(true, std::sync::atomic::Ordering::AcqRel)
-        {
-            // Already initialized, skip
+        // Check if this context has already been initialized
+        if ctx.userdata::<GlobalAttachmentInitialized>().is_some() {
             return Ok(());
         }
+
+        // Mark this context as initialized
+        let _ = ctx.store_userdata(GlobalAttachmentInitialized);
 
         if !self.inner.names.is_empty() {
             let _ = ctx.store_userdata(ModuleNames::new(self.inner.names.clone()));
@@ -401,5 +408,119 @@ impl ModuleBuilder {
             self.module_loader,
             self.global_attachment,
         )
+    }
+}
+
+impl JsBuiltinOptions {
+    /// Converts builtin options to a module builder.
+    #[frb(ignore)]
+    pub fn to_module_builder(&self) -> ModuleBuilder {
+        let mut builder = ModuleBuilder::new();
+
+        if self.abort.unwrap_or(false) {
+            builder = builder.with_global(llrt_abort::init);
+        }
+        if self.assert.unwrap_or(false) {
+            builder = builder.with_module(llrt_assert::AssertModule);
+        }
+        if self.async_hooks.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_async_hooks::init)
+                .with_module(llrt_async_hooks::AsyncHooksModule);
+        }
+        if self.buffer.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_buffer::init)
+                .with_module(llrt_buffer::BufferModule);
+        }
+        if self.child_process.unwrap_or(false) {
+            builder = builder.with_module(llrt_child_process::ChildProcessModule);
+        }
+        if self.console.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_console::init)
+                .with_module(llrt_console::ConsoleModule);
+        }
+        if self.crypto.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_crypto::init)
+                .with_module(llrt_crypto::CryptoModule);
+        }
+        if self.dns.unwrap_or(false) {
+            builder = builder.with_module(llrt_dns::DnsModule);
+        }
+        if self.events.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_events::init)
+                .with_module(llrt_events::EventsModule);
+        }
+        if self.exceptions.unwrap_or(false) {
+            builder = builder.with_global(llrt_exceptions::init);
+        }
+        if self.fetch.unwrap_or(false) {
+            builder = builder.with_global(llrt_fetch::init);
+        }
+        if self.fs.unwrap_or(false) {
+            builder = builder
+                .with_module(llrt_fs::FsPromisesModule)
+                .with_module(llrt_fs::FsModule);
+        }
+        if self.navigator.unwrap_or(false) {
+            builder = builder.with_global(llrt_navigator::init);
+        }
+        if self.net.unwrap_or(false) {
+            builder = builder.with_module(llrt_net::NetModule);
+        }
+        #[cfg(not(target_os = "ios"))]
+        if self.os.unwrap_or(false) {
+            builder = builder.with_module(llrt_os::OsModule);
+        }
+        if self.path.unwrap_or(false) {
+            builder = builder.with_module(llrt_path::PathModule);
+        }
+        if self.perf_hooks.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_perf_hooks::init)
+                .with_module(llrt_perf_hooks::PerfHooksModule);
+        }
+        if self.process.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_process::init)
+                .with_module(llrt_process::ProcessModule);
+        }
+        if self.stream_web.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_stream_web::init)
+                .with_module(llrt_stream_web::StreamWebModule);
+        }
+        if self.string_decoder.unwrap_or(false) {
+            builder = builder.with_module(llrt_string_decoder::StringDecoderModule);
+        }
+        if self.timers.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_timers::init)
+                .with_module(llrt_timers::TimersModule);
+        }
+        if self.tty.unwrap_or(false) {
+            builder = builder.with_module(llrt_tty::TtyModule);
+        }
+        if self.url.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_url::init)
+                .with_module(llrt_url::UrlModule);
+        }
+        if self.util.unwrap_or(false) {
+            builder = builder
+                .with_global(llrt_util::init)
+                .with_module(llrt_util::UtilModule);
+        }
+        if self.zlib.unwrap_or(false) {
+            builder = builder.with_module(llrt_zlib::ZlibModule);
+        }
+        if self.json.unwrap_or(false) {
+            builder = builder.with_global(llrt_json::redefine_static_methods);
+        }
+
+        builder
     }
 }
