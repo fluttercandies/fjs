@@ -72,8 +72,17 @@ library;
 export 'src/engine.dart';
 
 // JavaScript API with high-level abstractions
-export 'src/frb/api/js.dart'
-    hide JsEngineCore, JsAction, JsActionResult, JsCallback, JsCallbackResult;
+export 'src/frb/api/engine.dart'
+    hide JsActionResult, JsCallback, JsCallbackResult;
+
+// Error handling
+export 'src/frb/api/error.dart';
+
+// Runtime and context
+export 'src/frb/api/runtime.dart';
+
+// Source code and modules
+export 'src/frb/api/source.dart';
 
 // Value conversion and type handling
 export 'src/frb/api/value.dart';

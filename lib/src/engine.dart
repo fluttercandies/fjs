@@ -1,51 +1,52 @@
-/// JavaScript Engine for Flutter
-///
-/// This file provides the high-level [JsEngine] class that offers a simplified
-/// and user-friendly interface for executing JavaScript code within Flutter applications.
-/// The engine manages the underlying JavaScript runtime, context, and provides
-/// convenient methods for code evaluation, module management, and bridge communication.
-///
-/// ## Key Features
-///
-/// - **Simplified API**: High-level interface that abstracts away low-level details
-/// - **Async/Await Support**: First-class support for asynchronous JavaScript operations
-/// - **Module Management**: Easy dynamic loading and execution of JavaScript modules
-/// - **Error Handling**: Comprehensive error propagation and reporting
-/// - **Bridge Communication**: Bidirectional communication between Dart and JavaScript
-/// - **Resource Management**: Automatic cleanup and disposal of engine resources
-///
-/// ## Example Usage
-///
-/// ```dart
-/// // Create a runtime and context
-/// final runtime = await JsAsyncRuntime.withOptions(
-///   builtin: JsBuiltinOptions.all(),
-/// );
-/// final context = await JsAsyncContext.from(runtime);
-///
-/// // Create and initialize the engine
-/// final engine = JsEngine(context);
-/// await engine.init(
-///   bridgeCall: (value) async {
-///     print('Bridge call: ${value.value}');
-///     return JsValue.string('Response from Dart');
-///   },
-/// );
-///
-/// // Execute JavaScript code
-/// final result = await engine.eval(
-///   JsCode.code('2 + 2'),
-/// );
-/// print('Result: ${result.value}'); // 4
-///
-/// // Dispose the engine when done
-/// await engine.dispose();
-/// ```
+// JavaScript Engine for Flutter
+//
+// This file provides the high-level [JsEngine] class that offers a simplified
+// and user-friendly interface for executing JavaScript code within Flutter applications.
+// The engine manages the underlying JavaScript runtime, context, and provides
+// convenient methods for code evaluation, module management, and bridge communication.
+//
+// ## Key Features
+//
+// - **Simplified API**: High-level interface that abstracts away low-level details
+// - **Async/Await Support**: First-class support for asynchronous JavaScript operations
+// - **Module Management**: Easy dynamic loading and execution of JavaScript modules
+// - **Error Handling**: Comprehensive error propagation and reporting
+// - **Bridge Communication**: Bidirectional communication between Dart and JavaScript
+// - **Resource Management**: Automatic cleanup and disposal of engine resources
+//
+// ## Example Usage
+//
+// ```dart
+// // Create a runtime and context
+// final runtime = await JsAsyncRuntime.withOptions(
+//   builtin: JsBuiltinOptions.all(),
+// );
+// final context = await JsAsyncContext.from(runtime);
+//
+// // Create and initialize the engine
+// final engine = JsEngine(context);
+// await engine.init(
+//   bridgeCall: (value) async {
+//     print('Bridge call: ${value.value}');
+//     return JsValue.string('Response from Dart');
+//   },
+// );
+//
+// // Execute JavaScript code
+// final result = await engine.eval(
+//   JsCode.code('2 + 2'),
+// );
+// print('Result: ${result.value}'); // 4
+//
+// // Dispose the engine when done
+// await engine.dispose();
+// ```
 
 import 'dart:async';
 
 import '../fjs.dart';
-import 'frb/api/js.dart';
+import 'frb/api/engine.dart';
+import 'frb/api/value.dart';
 
 /// High-level JavaScript engine for Flutter applications.
 ///
@@ -141,9 +142,9 @@ class JsEngine {
   /// ```dart
   /// final engine = JsEngine(context);
   /// await engine.init();
-  /// 
+  ///
   /// // Use the engine...
-  /// 
+  ///
   /// // Clean up when done
   /// await engine.dispose();
   /// ```
@@ -546,12 +547,10 @@ class JsEngine {
       JsAction.getDeclaredModules(id: nextId),
       timeout: timeout,
     );
-    
+
     // Convert JsValue to List<String>
     if (result.value is List) {
-      return (result.value as List)
-          .map((item) => item.toString())
-          .toList();
+      return (result.value as List).map((item) => item.toString()).toList();
     } else {
       throw JsError.engine('Unexpected result type: expected List<String>');
     }
@@ -590,7 +589,7 @@ class JsEngine {
       JsAction.isModuleDeclared(id: nextId, moduleName: moduleName),
       timeout: timeout,
     );
-    
+
     // Convert JsValue to bool
     if (result.value is bool) {
       return result.value as bool;
