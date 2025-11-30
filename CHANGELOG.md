@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.1
+
+* **PERFORMANCE**: Optimized BigInt conversion using native rquickjs API instead of JavaScript evaluation
+* **PERFORMANCE**: Improved Symbol description extraction using native rquickjs Symbol API
+* **PERFORMANCE**: Simplified file reading with direct `tokio::fs::read()` call
+* **FIX**: Fixed `DynamicModuleResolver` to properly check module existence before resolving
+* **FIX**: Fixed `build_loaders()` to properly include additional modules in resolver and loader chains
+* **FIX**: Fixed `GlobalAttachment` to correctly initialize each context independently using context-level userdata
+* **INTERNAL**: Removed unused variable in bridge call function
+* **INTERNAL**: Improved code clarity and reduced redundant logic
+
 ## 1.3.0
 
 * **FEATURE**: Added `JsCode.bytes()` variant for direct `Uint8List` support from Dart

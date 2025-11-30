@@ -3,8 +3,11 @@
 //! This module provides the core JavaScript execution API for Flutter integration.
 //! It contains submodules for different aspects of JavaScript runtime management:
 //!
-//! - **js**: Runtime, context, and execution management
+//! - **runtime**: Runtime and context management
+//! - **engine**: High-level engine with action processing
 //! - **value**: Type-safe value conversion between Rust and JavaScript
+//! - **error**: Comprehensive error types
+//! - **source**: Source code and module definitions
 //! - **module**: Module system and dynamic loading capabilities
 //!
 //! ## Initialization
@@ -12,9 +15,20 @@
 //! The `init_app()` function sets up the Flutter Rust bridge with default utilities.
 //! This function should be called once during application initialization.
 
-pub mod js;
-pub mod value;
+pub mod engine;
+pub mod error;
 pub mod module;
+pub mod runtime;
+pub mod source;
+pub mod value;
+
+// Re-export main types for convenience
+pub use engine::{JsAction, JsActionResult, JsCallback, JsCallbackResult, JsEngineCore};
+pub use error::{JsError, JsResult};
+pub use module::{DynamicModuleLoader, DynamicModuleResolver, GlobalAttachment, ModuleBuilder};
+pub use runtime::{JsAsyncContext, JsAsyncRuntime, JsContext, JsRuntime, MemoryUsage};
+pub use source::{JsBuiltinOptions, JsCode, JsEvalOptions, JsModule};
+pub use value::JsValue;
 
 /// Initializes the Flutter Rust bridge with default user utilities.
 ///
