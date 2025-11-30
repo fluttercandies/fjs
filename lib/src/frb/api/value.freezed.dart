@@ -56,8 +56,12 @@ extension JsValuePatterns on JsValue {
     TResult Function(JsValue_Float value)? float,
     TResult Function(JsValue_Bigint value)? bigint,
     TResult Function(JsValue_String value)? string,
+    TResult Function(JsValue_Bytes value)? bytes,
     TResult Function(JsValue_Array value)? array,
     TResult Function(JsValue_Object value)? object,
+    TResult Function(JsValue_Date value)? date,
+    TResult Function(JsValue_Symbol value)? symbol,
+    TResult Function(JsValue_Function value)? function,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -74,10 +78,18 @@ extension JsValuePatterns on JsValue {
         return bigint(_that);
       case JsValue_String() when string != null:
         return string(_that);
+      case JsValue_Bytes() when bytes != null:
+        return bytes(_that);
       case JsValue_Array() when array != null:
         return array(_that);
       case JsValue_Object() when object != null:
         return object(_that);
+      case JsValue_Date() when date != null:
+        return date(_that);
+      case JsValue_Symbol() when symbol != null:
+        return symbol(_that);
+      case JsValue_Function() when function != null:
+        return function(_that);
       case _:
         return orElse();
     }
@@ -104,8 +116,12 @@ extension JsValuePatterns on JsValue {
     required TResult Function(JsValue_Float value) float,
     required TResult Function(JsValue_Bigint value) bigint,
     required TResult Function(JsValue_String value) string,
+    required TResult Function(JsValue_Bytes value) bytes,
     required TResult Function(JsValue_Array value) array,
     required TResult Function(JsValue_Object value) object,
+    required TResult Function(JsValue_Date value) date,
+    required TResult Function(JsValue_Symbol value) symbol,
+    required TResult Function(JsValue_Function value) function,
   }) {
     final _that = this;
     switch (_that) {
@@ -121,10 +137,18 @@ extension JsValuePatterns on JsValue {
         return bigint(_that);
       case JsValue_String():
         return string(_that);
+      case JsValue_Bytes():
+        return bytes(_that);
       case JsValue_Array():
         return array(_that);
       case JsValue_Object():
         return object(_that);
+      case JsValue_Date():
+        return date(_that);
+      case JsValue_Symbol():
+        return symbol(_that);
+      case JsValue_Function():
+        return function(_that);
     }
   }
 
@@ -148,8 +172,12 @@ extension JsValuePatterns on JsValue {
     TResult? Function(JsValue_Float value)? float,
     TResult? Function(JsValue_Bigint value)? bigint,
     TResult? Function(JsValue_String value)? string,
+    TResult? Function(JsValue_Bytes value)? bytes,
     TResult? Function(JsValue_Array value)? array,
     TResult? Function(JsValue_Object value)? object,
+    TResult? Function(JsValue_Date value)? date,
+    TResult? Function(JsValue_Symbol value)? symbol,
+    TResult? Function(JsValue_Function value)? function,
   }) {
     final _that = this;
     switch (_that) {
@@ -165,10 +193,18 @@ extension JsValuePatterns on JsValue {
         return bigint(_that);
       case JsValue_String() when string != null:
         return string(_that);
+      case JsValue_Bytes() when bytes != null:
+        return bytes(_that);
       case JsValue_Array() when array != null:
         return array(_that);
       case JsValue_Object() when object != null:
         return object(_that);
+      case JsValue_Date() when date != null:
+        return date(_that);
+      case JsValue_Symbol() when symbol != null:
+        return symbol(_that);
+      case JsValue_Function() when function != null:
+        return function(_that);
       case _:
         return null;
     }
@@ -194,8 +230,12 @@ extension JsValuePatterns on JsValue {
     TResult Function(double field0)? float,
     TResult Function(String field0)? bigint,
     TResult Function(String field0)? string,
+    TResult Function(Uint8List field0)? bytes,
     TResult Function(List<JsValue> field0)? array,
     TResult Function(Map<String, JsValue> field0)? object,
+    TResult Function(PlatformInt64 field0)? date,
+    TResult Function(String field0)? symbol,
+    TResult Function(String field0)? function,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -212,10 +252,18 @@ extension JsValuePatterns on JsValue {
         return bigint(_that.field0);
       case JsValue_String() when string != null:
         return string(_that.field0);
+      case JsValue_Bytes() when bytes != null:
+        return bytes(_that.field0);
       case JsValue_Array() when array != null:
         return array(_that.field0);
       case JsValue_Object() when object != null:
         return object(_that.field0);
+      case JsValue_Date() when date != null:
+        return date(_that.field0);
+      case JsValue_Symbol() when symbol != null:
+        return symbol(_that.field0);
+      case JsValue_Function() when function != null:
+        return function(_that.field0);
       case _:
         return orElse();
     }
@@ -242,8 +290,12 @@ extension JsValuePatterns on JsValue {
     required TResult Function(double field0) float,
     required TResult Function(String field0) bigint,
     required TResult Function(String field0) string,
+    required TResult Function(Uint8List field0) bytes,
     required TResult Function(List<JsValue> field0) array,
     required TResult Function(Map<String, JsValue> field0) object,
+    required TResult Function(PlatformInt64 field0) date,
+    required TResult Function(String field0) symbol,
+    required TResult Function(String field0) function,
   }) {
     final _that = this;
     switch (_that) {
@@ -259,10 +311,18 @@ extension JsValuePatterns on JsValue {
         return bigint(_that.field0);
       case JsValue_String():
         return string(_that.field0);
+      case JsValue_Bytes():
+        return bytes(_that.field0);
       case JsValue_Array():
         return array(_that.field0);
       case JsValue_Object():
         return object(_that.field0);
+      case JsValue_Date():
+        return date(_that.field0);
+      case JsValue_Symbol():
+        return symbol(_that.field0);
+      case JsValue_Function():
+        return function(_that.field0);
     }
   }
 
@@ -286,8 +346,12 @@ extension JsValuePatterns on JsValue {
     TResult? Function(double field0)? float,
     TResult? Function(String field0)? bigint,
     TResult? Function(String field0)? string,
+    TResult? Function(Uint8List field0)? bytes,
     TResult? Function(List<JsValue> field0)? array,
     TResult? Function(Map<String, JsValue> field0)? object,
+    TResult? Function(PlatformInt64 field0)? date,
+    TResult? Function(String field0)? symbol,
+    TResult? Function(String field0)? function,
   }) {
     final _that = this;
     switch (_that) {
@@ -303,10 +367,18 @@ extension JsValuePatterns on JsValue {
         return bigint(_that.field0);
       case JsValue_String() when string != null:
         return string(_that.field0);
+      case JsValue_Bytes() when bytes != null:
+        return bytes(_that.field0);
       case JsValue_Array() when array != null:
         return array(_that.field0);
       case JsValue_Object() when object != null:
         return object(_that.field0);
+      case JsValue_Date() when date != null:
+        return date(_that.field0);
+      case JsValue_Symbol() when symbol != null:
+        return symbol(_that.field0);
+      case JsValue_Function() when function != null:
+        return function(_that.field0);
       case _:
         return null;
     }
@@ -655,6 +727,71 @@ class _$JsValue_StringCopyWithImpl<$Res>
 
 /// @nodoc
 
+class JsValue_Bytes extends JsValue {
+  const JsValue_Bytes(this.field0) : super._();
+
+  final Uint8List field0;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_BytesCopyWith<JsValue_Bytes> get copyWith =>
+      _$JsValue_BytesCopyWithImpl<JsValue_Bytes>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsValue_Bytes &&
+            const DeepCollectionEquality().equals(other.field0, field0));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, const DeepCollectionEquality().hash(field0));
+
+  @override
+  String toString() {
+    return 'JsValue.bytes(field0: $field0)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsValue_BytesCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_BytesCopyWith(
+          JsValue_Bytes value, $Res Function(JsValue_Bytes) _then) =
+      _$JsValue_BytesCopyWithImpl;
+  @useResult
+  $Res call({Uint8List field0});
+}
+
+/// @nodoc
+class _$JsValue_BytesCopyWithImpl<$Res>
+    implements $JsValue_BytesCopyWith<$Res> {
+  _$JsValue_BytesCopyWithImpl(this._self, this._then);
+
+  final JsValue_Bytes _self;
+  final $Res Function(JsValue_Bytes) _then;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsValue_Bytes(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+    ));
+  }
+}
+
+/// @nodoc
+
 class JsValue_Array extends JsValue {
   const JsValue_Array(final List<JsValue> field0)
       : _field0 = field0,
@@ -793,6 +930,197 @@ class _$JsValue_ObjectCopyWithImpl<$Res>
           ? _self._field0
           : field0 // ignore: cast_nullable_to_non_nullable
               as Map<String, JsValue>,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsValue_Date extends JsValue {
+  const JsValue_Date(this.field0) : super._();
+
+  final PlatformInt64 field0;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_DateCopyWith<JsValue_Date> get copyWith =>
+      _$JsValue_DateCopyWithImpl<JsValue_Date>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsValue_Date &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @override
+  String toString() {
+    return 'JsValue.date(field0: $field0)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsValue_DateCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_DateCopyWith(
+          JsValue_Date value, $Res Function(JsValue_Date) _then) =
+      _$JsValue_DateCopyWithImpl;
+  @useResult
+  $Res call({PlatformInt64 field0});
+}
+
+/// @nodoc
+class _$JsValue_DateCopyWithImpl<$Res> implements $JsValue_DateCopyWith<$Res> {
+  _$JsValue_DateCopyWithImpl(this._self, this._then);
+
+  final JsValue_Date _self;
+  final $Res Function(JsValue_Date) _then;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsValue_Date(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as PlatformInt64,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsValue_Symbol extends JsValue {
+  const JsValue_Symbol(this.field0) : super._();
+
+  final String field0;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_SymbolCopyWith<JsValue_Symbol> get copyWith =>
+      _$JsValue_SymbolCopyWithImpl<JsValue_Symbol>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsValue_Symbol &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @override
+  String toString() {
+    return 'JsValue.symbol(field0: $field0)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsValue_SymbolCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_SymbolCopyWith(
+          JsValue_Symbol value, $Res Function(JsValue_Symbol) _then) =
+      _$JsValue_SymbolCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsValue_SymbolCopyWithImpl<$Res>
+    implements $JsValue_SymbolCopyWith<$Res> {
+  _$JsValue_SymbolCopyWithImpl(this._self, this._then);
+
+  final JsValue_Symbol _self;
+  final $Res Function(JsValue_Symbol) _then;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsValue_Symbol(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class JsValue_Function extends JsValue {
+  const JsValue_Function(this.field0) : super._();
+
+  final String field0;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsValue_FunctionCopyWith<JsValue_Function> get copyWith =>
+      _$JsValue_FunctionCopyWithImpl<JsValue_Function>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsValue_Function &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @override
+  String toString() {
+    return 'JsValue.function(field0: $field0)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsValue_FunctionCopyWith<$Res>
+    implements $JsValueCopyWith<$Res> {
+  factory $JsValue_FunctionCopyWith(
+          JsValue_Function value, $Res Function(JsValue_Function) _then) =
+      _$JsValue_FunctionCopyWithImpl;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class _$JsValue_FunctionCopyWithImpl<$Res>
+    implements $JsValue_FunctionCopyWith<$Res> {
+  _$JsValue_FunctionCopyWithImpl(this._self, this._then);
+
+  final JsValue_Function _self;
+  final $Res Function(JsValue_Function) _then;
+
+  /// Create a copy of JsValue
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(JsValue_Function(
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }

@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'value.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `from_js`, `into_js`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`, `from_js`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `into_js`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `array`, `bigint`, `boolean`, `bytes`, `date`, `float`, `integer`, `none`, `object`, `string`
 
 @freezed
 sealed class JsValue with _$JsValue {
@@ -43,6 +43,11 @@ sealed class JsValue with _$JsValue {
     String field0,
   ) = JsValue_String;
 
+  /// Represents binary data (ArrayBuffer/TypedArray)
+  const factory JsValue.bytes(
+    Uint8List field0,
+  ) = JsValue_Bytes;
+
   /// Represents arrays with nested value support
   const factory JsValue.array(
     List<JsValue> field0,
@@ -53,6 +58,75 @@ sealed class JsValue with _$JsValue {
     Map<String, JsValue> field0,
   ) = JsValue_Object;
 
+  /// Represents Date objects (milliseconds since epoch)
+  const factory JsValue.date(
+    PlatformInt64 field0,
+  ) = JsValue_Date;
+
+  /// Represents Symbol values (description)
+  const factory JsValue.symbol(
+    String field0,
+  ) = JsValue_Symbol;
+
+  /// Represents function references (serialized name/id)
+  const factory JsValue.function(
+    String field0,
+  ) = JsValue_Function;
+
+  static Future<JsValue> default_() =>
+      LibFjs.instance.api.crateApiValueJsValueDefault();
+
+  /// Returns true if the value is an array.
+  bool isArray() => LibFjs.instance.api.crateApiValueJsValueIsArray(
+        that: this,
+      );
+
+  /// Returns true if the value is a boolean.
+  bool isBoolean() => LibFjs.instance.api.crateApiValueJsValueIsBoolean(
+        that: this,
+      );
+
+  /// Returns true if the value is bytes (binary data).
+  bool isBytes() => LibFjs.instance.api.crateApiValueJsValueIsBytes(
+        that: this,
+      );
+
+  /// Returns true if the value is a Date.
+  bool isDate() => LibFjs.instance.api.crateApiValueJsValueIsDate(
+        that: this,
+      );
+
+  /// Returns true if the value is None.
+  bool isNone() => LibFjs.instance.api.crateApiValueJsValueIsNone(
+        that: this,
+      );
+
+  /// Returns true if the value is a number (integer, float, or bigint).
+  bool isNumber() => LibFjs.instance.api.crateApiValueJsValueIsNumber(
+        that: this,
+      );
+
+  /// Returns true if the value is an object.
+  bool isObject() => LibFjs.instance.api.crateApiValueJsValueIsObject(
+        that: this,
+      );
+
+  /// Returns true if the value is a primitive type.
+  bool isPrimitive() => LibFjs.instance.api.crateApiValueJsValueIsPrimitive(
+        that: this,
+      );
+
+  /// Returns true if the value is a string.
+  bool isString() => LibFjs.instance.api.crateApiValueJsValueIsString(
+        that: this,
+      );
+
+  /// Returns the type name of this value.
+  String typeName() => LibFjs.instance.api.crateApiValueJsValueTypeName(
+        that: this,
+      );
+
+  /// Creates a JsValue from any Dart object.
   static JsValue from(Object? any) {
     if (any == null) {
       return const JsValue.none();
@@ -66,6 +140,8 @@ sealed class JsValue with _$JsValue {
       return JsValue.bigint(any.toString());
     } else if (any is String) {
       return JsValue.string(any);
+    } else if (any is Uint8List) {
+      return JsValue.bytes(any);
     } else if (any is List) {
       return JsValue.array(any.map((e) => from(e)).toList());
     } else if (any is Map) {
@@ -77,6 +153,7 @@ sealed class JsValue with _$JsValue {
     }
   }
 
+  /// Gets the underlying Dart value.
   dynamic get value => when(
         none: () => null,
         boolean: (v) => v,
@@ -84,23 +161,43 @@ sealed class JsValue with _$JsValue {
         float: (v) => v,
         bigint: (v) => BigInt.parse(v),
         string: (v) => v,
+        bytes: (v) => v,
         array: (v) => v.map((e) => e.value).toList(),
         object: (v) => v.map((key, value) => MapEntry(key, value.value)),
+        date: (ms) => DateTime.fromMillisecondsSinceEpoch(ms.toInt()),
+        symbol: (v) => v,
+        function: (v) => v,
       );
 
-  bool get isNone => this is JsValue_None;
+  /// Safe casting methods
+  bool? get asBoolean =>
+      this is JsValue_Boolean ? (this as JsValue_Boolean).field0 : null;
+  int? get asInteger =>
+      this is JsValue_Integer ? (this as JsValue_Integer).field0 : null;
+  double? get asFloat =>
+      this is JsValue_Float ? (this as JsValue_Float).field0 : null;
+  String? get asBigint =>
+      this is JsValue_Bigint ? (this as JsValue_Bigint).field0 : null;
+  String? get asString =>
+      this is JsValue_String ? (this as JsValue_String).field0 : null;
+  Uint8List? get asBytes =>
+      this is JsValue_Bytes ? (this as JsValue_Bytes).field0 : null;
+  List<JsValue>? get asArray =>
+      this is JsValue_Array ? (this as JsValue_Array).field0 : null;
+  Map<String, JsValue>? get asObject =>
+      this is JsValue_Object ? (this as JsValue_Object).field0 : null;
 
-  bool get isBoolean => this is JsValue_Boolean;
-
-  bool get isInteger => this is JsValue_Integer;
-
-  bool get isFloat => this is JsValue_Float;
-
-  bool get isBigint => this is JsValue_Bigint;
-
-  bool get isString => this is JsValue_String;
-
-  bool get isArray => this is JsValue_Array;
-
-  bool get isObject => this is JsValue_Object;
+  /// Converts to num if possible.
+  num? get asNum {
+    if (this is JsValue_Integer) return (this as JsValue_Integer).field0;
+    if (this is JsValue_Float) return (this as JsValue_Float).field0;
+    if (this is JsValue_Bigint) {
+      final bigint = BigInt.parse((this as JsValue_Bigint).field0);
+      if (bigint >= BigInt.from(-9007199254740991) &&
+          bigint <= BigInt.from(9007199254740991)) {
+        return bigint.toInt();
+      }
+    }
+    return null;
+  }
 }
