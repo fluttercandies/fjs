@@ -601,13 +601,49 @@ pub(crate) async fn result_from_promise<'js>(
     res: rquickjs::Result<Promise<'js>>,
 ) -> JsResult {
     match res.catch(ctx) {
-        Ok(promise) => match promise.into_future::<rquickjs::Value>().await.catch(ctx) {
-            Ok(v) => match JsValue::from_js(ctx, v).catch(ctx) {
+        Ok(promise) => {
+            let mut value = match promise.into_future::<rquickjs::Value>().await.catch(ctx) {
+                Ok(v) => v,
+                Err(e) => return JsResult::Err(JsError::runtime(e.to_string())),
+            };
+
+            // JS_EVAL_FLAG_ASYNC wraps result in {value: xxx}
+            // Detect wrapper: object with exactly one property named "value"
+            if let Some(obj) = value.as_object() {
+                if let Ok(keys) = obj.keys::<String>().collect::<Result<Vec<_>, _>>() {
+                    if keys.len() == 1 && keys[0] == "value" {
+                        // This is the QuickJS wrapper, extract the inner value
+                        if let Ok(inner) = obj.get::<_, rquickjs::Value>("value") {
+                            value = inner;
+                        }
+                    }
+                }
+            }
+
+            // Handle nested promises
+            while value.is_promise() {
+                value = match value.as_promise().unwrap().clone().into_future::<rquickjs::Value>().await.catch(ctx) {
+                    Ok(v) => v,
+                    Err(e) => return JsResult::Err(JsError::runtime(e.to_string())),
+                };
+                // Unwrap wrapper again if needed
+                if let Some(obj) = value.as_object() {
+                    if let Ok(keys) = obj.keys::<String>().collect::<Result<Vec<_>, _>>() {
+                        if keys.len() == 1 && keys[0] == "value" {
+                            if let Ok(inner) = obj.get::<_, rquickjs::Value>("value") {
+                                value = inner;
+                            }
+                        }
+                    }
+                }
+            }
+
+            match JsValue::from_js(ctx, value).catch(ctx) {
                 Ok(v) => JsResult::Ok(v),
                 Err(e) => JsResult::Err(JsError::runtime(e.to_string())),
-            },
-            Err(e) => JsResult::Err(JsError::runtime(e.to_string())),
-        },
+            }
+        }
         Err(e) => JsResult::Err(JsError::runtime(e.to_string())),
     }
 }
+

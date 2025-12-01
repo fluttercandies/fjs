@@ -1,13 +1,21 @@
 # Changelog
 
-## 1.3.1
+## 1.4.0
 
-* **PERFORMANCE**: Optimized BigInt conversion using native rquickjs API instead of JavaScript evaluation
-* **PERFORMANCE**: Improved Symbol description extraction using native rquickjs Symbol API
-* **PERFORMANCE**: Simplified file reading with direct `tokio::fs::read()` call
+* **BREAKING**: Restructured API modules - removed deprecated `js` module, added `engine`, `error`, `runtime`, and `source` modules for better organization
+* **FIX**: Fixed Promise result unwrapping - QuickJS's `JS_EVAL_FLAG_ASYNC` wraps Promise results in `{value: xxx}` format, now properly detected and unwrapped by checking for objects with exactly one `value` property
+* **FIX**: Fixed nested Promise handling to correctly await and unwrap chained Promises
+* **FIX**: Fixed `undefined` value handling in Promise results - now correctly returns `JsValue.none()` instead of the wrapper object
 * **FIX**: Fixed `DynamicModuleResolver` to properly check module existence before resolving
 * **FIX**: Fixed `build_loaders()` to properly include additional modules in resolver and loader chains
 * **FIX**: Fixed `GlobalAttachment` to correctly initialize each context independently using context-level userdata
+* **PERFORMANCE**: Optimized BigInt conversion using native rquickjs API instead of JavaScript evaluation
+* **PERFORMANCE**: Improved Symbol description extraction using native rquickjs Symbol API
+* **PERFORMANCE**: Simplified file reading with direct `tokio::fs::read()` call
+* **IMPROVEMENT**: Added comprehensive integration tests (130+ test cases) covering Promise edge cases, boundary conditions, bridge call scenarios, and memory management
+* **IMPROVEMENT**: Updated example app with new API screens for engine, error, runtime, and source modules
+* **IMPROVEMENT**: Added widgets directory for reusable UI components in example app
+* **INTERNAL**: Improved Promise result detection logic using object key enumeration instead of direct property access
 * **INTERNAL**: Removed unused variable in bridge call function
 * **INTERNAL**: Improved code clarity and reduced redundant logic
 
