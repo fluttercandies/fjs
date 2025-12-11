@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../screens/api_overview_screen.dart';
 import '../screens/engine_api_screen.dart';
 import '../screens/error_api_screen.dart';
+import '../screens/example_screen.dart';
 import '../screens/js_actions_test_screen.dart';
 import '../screens/playground_screen.dart';
 import '../screens/runtime_api_screen.dart';
@@ -48,6 +49,10 @@ class AppRouter {
       case '/api/source':
         return MaterialPageRoute(
           builder: (_) => const SourceApiScreen(),
+        );
+      case '/example':
+        return MaterialPageRoute(
+          builder: (_) => const ExampleScreen(),
         );
       default:
         return MaterialPageRoute(
