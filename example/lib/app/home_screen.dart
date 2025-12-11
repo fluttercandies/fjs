@@ -495,6 +495,15 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.pushNamed(context, '/js-actions-test');
             },
           ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.science),
+            title: const Text('Example Screen'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/example');
+            },
+          ),
         ],
       ),
     );
