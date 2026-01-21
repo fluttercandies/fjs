@@ -1,18 +1,30 @@
 # Changelog
 
-## 1.5.0
+## 2.0.0
 
-* **BREAKING**: Simplified Engine API - Removed `JsAction`, `JsCallback`, `JsCallbackResult`, and `JsActionResult` enums
-* **BREAKING**: Replaced action-based messaging with direct async methods for better developer experience
-* **FEATURE**: New direct async methods on `JsEngineCore`: `eval()`, `evaluateModule()`, `declareNewModule()`, `declareNewModules()`, `clearNewModules()`, `getDeclaredModules()`, `isModuleDeclared()`, `call()`
-* **FEATURE**: Simplified bridge callback - now uses `Fn(JsValue) -> DartFnFuture<JsResult>` instead of complex enum-based callbacks
-* **FEATURE**: Added `initWithoutBridge()` method for engines that don't need Dart bridge communication
-* **IMPROVEMENT**: Reduced code complexity by removing the action queue and channel-based messaging
-* **IMPROVEMENT**: Better error handling with direct result returns instead of callback-based error propagation
-* **IMPROVEMENT**: Cleaner API surface - engine methods now return results directly
-* **INTERNAL**: Updated FRB codegen for new API structure
-* **INTERNAL**: Refactored internal state management using `Arc<RwLock<Option<...>>>` for bridge storage
-* **DOCS**: Updated workflow configuration for FJS example builds
+* **BREAKING**: Renamed `JsEngineCore` to `JsEngine` for clearer naming convention
+* **BREAKING**: Removed `JsAction` system - direct API methods are now available on `JsEngine`
+* **BREAKING**: Removed `exec()` method - use direct methods like `eval()`, `call()`, `declareNewModule()` instead
+* **BREAKING**: Changed `eval()` parameter from positional to named parameter `source:` for better clarity
+* **BREAKING**: Changed `declareNewModule()` parameter to named parameter `module:`
+* **BREAKING**: Changed `declareNewModules()` parameter to named parameter `modules:`
+* **BREAKING**: Removed `engine.freezed.dart` - `JsEngine` is now a regular abstract class
+* **FEATURE**: Added `call()` method to invoke exported module functions directly
+* **FEATURE**: Added `evaluateModule()` method to execute modules immediately
+* **FEATURE**: Added `isModuleDeclared()` method to check module existence
+* **FEATURE**: Added `clearNewModules()` method to remove all dynamically declared modules
+* **FEATURE**: Added `initWithoutBridge()` method for engines that don't need bridge communication
+* **FEATURE**: Added `context` getter to access underlying `JsAsyncContext`
+* **FEATURE**: Added `disposed` getter to check engine disposal status
+* **FEATURE**: Added comprehensive API documentation with examples for all public methods
+* **IMPROVEMENT**: Migrated to named parameters throughout `JsEngine` API for better code clarity
+* **IMPROVEMENT**: Updated all example screens to use new API
+* **IMPROVEMENT**: Enhanced integration tests with new API coverage
+* **IMPROVEMENT**: Simplified engine lifecycle management with direct methods
+* **IMPROVEMENT**: Better error messages with detailed documentation
+* **DOCS**: Fixed README.md and README_zh.md to match actual API signatures
+* **DOCS**: Added detailed parameter descriptions and examples to all API methods
+* **CI/CD**: Added GitHub Actions workflow for building all platforms
 
 ## 1.4.0
 
