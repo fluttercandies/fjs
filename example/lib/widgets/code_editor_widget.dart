@@ -46,7 +46,8 @@ class _CodeEditorWidgetState extends State<CodeEditorWidget> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(11)),
             ),
             child: Row(
               children: [
@@ -128,7 +129,8 @@ class _CodeEditorWidgetState extends State<CodeEditorWidget> {
                 contentPadding: const EdgeInsets.all(16),
                 hintText: widget.hintText,
                 hintStyle: TextStyle(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  color:
+                      theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -188,7 +190,8 @@ class ResultDisplayWidget extends StatelessWidget {
                   : hasContent
                       ? Colors.green.shade100
                       : theme.colorScheme.surfaceContainerHighest,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(11)),
             ),
             child: Row(
               children: [
@@ -264,7 +267,8 @@ class ResultDisplayWidget extends StatelessWidget {
                   : Text(
                       'Result will appear here...',
                       style: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.5),
                         fontStyle: FontStyle.italic,
                       ),
                     ),

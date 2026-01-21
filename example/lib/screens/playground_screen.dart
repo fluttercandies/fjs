@@ -34,7 +34,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
 
     try {
       final fjsService = Provider.of<FjsService>(context, listen: false);
-      
+
       dynamic result;
       if (mode == JsExecutionMode.script) {
         result = await fjsService.executeAsScript(_codeController.text);
@@ -43,7 +43,8 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
       }
 
       setState(() {
-        _resultController.text = JsonEncoder.withIndent('  ').convert(result.value);
+        _resultController.text =
+            JsonEncoder.withIndent('  ').convert(result.value);
       });
     } catch (e) {
       setState(() {
@@ -66,7 +67,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
 
     try {
       await Clipboard.setData(ClipboardData(text: _resultController.text));
-      
+
       setState(() {
         _copiedToClipboard = true;
       });
@@ -191,16 +192,20 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
                           if (_codeController.text.trim().isNotEmpty)
                             Container(
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: IconButton.filled(
-                                onPressed: _isExecuting ? null : _copyCodeToClipboard,
+                                onPressed:
+                                    _isExecuting ? null : _copyCodeToClipboard,
                                 icon: const Icon(Icons.copy, size: 18),
                                 iconSize: 18,
                                 style: IconButton.styleFrom(
                                   minimumSize: const Size(36, 36),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
                                 ),
                                 tooltip: 'Copy Code',
                               ),
@@ -250,10 +255,8 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline, 
-                              size: 20, 
-                              color: Colors.blue.shade700
-                            ),
+                            Icon(Icons.info_outline,
+                                size: 20, color: Colors.blue.shade700),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -272,13 +275,13 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
                         children: [
                           Expanded(
                             child: FilledButton.icon(
-                              onPressed: _isExecuting 
-                                  ? null 
+                              onPressed: _isExecuting
+                                  ? null
                                   : () => _executeCode(JsExecutionMode.script),
                               icon: const Icon(Icons.code),
-                              label: Text(
-                                _isExecuting ? 'Executing...' : 'Run as Script'
-                              ),
+                              label: Text(_isExecuting
+                                  ? 'Executing...'
+                                  : 'Run as Script'),
                               style: FilledButton.styleFrom(
                                 backgroundColor: Colors.green,
                               ),
@@ -287,13 +290,13 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: FilledButton.icon(
-                              onPressed: _isExecuting 
-                                  ? null 
+                              onPressed: _isExecuting
+                                  ? null
                                   : () => _executeCode(JsExecutionMode.module),
                               icon: const Icon(Icons.integration_instructions),
-                              label: Text(
-                                _isExecuting ? 'Executing...' : 'Run as Module'
-                              ),
+                              label: Text(_isExecuting
+                                  ? 'Executing...'
+                                  : 'Run as Module'),
                               style: FilledButton.styleFrom(
                                 backgroundColor: Colors.blue,
                               ),
@@ -342,36 +345,43 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
                           if (_resultController.text.trim().isNotEmpty)
                             Container(
                               decoration: BoxDecoration(
-                                color: _copiedToClipboard 
-                                    ? Colors.green.shade100 
-                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                color: _copiedToClipboard
+                                    ? Colors.green.shade100
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: _copiedToClipboard 
-                                      ? Colors.green.shade300 
+                                  color: _copiedToClipboard
+                                      ? Colors.green.shade300
                                       : Colors.transparent,
                                 ),
                               ),
                               child: IconButton.filled(
-                                onPressed: _isExecuting ? null : _copyResultToClipboard,
+                                onPressed: _isExecuting
+                                    ? null
+                                    : _copyResultToClipboard,
                                 icon: Icon(
-                                  _copiedToClipboard 
-                                      ? Icons.check_circle 
+                                  _copiedToClipboard
+                                      ? Icons.check_circle
                                       : Icons.copy,
                                   size: 18,
                                 ),
                                 iconSize: 18,
                                 style: IconButton.styleFrom(
-                                  backgroundColor: _copiedToClipboard 
-                                      ? Colors.green.shade200 
+                                  backgroundColor: _copiedToClipboard
+                                      ? Colors.green.shade200
                                       : null,
-                                  foregroundColor: _copiedToClipboard 
-                                      ? Colors.green.shade700 
+                                  foregroundColor: _copiedToClipboard
+                                      ? Colors.green.shade700
                                       : null,
                                   minimumSize: const Size(36, 36),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
                                 ),
-                                tooltip: _copiedToClipboard ? 'Copied!' : 'Copy Result',
+                                tooltip: _copiedToClipboard
+                                    ? 'Copied!'
+                                    : 'Copy Result',
                               ),
                             ),
                         ],
@@ -426,20 +436,18 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
       floatingActionButton: Consumer<FjsService>(
         builder: (context, fjsService, _) {
           return FloatingActionButton.extended(
-            onPressed: _isExecuting 
-                ? null 
+            onPressed: _isExecuting
+                ? null
                 : () {
                     // Auto-detect mode based on code
                     final hasImport = RegExp(
                       r'^\s*import\s+.*\s+from\s+["\x27"]',
                       multiLine: true,
                     ).hasMatch(_codeController.text);
-                    
-                    _executeCode(
-                      hasImport 
-                          ? JsExecutionMode.module 
-                          : JsExecutionMode.script
-                    );
+
+                    _executeCode(hasImport
+                        ? JsExecutionMode.module
+                        : JsExecutionMode.script);
                   },
             icon: const Icon(Icons.play_arrow),
             label: const Text('Auto Run'),

@@ -500,7 +500,8 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           onRun: () => _runTest('syntax_json', () async {
             if (_engine == null) throw 'Engine not initialized';
             try {
-              await _engine!.eval(source: JsCode.code('JSON.parse("{invalid}")'));
+              await _engine!
+                  .eval(source: JsCode.code('JSON.parse("{invalid}")'));
               return {'error': 'Expected error was not thrown'};
             } catch (e) {
               return {
