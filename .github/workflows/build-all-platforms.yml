@@ -114,28 +114,28 @@ jobs:
           printf 'RELEASE_KEY_ALIAS=${{ env.ANDROID_KEY_ALIAS }}\n' >> gradle.properties
           printf 'RELEASE_KEY_PASSWORD=${{ env.ANDROID_KEY_PASSWORD }}\n' >> gradle.properties
 
-          cp build.gradle.kts build.gradle.kts.orig
+          cp build.gradle build.gradle.orig
 
           awk '
           /^android \{/ {
             print
             print ""
             print "    signingConfigs {"
-            print "        create(\"release\") {"
-            print "            storeFile = file(\"${{ env.ANDROID_KEYSTORE_FILE }}\")"
-            print "            storePassword = \"${{ env.ANDROID_KEYSTORE_SECRET }}\""
-            print "            keyAlias = \"${{ env.ANDROID_KEY_ALIAS }}\""
-            print "            keyPassword = \"${{ env.ANDROID_KEY_PASSWORD }}\""
+            print "        release {"
+            print "            storeFile file(\"${{ env.ANDROID_KEYSTORE_FILE }}\")"
+            print "            storePassword \"${{ env.ANDROID_KEYSTORE_SECRET }}\""
+            print "            keyAlias \"${{ env.ANDROID_KEY_ALIAS }}\""
+            print "            keyPassword \"${{ env.ANDROID_KEY_PASSWORD }}\""
             print "        }"
             print "    }"
             next
           }
-          /signingConfig = signingConfigs.getByName\("debug"\)/ {
-            print "            signingConfig = signingConfigs.getByName(\"release\")"
+          /signingConfig = signingConfigs\.debug/ {
+            print "            signingConfig signingConfigs.release"
             next
           }
           { print }
-          ' build.gradle.kts.orig > build.gradle.kts
+          ' build.gradle.orig > build.gradle
 
       - name: Build APK for ${{ matrix.arch }}
         run: |
