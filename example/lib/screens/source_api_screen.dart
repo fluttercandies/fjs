@@ -35,8 +35,8 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
         builtin: JsBuiltinOptions.all(),
       );
       _context = await JsAsyncContext.from(rt: _runtime!);
-      _engine = JsEngine(_context!);
-      await _engine!.init();
+      _engine = JsEngine(context: _context!);
+      await _engine!.initWithoutBridge();
       setState(() => _isInitialized = true);
     } catch (e) {
       if (kDebugMode) print('Failed to initialize engine: $e');
@@ -151,7 +151,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
           onRun: () => _runTest('code_inline', () async {
             const code = JsCode.code('const x = 42; x * 2');
             if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.eval(code);
+            final result = await _engine!.eval(source: code);
             return {
               'isCode': code.isCode(),
               'isPath': code.isPath(),
@@ -174,7 +174,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
             final code = JsCode.bytes(bytes);
 
             if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.eval(code);
+            final result = await _engine!.eval(source: code);
             return {
               'isCode': code.isCode(),
               'isPath': code.isPath(),
@@ -237,8 +237,8 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
               source: JsCode.code('export const value = 42;'),
             );
             if (_engine == null) throw 'Engine not initialized';
-            await _engine!.declareNewModule(module);
-            final isDeclared = await _engine!.isModuleDeclared('test-module');
+            await _engine!.declareNewModule(module: module);
+            final isDeclared = await _engine!.isModuleDeclared(moduleName: 'test-module');
             return {
               'moduleName': module.name,
               'isDeclared': isDeclared,
@@ -263,8 +263,8 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
               ''',
             );
             if (_engine == null) throw 'Engine not initialized';
-            await _engine!.declareNewModule(module);
-            final result = await _engine!.eval(JsCode.code('''
+            await _engine!.declareNewModule(module: module);
+            final result = await _engine!.eval(source: JsCode.code('''
               (async () => {
                 const { greet } = await import('code-module');
                 return greet('FJS');
@@ -291,8 +291,8 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
               bytes: codeBytes,
             );
             if (_engine == null) throw 'Engine not initialized';
-            await _engine!.declareNewModule(module);
-            final result = await _engine!.eval(JsCode.code('''
+            await _engine!.declareNewModule(module: module);
+            final result = await _engine!.eval(source: JsCode.code('''
               (async () => {
                 const { PI } = await import('bytes-module');
                 return PI;
@@ -320,7 +320,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
             await _engine!.clearNewModules();
 
             // Create base module
-            await _engine!.declareNewModule(JsModule.fromCode(
+            await _engine!.declareNewModule(module: JsModule.fromCode(
               module: 'math-base',
               code: '''
                 export const PI = 3.14159;
@@ -329,7 +329,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
             ));
 
             // Create dependent module
-            await _engine!.declareNewModule(JsModule.fromCode(
+            await _engine!.declareNewModule(module: JsModule.fromCode(
               module: 'math-advanced',
               code: '''
                 import { PI, square } from 'math-base';
@@ -339,7 +339,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
             ));
 
             // Use the dependent module
-            final result = await _engine!.eval(JsCode.code('''
+            final result = await _engine!.eval(source: JsCode.code('''
               (async () => {
                 const { circleArea, circumference } = await import('math-advanced');
                 return {
@@ -370,8 +370,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
           onRun: () => _runTest('options_defaults', () async {
             final options = JsEvalOptions.defaults();
             if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.eval(
-              JsCode.code('var defaultTest = 100; defaultTest'),
+            final result = await _engine!.eval(source: JsCode.code('var defaultTest = 100; defaultTest'),
               options: options,
             );
             return {
@@ -406,8 +405,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
           onRun: () => _runTest('options_promise', () async {
             final options = JsEvalOptions.withPromise();
             if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.eval(
-              JsCode.code('Promise.resolve("Async Success")'),
+            final result = await _engine!.eval(source: JsCode.code('Promise.resolve("Async Success")'),
               options: options,
             );
             return {
@@ -432,8 +430,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
               promise: true,
             );
             if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.eval(
-              JsCode.code('"use strict"; const strictVar = 42; strictVar'),
+            final result = await _engine!.eval(source: JsCode.code('"use strict"; const strictVar = 42; strictVar'),
               options: options,
             );
             return {

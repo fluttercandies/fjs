@@ -37,13 +37,13 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
         builtin: JsBuiltinOptions.all(),
       );
       _context = await JsAsyncContext.from(rt: _runtime!);
-      _engine = JsEngine(_context!);
+      _engine = JsEngine(context: _context!);
       await _engine!.init(
-        bridgeCall: (value) async {
+        bridge: (value) async {
           if (kDebugMode) {
             print('Bridge call received: ${value.value}');
           }
-          return JsValue.string('Response from Dart: ${value.value}');
+          return JsResult.ok(JsValue.string('Response from Dart: ${value.value}'));
         },
       );
       setState(() => _isInitialized = true);
@@ -182,7 +182,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
                 ),
                 if (_engine != null)
                   Text(
-                    'initialized: ${_engine!.initialized}, running: ${_engine!.running}, disposed: ${_engine!.disposed}',
+                    'running: ${_engine!.running}, disposed: ${_engine!.disposed}',
                     style: TextStyle(
                       fontSize: 12,
                       color: _isInitialized
@@ -202,15 +202,15 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
     return Column(
       children: [
         ApiTestCard(
-          title: 'engine.initialized',
-          subtitle: 'Check if engine is initialized',
+          title: 'engine.running',
+          subtitle: 'Check if engine is running (initialized)',
           icon: Icons.power_settings_new,
-          isSuccess: _testResults['initialized']?.isSuccess,
-          isLoading: _testResults['initialized']?.isLoading ?? false,
-          result: _testResults['initialized']?.result,
-          error: _testResults['initialized']?.error,
-          onRun: () => _runTest('initialized', () async {
-            return {'initialized': _engine?.initialized ?? false};
+          isSuccess: _testResults['running_state']?.isSuccess,
+          isLoading: _testResults['running_state']?.isLoading ?? false,
+          result: _testResults['running_state']?.result,
+          error: _testResults['running_state']?.error,
+          onRun: () => _runTest('running_state', () async {
+            return {'running': _engine?.running ?? false};
           }),
         ),
         ApiTestCard(
@@ -264,7 +264,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           onRun: () => _runTest('eval_code', () async {
             if (_engine == null) throw 'Engine not initialized';
             final result = await _engine!.eval(
-              JsCode.code(_codeController.text),
+              source: JsCode.code(_codeController.text),
             );
             return {
               'code': _codeController.text,
@@ -286,13 +286,13 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
             
             // Test with strict mode
             final strictResult = await _engine!.eval(
-              JsCode.code('"use strict"; let x = 10; x * 2'),
+              source: JsCode.code('"use strict"; let x = 10; x * 2'),
               options: JsEvalOptions(strict: true),
             );
             
             // Test with global scope
             final globalResult = await _engine!.eval(
-              JsCode.code('globalThis.myGlobal = 42; globalThis.myGlobal'),
+              source: JsCode.code('globalThis.myGlobal = 42; globalThis.myGlobal'),
               options: JsEvalOptions(global: true),
             );
             
@@ -322,7 +322,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           onRun: () => _runTest('eval_promise', () async {
             if (_engine == null) throw 'Engine not initialized';
             final result = await _engine!.eval(
-              JsCode.code('''
+              source: JsCode.code('''
                 (async () => {
                   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
                   await delay(100);
@@ -357,7 +357,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
             
             final results = <String, dynamic>{};
             for (final entry in expressions.entries) {
-              final result = await _engine!.eval(JsCode.code(entry.value));
+              final result = await _engine!.eval(source: JsCode.code(entry.value));
               results[entry.key] = {
                 'expression': entry.value,
                 'result': result.value,
@@ -384,7 +384,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           onRun: () => _runTest('declare_module', () async {
             if (_engine == null) throw 'Engine not initialized';
             await _engine!.declareNewModule(
-              JsModule(
+              module: JsModule(
                 name: 'test-math',
                 source: JsCode.code('''
                   export function add(a, b) { return a + b; }
@@ -406,7 +406,8 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           error: _testResults['declare_modules']?.error,
           onRun: () => _runTest('declare_modules', () async {
             if (_engine == null) throw 'Engine not initialized';
-            await _engine!.declareNewModules([
+            await _engine!.declareNewModules(
+              modules: [
               JsModule(
                 name: 'string-utils',
                 source: JsCode.code('''
@@ -421,7 +422,8 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
                   export function unique(arr) { return [...new Set(arr)]; }
                 '''),
               ),
-            ]);
+            ],
+            );
             return {'status': 'Modules declared: string-utils, array-utils'};
           }),
         ),
@@ -452,8 +454,8 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           error: _testResults['is_module_declared']?.error,
           onRun: () => _runTest('is_module_declared', () async {
             if (_engine == null) throw 'Engine not initialized';
-            final exists = await _engine!.isModuleDeclared('test-math');
-            final notExists = await _engine!.isModuleDeclared('non-existent');
+            final exists = await _engine!.isModuleDeclared(moduleName: 'test-math');
+            final notExists = await _engine!.isModuleDeclared(moduleName: 'non-existent');
             return {
               'test-math': exists,
               'non-existent': notExists,
@@ -471,7 +473,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           onRun: () => _runTest('evaluate_module', () async {
             if (_engine == null) throw 'Engine not initialized';
             final result = await _engine!.evaluateModule(
-              JsModule(
+              module: JsModule(
                 name: 'eval-test',
                 source: JsCode.code('''
                   export default {
@@ -499,7 +501,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
             
             // First make sure module is declared
             await _engine!.declareNewModule(
-              JsModule(
+              module: JsModule(
                 name: 'calc-module',
                 source: JsCode.code('''
                   export function calculate(a, b, op) {
@@ -517,7 +519,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
             
             // Then use it via dynamic import
             final result = await _engine!.eval(
-              JsCode.code('''
+              source: JsCode.code('''
                 (async () => {
                   const { calculate } = await import('calc-module');
                   return {
@@ -568,7 +570,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           onRun: () => _runTest('bridge_call', () async {
             if (_engine == null) throw 'Engine not initialized';
             final result = await _engine!.eval(
-              JsCode.code('''
+              source: JsCode.code('''
                 (async () => {
                   const response = await fjs.bridge_call("Hello from JavaScript!");
                   return {
@@ -592,7 +594,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           onRun: () => _runTest('bridge_complex', () async {
             if (_engine == null) throw 'Engine not initialized';
             final result = await _engine!.eval(
-              JsCode.code('''
+              source: JsCode.code('''
                 (async () => {
                   const data = {
                     type: "request",

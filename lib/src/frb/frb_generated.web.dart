@@ -35,9 +35,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_JsContextPtr =>
       wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsContext;
 
-  CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_JsEngineCorePtr => wire
-          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore;
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_JsEnginePtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_JsRuntimePtr =>
       wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime;
@@ -65,8 +64,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           dynamic raw);
 
   @protected
-  JsEngineCore
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+  JsEngine
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           dynamic raw);
 
   @protected
@@ -95,8 +94,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           dynamic raw);
 
   @protected
-  JsEngineCore
-      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+  JsEngine
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           dynamic raw);
 
   @protected
@@ -110,8 +109,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           dynamic raw);
 
   @protected
-  FutureOr<JsCallbackResult> Function(JsCallback)
-      dco_decode_DartFn_Inputs_js_callback_Output_js_callback_result_AnyhowException(
+  FutureOr<JsResult> Function(JsValue)
+      dco_decode_DartFn_Inputs_js_value_Output_js_result_AnyhowException(
           dynamic raw);
 
   @protected
@@ -136,8 +135,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           dynamic raw);
 
   @protected
-  JsEngineCore
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+  JsEngine
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           dynamic raw);
 
   @protected
@@ -160,12 +159,6 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
-  JsAction dco_decode_box_autoadd_js_action(dynamic raw);
-
-  @protected
-  JsActionResult dco_decode_box_autoadd_js_action_result(dynamic raw);
-
-  @protected
   JsBuiltinOptions dco_decode_box_autoadd_js_builtin_options(dynamic raw);
 
   @protected
@@ -179,9 +172,6 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   JsModule dco_decode_box_autoadd_js_module(dynamic raw);
-
-  @protected
-  JsResult dco_decode_box_autoadd_js_result(dynamic raw);
 
   @protected
   JsValue dco_decode_box_autoadd_js_value(dynamic raw);
@@ -199,19 +189,7 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   PlatformInt64 dco_decode_isize(dynamic raw);
 
   @protected
-  JsAction dco_decode_js_action(dynamic raw);
-
-  @protected
-  JsActionResult dco_decode_js_action_result(dynamic raw);
-
-  @protected
   JsBuiltinOptions dco_decode_js_builtin_options(dynamic raw);
-
-  @protected
-  JsCallback dco_decode_js_callback(dynamic raw);
-
-  @protected
-  JsCallbackResult dco_decode_js_callback_result(dynamic raw);
 
   @protected
   JsCode dco_decode_js_code(dynamic raw);
@@ -230,6 +208,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   JsValue dco_decode_js_value(dynamic raw);
+
+  @protected
+  List<String> dco_decode_list_String(dynamic raw);
 
   @protected
   List<JsModule> dco_decode_list_js_module(dynamic raw);
@@ -304,8 +285,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           SseDeserializer deserializer);
 
   @protected
-  JsEngineCore
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+  JsEngine
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           SseDeserializer deserializer);
 
   @protected
@@ -334,8 +315,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           SseDeserializer deserializer);
 
   @protected
-  JsEngineCore
-      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+  JsEngine
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           SseDeserializer deserializer);
 
   @protected
@@ -371,8 +352,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           SseDeserializer deserializer);
 
   @protected
-  JsEngineCore
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+  JsEngine
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           SseDeserializer deserializer);
 
   @protected
@@ -395,13 +376,6 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
-  JsAction sse_decode_box_autoadd_js_action(SseDeserializer deserializer);
-
-  @protected
-  JsActionResult sse_decode_box_autoadd_js_action_result(
-      SseDeserializer deserializer);
-
-  @protected
   JsBuiltinOptions sse_decode_box_autoadd_js_builtin_options(
       SseDeserializer deserializer);
 
@@ -419,9 +393,6 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsModule sse_decode_box_autoadd_js_module(SseDeserializer deserializer);
 
   @protected
-  JsResult sse_decode_box_autoadd_js_result(SseDeserializer deserializer);
-
-  @protected
   JsValue sse_decode_box_autoadd_js_value(SseDeserializer deserializer);
 
   @protected
@@ -437,19 +408,7 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   PlatformInt64 sse_decode_isize(SseDeserializer deserializer);
 
   @protected
-  JsAction sse_decode_js_action(SseDeserializer deserializer);
-
-  @protected
-  JsActionResult sse_decode_js_action_result(SseDeserializer deserializer);
-
-  @protected
   JsBuiltinOptions sse_decode_js_builtin_options(SseDeserializer deserializer);
-
-  @protected
-  JsCallback sse_decode_js_callback(SseDeserializer deserializer);
-
-  @protected
-  JsCallbackResult sse_decode_js_callback_result(SseDeserializer deserializer);
 
   @protected
   JsCode sse_decode_js_code(SseDeserializer deserializer);
@@ -468,6 +427,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   JsValue sse_decode_js_value(SseDeserializer deserializer);
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
   List<JsModule> sse_decode_list_js_module(SseDeserializer deserializer);
@@ -551,8 +513,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
-          JsEngineCore self, SseSerializer serializer);
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
+          JsEngine self, SseSerializer serializer);
 
   @protected
   void
@@ -581,8 +543,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   void
-      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
-          JsEngineCore self, SseSerializer serializer);
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
+          JsEngine self, SseSerializer serializer);
 
   @protected
   void
@@ -595,10 +557,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           MemoryUsage self, SseSerializer serializer);
 
   @protected
-  void
-      sse_encode_DartFn_Inputs_js_callback_Output_js_callback_result_AnyhowException(
-          FutureOr<JsCallbackResult> Function(JsCallback) self,
-          SseSerializer serializer);
+  void sse_encode_DartFn_Inputs_js_value_Output_js_result_AnyhowException(
+      FutureOr<JsResult> Function(JsValue) self, SseSerializer serializer);
 
   @protected
   void sse_encode_DartOpaque(Object self, SseSerializer serializer);
@@ -624,8 +584,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
-          JsEngineCore self, SseSerializer serializer);
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
+          JsEngine self, SseSerializer serializer);
 
   @protected
   void
@@ -647,14 +607,6 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_js_action(
-      JsAction self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_js_action_result(
-      JsActionResult self, SseSerializer serializer);
-
-  @protected
   void sse_encode_box_autoadd_js_builtin_options(
       JsBuiltinOptions self, SseSerializer serializer);
 
@@ -673,10 +625,6 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
       JsModule self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_js_result(
-      JsResult self, SseSerializer serializer);
-
-  @protected
   void sse_encode_box_autoadd_js_value(JsValue self, SseSerializer serializer);
 
   @protected
@@ -692,22 +640,8 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   void sse_encode_isize(PlatformInt64 self, SseSerializer serializer);
 
   @protected
-  void sse_encode_js_action(JsAction self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_js_action_result(
-      JsActionResult self, SseSerializer serializer);
-
-  @protected
   void sse_encode_js_builtin_options(
       JsBuiltinOptions self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_js_callback(JsCallback self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_js_callback_result(
-      JsCallbackResult self, SseSerializer serializer);
 
   @protected
   void sse_encode_js_code(JsCode self, SseSerializer serializer);
@@ -726,6 +660,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   void sse_encode_js_value(JsValue self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_js_module(List<JsModule> self, SseSerializer serializer);
@@ -833,16 +770,16 @@ class LibFjsWire implements BaseWire {
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsContext(
               ptr);
 
-  void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+  void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           int ptr) =>
       wasmModule
-          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
               ptr);
 
-  void rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+  void rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           int ptr) =>
       wasmModule
-          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
               ptr);
 
   void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
@@ -901,11 +838,11 @@ extension type LibFjsWasmModule._(JSObject _) implements JSObject {
           int ptr);
 
   external void
-      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           int ptr);
 
   external void
-      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngineCore(
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
           int ptr);
 
   external void

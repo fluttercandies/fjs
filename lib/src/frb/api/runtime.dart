@@ -9,68 +9,310 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'source.dart';
 import 'value.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_loaders`, `result_from_promise`, `result_from_sync`
+// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `result_from_promise`, `result_from_sync`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncContext>>
 abstract class JsAsyncContext implements RustOpaqueInterface {
   /// Evaluates JavaScript code.
+  ///
+  /// Evaluates the given code string with promise support enabled.
+  /// Top-level await is supported.
+  ///
+  /// ## Parameters
+  ///
+  /// - `code`: JavaScript code to evaluate
+  ///
+  /// ## Returns
+  ///
+  /// The result of evaluation as a `JsValue`
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final result = await context.eval(code: 'await Promise.resolve(42)');
+  /// print(result.value); // 42
+  /// ```
   Future<JsResult> eval({required String code});
 
   /// Evaluates JavaScript code from a file.
+  ///
+  /// Reads and executes JavaScript code from the specified file path.
+  /// Promise support is automatically enabled.
+  ///
+  /// ## Parameters
+  ///
+  /// - `path`: Path to the JavaScript file
+  ///
+  /// ## Returns
+  ///
+  /// The result of evaluation as a `JsValue`
+  ///
+  /// ## Throws
+  ///
+  /// - If file cannot be read
+  /// - If code evaluation fails
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final result = await context.evalFile(path: '/path/to/script.js');
+  /// ```
   Future<JsResult> evalFile({required String path});
 
   /// Evaluates JavaScript code from a file with options.
+  ///
+  /// Reads and executes JavaScript code from the specified file path
+  /// with custom evaluation options.
+  ///
+  /// ## Parameters
+  ///
+  /// - `path`: Path to the JavaScript file
+  /// - `options`: Evaluation options
+  ///
+  /// ## Returns
+  ///
+  /// The result of evaluation as a `JsValue`
+  ///
+  /// ## Throws
+  ///
+  /// - If file cannot be read
+  /// - If code evaluation fails
   Future<JsResult> evalFileWithOptions(
       {required String path, required JsEvalOptions options});
 
   /// Evaluates a function from a module.
+  ///
+  /// Imports the specified module and invokes one of its exported functions.
+  ///
+  /// ## Parameters
+  /// - `module`: The module name to import
+  /// - `method`: The function name to call (must be exported from the module)
+  /// - `params`: Optional parameters to pass to the function
+  ///
+  /// ## Returns
+  ///
+  /// The result of the function call as a `JsValue`
+  ///
+  /// ## Throws
+  ///
+  /// - If the module cannot be imported
+  /// - If the function does not exist
+  /// - If the function call fails
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// // Call a function with parameters
+  /// final result = await context.evalFunction(
+  ///   module: 'math-utils',
+  ///   method: 'add',
+  ///   params: [JsValue.integer(1), JsValue.integer(2)],
+  /// );
+  /// print(result.value); // 3
+  /// ```
   Future<JsResult> evalFunction(
       {required String module, required String method, List<JsValue>? params});
 
   /// Evaluates JavaScript code with options.
+  ///
+  /// Provides fine-grained control over evaluation settings.
+  /// Promise support is automatically enabled.
+  ///
+  /// ## Parameters
+  ///
+  /// - `code`: JavaScript code to evaluate
+  /// - `options`: Evaluation options
+  ///
+  /// ## Returns
+  ///
+  /// The result of evaluation as a `JsValue`
+  ///
+  /// ## Throws
+  ///
+  /// - If code evaluation fails
+  /// - If global attachment fails
   Future<JsResult> evalWithOptions(
       {required String code, required JsEvalOptions options});
 
   /// Creates a new async context from a runtime.
-  static Future<JsAsyncContext> from({required JsAsyncRuntime rt}) =>
-      LibFjs.instance.api.crateApiRuntimeJsAsyncContextFrom(rt: rt);
+  ///
+  /// The context will inherit the runtime's module configuration
+  /// and global attachments, and will be initialized with support
+  /// for dynamic module loading.
+  ///
+  /// ## Parameters
+  ///
+  /// - `rt`: The runtime to create the context from
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsAsyncContext` instance
+  ///
+  /// ## Throws
+  ///
+  /// If context creation or initialization fails
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final runtime = await JsAsyncRuntime.withOptions(builtin: JsBuiltinOptions.all());
+  /// final context = await JsAsyncContext.from(runtime: runtime);
+  /// ```
+  static Future<JsAsyncContext> from({required JsAsyncRuntime runtime}) =>
+      LibFjs.instance.api.crateApiRuntimeJsAsyncContextFrom(runtime: runtime);
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncRuntime>>
 abstract class JsAsyncRuntime implements RustOpaqueInterface {
   /// Executes a pending job.
+  ///
+  /// Runs one pending job if any are available. This method should be
+  /// called repeatedly to process all pending asynchronous work.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if a job was executed, `false` if no jobs were pending
+  ///
+  /// ## Throws
+  ///
+  /// If job execution fails
   Future<bool> executePendingJob();
 
   /// Puts the runtime into idle state.
+  ///
+  /// Signals that the runtime is idle and may be used for background
+  /// processing or resource cleanup.
   Future<void> idle();
 
   /// Checks if there are pending jobs.
+  ///
+  /// Jobs are asynchronous tasks that need to be executed, such as
+  /// promise callbacks or timer callbacks.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if there are pending jobs, `false` otherwise
   Future<bool> isJobPending();
 
   /// Returns memory usage statistics.
+  ///
+  /// Provides detailed information about current memory allocation
+  /// and usage patterns.
+  ///
+  /// ## Returns
+  ///
+  /// A `MemoryUsage` struct containing memory statistics
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final usage = await runtime.memoryUsage();
+  /// print('Total: ${usage.totalMemory} bytes');
+  /// ```
   Future<MemoryUsage> memoryUsage();
 
   /// Creates a new async runtime with default configuration.
+  ///
+  /// The runtime is created with no builtin modules. Use `withOptions()`
+  /// to create a runtime with custom builtin modules.
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsAsyncRuntime` instance
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final runtime = JsAsyncRuntime.new();
+  /// ```
   factory JsAsyncRuntime() =>
       LibFjs.instance.api.crateApiRuntimeJsAsyncRuntimeNew();
 
   /// Forces garbage collection.
+  ///
+  /// Manually triggers garbage collection to free unused memory.
+  /// This can be useful for memory management but should not be called
+  /// excessively as it may impact performance.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// await runtime.runGc();
+  /// ```
   Future<void> runGc();
 
   /// Sets the garbage collection threshold.
+  ///
+  /// Configures when the runtime should trigger automatic garbage collection.
+  ///
+  /// ## Parameters
+  ///
+  /// - `threshold`: Memory threshold in bytes
   Future<void> setGcThreshold({required BigInt threshold});
 
   /// Sets runtime info string.
+  ///
+  /// Sets informational metadata about the runtime instance.
+  ///
+  /// ## Parameters
+  ///
+  /// - `info`: Info string to set
+  ///
+  /// ## Throws
+  ///
+  /// If setting the info fails
   Future<void> setInfo({required String info});
 
   /// Sets the maximum stack size.
+  ///
+  /// Limits the maximum depth of the JavaScript call stack to prevent
+  /// stack overflow errors.
+  ///
+  /// ## Parameters
+  ///
+  /// - `limit`: Maximum stack size in bytes
   Future<void> setMaxStackSize({required BigInt limit});
 
   /// Sets the memory limit.
+  ///
+  /// Once the memory limit is reached, JavaScript execution will fail
+  /// with a memory limit error.
+  ///
+  /// ## Parameters
+  ///
+  /// - `limit`: Maximum memory in bytes
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// await runtime.setMemoryLimit(limit: 16 * 1024 * 1024); // 16 MB
+  /// ```
   Future<void> setMemoryLimit({required BigInt limit});
 
   /// Creates a new async runtime with custom configuration.
+  ///
+  /// This method creates a runtime with support for Node.js-compatible
+  /// builtin modules and additional custom modules.
+  ///
+  /// ## Parameters
+  /// - `builtin`: Optional builtin module configuration (e.g., console, fs, crypto)
+  /// - `additional`: Optional list of additional modules to register
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsAsyncRuntime` instance with configured modules
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final runtime = await JsAsyncRuntime.withOptions(
+  ///   builtin: JsBuiltinOptions.all(),
+  ///   additional: [
+  ///     JsModule.fromCode(module: 'my-utils', code: 'export const foo = "bar";'),
+  ///   ],
+  /// );
+  /// ```
   static Future<JsAsyncRuntime> withOptions(
           {JsBuiltinOptions? builtin, List<JsModule>? additional}) =>
       LibFjs.instance.api.crateApiRuntimeJsAsyncRuntimeWithOptions(
@@ -80,57 +322,274 @@ abstract class JsAsyncRuntime implements RustOpaqueInterface {
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsContext>>
 abstract class JsContext implements RustOpaqueInterface {
   /// Evaluates JavaScript code.
+  ///
+  /// Evaluates the given code string with default options.
+  /// Promise/async operations are not supported in sync context.
+  ///
+  /// ## Parameters
+  ///
+  /// - `code`: JavaScript code to evaluate
+  ///
+  /// ## Returns
+  ///
+  /// The result of evaluation as a `JsValue`
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final result = context.eval(code: '2 + 2');
+  /// print(result.value); // 4
+  /// ```
   JsResult eval({required String code});
 
   /// Evaluates JavaScript code from a file.
+  ///
+  /// Reads and executes JavaScript code from the specified file path.
+  ///
+  /// ## Parameters
+  ///
+  /// - `path`: Path to the JavaScript file
+  ///
+  /// ## Returns
+  ///
+  /// The result of evaluation as a `JsValue`
+  ///
+  /// ## Throws
+  ///
+  /// - If promise option is enabled (not supported in sync context)
+  /// - If file cannot be read
+  /// - If code evaluation fails
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final result = context.evalFile(path: '/path/to/script.js');
+  /// ```
   JsResult evalFile({required String path});
 
   /// Evaluates JavaScript code from a file with options.
+  ///
+  /// Reads and executes JavaScript code from the specified file path
+  /// with custom evaluation options.
+  ///
+  /// ## Parameters
+  ///
+  /// - `path`: Path to the JavaScript file
+  /// - `options`: Evaluation options
+  ///
+  /// ## Returns
+  ///
+  /// The result of evaluation as a `JsValue`
+  ///
+  /// ## Throws
+  ///
+  /// - If promise option is enabled (not supported in sync context)
+  /// - If file cannot be read
+  /// - If code evaluation fails
   JsResult evalFileWithOptions(
       {required String path, required JsEvalOptions options});
 
   /// Evaluates JavaScript code with options.
+  ///
+  /// Provides fine-grained control over evaluation settings.
+  /// Promise/async operations are not supported in sync context.
+  ///
+  /// ## Parameters
+  ///
+  /// - `code`: JavaScript code to evaluate
+  /// - `options`: Evaluation options
+  ///
+  /// ## Returns
+  ///
+  /// The result of evaluation as a `JsValue`
+  ///
+  /// ## Throws
+  ///
+  /// - If promise option is enabled (not supported in sync context)
+  /// - If code evaluation fails
   JsResult evalWithOptions(
       {required String code, required JsEvalOptions options});
 
   /// Creates a new context from a runtime.
-  factory JsContext({required JsRuntime rt}) =>
-      LibFjs.instance.api.crateApiRuntimeJsContextNew(rt: rt);
+  ///
+  /// The context will inherit the runtime's module configuration
+  /// and global attachments.
+  ///
+  /// ## Parameters
+  ///
+  /// - `rt`: The runtime to create the context from
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsContext` instance
+  ///
+  /// ## Throws
+  ///
+  /// If context creation fails
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final runtime = JsRuntime.new();
+  /// final context = JsContext.new(rt: runtime);
+  /// ```
+  static JsContext from({required JsRuntime runtime}) =>
+      LibFjs.instance.api.crateApiRuntimeJsContextFrom(runtime: runtime);
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsRuntime>>
 abstract class JsRuntime implements RustOpaqueInterface {
   /// Executes a pending job.
+  ///
+  /// Runs one pending job if any are available. This method should be
+  /// called repeatedly to process all pending asynchronous work.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if a job was executed, `false` if no jobs were pending
+  ///
+  /// ## Throws
+  ///
+  /// If job execution fails
   bool executePendingJob();
 
   /// Checks if there are pending jobs.
+  ///
+  /// Jobs are asynchronous tasks that need to be executed, such as
+  /// promise callbacks or timer callbacks.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if there are pending jobs, `false` otherwise
   bool isJobPending();
 
   /// Returns memory usage statistics.
+  ///
+  /// Provides detailed information about current memory allocation
+  /// and usage patterns.
+  ///
+  /// ## Returns
+  ///
+  /// A `MemoryUsage` struct containing memory statistics
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final usage = runtime.memoryUsage();
+  /// print('Total: ${usage.totalMemory} bytes');
+  /// ```
   MemoryUsage memoryUsage();
 
   /// Creates a new JavaScript runtime with default configuration.
+  ///
+  /// The runtime is created with no builtin modules. Use `withOptions()`
+  /// to create a runtime with custom builtin modules.
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsRuntime` instance
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final runtime = JsRuntime.new();
+  /// ```
   factory JsRuntime() => LibFjs.instance.api.crateApiRuntimeJsRuntimeNew();
 
   /// Forces garbage collection.
+  ///
+  /// Manually triggers garbage collection to free unused memory.
+  /// This can be useful for memory management but should not be called
+  /// excessively as it may impact performance.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// runtime.runGc();
+  /// ```
   void runGc();
 
   /// Sets dump flags for debugging.
+  ///
+  /// Configures debug output flags for the QuickJS engine.
+  /// Useful for development and troubleshooting.
+  ///
+  /// ## Parameters
+  ///
+  /// - `flags`: Debug flags to set
   void setDumpFlags({required BigInt flags});
 
   /// Sets the garbage collection threshold.
+  ///
+  /// Configures when the runtime should trigger automatic garbage collection.
+  ///
+  /// ## Parameters
+  ///
+  /// - `threshold`: Memory threshold in bytes
   void setGcThreshold({required BigInt threshold});
 
   /// Sets runtime info string.
+  ///
+  /// Sets informational metadata about the runtime instance.
+  ///
+  /// ## Parameters
+  ///
+  /// - `info`: Info string to set
+  ///
+  /// ## Throws
+  ///
+  /// If setting the info fails
   void setInfo({required String info});
 
   /// Sets the maximum stack size.
+  ///
+  /// Limits the maximum depth of the JavaScript call stack to prevent
+  /// stack overflow errors.
+  ///
+  /// ## Parameters
+  ///
+  /// - `limit`: Maximum stack size in bytes
   void setMaxStackSize({required BigInt limit});
 
   /// Sets the memory limit for the runtime.
+  ///
+  /// Once the memory limit is reached, JavaScript execution will fail
+  /// with a memory limit error.
+  ///
+  /// ## Parameters
+  ///
+  /// - `limit`: Maximum memory in bytes
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// runtime.setMemoryLimit(limit: 16 * 1024 * 1024); // 16 MB
+  /// ```
   void setMemoryLimit({required BigInt limit});
 
   /// Creates a new JavaScript runtime with custom builtin modules.
+  ///
+  /// This method creates a runtime with support for Node.js-compatible
+  /// builtin modules and additional custom modules.
+  ///
+  /// ## Parameters
+  /// - `builtin`: Optional builtin module configuration (e.g., console, fs, crypto)
+  /// - `additional`: Optional list of additional modules to register
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsRuntime` instance with configured modules
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final runtime = await JsRuntime.withOptions(
+  ///   builtin: JsBuiltinOptions.all(),
+  ///   additional: [
+  ///     JsModule.fromCode(module: 'my-utils', code: 'export const foo = "bar";'),
+  ///   ],
+  /// );
+  /// ```
   static Future<JsRuntime> withOptions(
           {JsBuiltinOptions? builtin, List<JsModule>? additional}) =>
       LibFjs.instance.api.crateApiRuntimeJsRuntimeWithOptions(
@@ -192,11 +651,40 @@ abstract class MemoryUsage implements RustOpaqueInterface {
   PlatformInt64 get strSize;
 
   /// Returns a human-readable summary of memory usage.
+  ///
+  /// Provides a formatted string containing key memory statistics
+  /// including total memory, object count, function count, and string count.
+  ///
+  /// ## Returns
+  ///
+  /// A formatted string summarizing memory usage
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final memory = await runtime.memoryUsage();
+  /// print(memory.summary());
+  /// // Output: Memory: 123456 bytes, Objects: 42, Functions: 10, Strings: 25
+  /// ```
   String summary();
 
   /// Returns total allocation count.
+  ///
+  /// This represents the total number of memory allocations
+  /// performed by the JavaScript runtime.
+  ///
+  /// ## Returns
+  ///
+  /// Total number of allocations
   PlatformInt64 get totalAllocations;
 
   /// Returns total memory used in bytes.
+  ///
+  /// This represents the total amount of memory currently allocated
+  /// by the JavaScript runtime.
+  ///
+  /// ## Returns
+  ///
+  /// Total memory usage in bytes
   PlatformInt64 get totalMemory;
 }

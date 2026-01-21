@@ -25,9 +25,9 @@ class JsActionsService extends ChangeNotifier {
         builtin: JsBuiltinOptions.all(),
       );
       final context = await JsAsyncContext.from(rt: runtime);
-      _engine = JsEngine(context);
+      _engine = JsEngine(context: context);
 
-      await _engine!.init();
+      await _engine!.initWithoutBridge();
 
       _isInitialized = true;
       notifyListeners();
@@ -50,8 +50,7 @@ class JsActionsService extends ChangeNotifier {
     required String code,
   }) async {
     return _executeAction('declare_module', () async {
-      await _engine!.declareNewModule(
-        JsModule(
+      await _engine!.declareNewModule(module: JsModule(
           name: moduleName,
           source: JsCode.code(code),
         ),
@@ -70,8 +69,7 @@ class JsActionsService extends ChangeNotifier {
     required String code,
   }) async {
     return _executeAction('evaluate_module', () async {
-      final result = await _engine!.evaluateModule(
-        JsModule(
+      final result = await _engine!.evaluateModule(module: JsModule(
           name: moduleName,
           source: JsCode.code(code),
         ),
@@ -97,7 +95,7 @@ class JsActionsService extends ChangeNotifier {
         )
       ).toList();
       
-      await _engine!.declareNewModules(jsModules);
+      await _engine!.declareNewModules(modules: jsModules);
       return {
         'success': true,
         'count': modules.length,
@@ -136,7 +134,7 @@ class JsActionsService extends ChangeNotifier {
     required String moduleName,
   }) async {
     return _executeAction('is_module_declared', () async {
-      final isDeclared = await _engine!.isModuleDeclared(moduleName);
+      final isDeclared = await _engine!.isModuleDeclared(moduleName: moduleName);
       return {
         'success': true,
         'action': 'is_module_declared',
@@ -155,24 +153,21 @@ class JsActionsService extends ChangeNotifier {
   }) async {
     return _executeAction('module_dependencies', () async {
       // Declare first module
-      await _engine!.declareNewModule(
-        JsModule(
+      await _engine!.declareNewModule(module: JsModule(
           name: moduleName1,
           source: JsCode.code(code1),
         ),
       );
       
       // Declare second module that imports the first
-      await _engine!.declareNewModule(
-        JsModule(
+      await _engine!.declareNewModule(module: JsModule(
           name: moduleName2,
           source: JsCode.code(code2),
         ),
       );
       
       // Evaluate the second module
-      final result = await _engine!.evaluateModule(
-        JsModule(
+      final result = await _engine!.evaluateModule(module: JsModule(
           name: moduleName2,
           source: JsCode.code(code2),
         ),
@@ -195,8 +190,7 @@ class JsActionsService extends ChangeNotifier {
   }) async {
     return _executeAction('named_exports', () async {
       // Declare module
-      await _engine!.declareNewModule(
-        JsModule(
+      await _engine!.declareNewModule(module: JsModule(
           name: moduleName,
           source: JsCode.code(code),
         ),
@@ -208,8 +202,7 @@ class JsActionsService extends ChangeNotifier {
         $functionName();
       ''';
       
-      final result = await _engine!.evaluateModule(
-        JsModule(
+      final result = await _engine!.evaluateModule(module: JsModule(
           name: '${moduleName}_test',
           source: JsCode.code(importCode),
         ),
@@ -231,8 +224,7 @@ class JsActionsService extends ChangeNotifier {
     required String code,
   }) async {
     return _executeAction('dynamic_import_in_module', () async {
-      final result = await _engine!.evaluateModule(
-        JsModule(
+      final result = await _engine!.evaluateModule(module: JsModule(
           name: moduleName,
           source: JsCode.code(code),
         ),

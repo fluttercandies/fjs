@@ -28,14 +28,14 @@
 /// final context = await JsAsyncContext.from(runtime);
 ///
 /// // Create an engine
-/// final engine = JsEngine(context);
+/// final engine = JsEngine(context: context);
 ///
 /// // Initialize the engine
-/// await engine.init();
+/// await engine.initWithoutBridge();
 ///
 /// // Execute JavaScript code
 /// final result = await engine.eval(
-///   JsCode.code('Math.random() * 100'),
+///   source: JsCode.code('Math.random() * 100'),
 /// );
 ///
 /// print('Random number: ${result.value}');
@@ -46,12 +46,12 @@
 /// ```dart
 /// // Load a module from file
 /// await engine.declareNewModule(
-///   JsModule.path('utils', '/path/to/utils.js'),
+///   module: JsModule.path('utils', '/path/to/utils.js'),
 /// );
 ///
 /// // Execute a function from a module
 /// final result = await engine.eval(
-///   JsCode.code("import { add } from 'utils'; add(2, 3);"),
+///   source: JsCode.code("import { add } from 'utils'; add(2, 3);"),
 /// );
 /// ```
 ///
@@ -59,21 +59,17 @@
 ///
 /// ```dart
 /// await engine.init(
-///   bridgeCall: (value) async {
+///   bridge: (value) async {
 ///     print('JavaScript called: ${value.value}');
-///     return JsValue.string('Hello from Dart!');
+///     return JsResult.ok(JsValue.string('Hello from Dart!'));
 ///   },
 /// );
 /// ```
 
 library;
 
-// Core engine and runtime management
-export 'src/engine.dart';
-
 // JavaScript API with high-level abstractions
-export 'src/frb/api/engine.dart'
-    hide JsActionResult, JsCallback, JsCallbackResult;
+export 'src/frb/api/engine.dart';
 
 // Error handling
 export 'src/frb/api/error.dart';

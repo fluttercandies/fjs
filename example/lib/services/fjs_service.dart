@@ -39,9 +39,9 @@ class FjsService extends ChangeNotifier {
       _runtime =
           await JsAsyncRuntime.withOptions(builtin: JsBuiltinOptions.all());
       _context = await JsAsyncContext.from(rt: _runtime!);
-      _engine = JsEngine(_context!);
+      _engine = JsEngine(context: _context!);
 
-      await _engine!.init();
+      await _engine!.initWithoutBridge();
 
       _isInitialized = true;
       notifyListeners();
@@ -113,7 +113,7 @@ class FjsService extends ChangeNotifier {
 
   /// Execute in Script mode
   Future<JsValue> _executeAsScript(String code) async {
-    return await _engine!.eval(JsCode.code(code));
+    return await _engine!.eval(source: JsCode.code(code));
   }
 
   /// Execute in Module mode
@@ -128,8 +128,7 @@ class FjsService extends ChangeNotifier {
     }
     
     // Evaluate module
-    await _engine!.evaluateModule(
-      JsModule(
+    await _engine!.evaluateModule(module: JsModule(
         name: moduleName,
         source: JsCode.code(code),
       ),
@@ -144,7 +143,7 @@ class FjsService extends ChangeNotifier {
 })()
     ''';
     
-    return await _engine!.eval(JsCode.code(importCode));
+    return await _engine!.eval(source: JsCode.code(importCode));
   }
 
   @override

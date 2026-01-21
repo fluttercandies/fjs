@@ -6,135 +6,288 @@
 import '../frb_generated.dart';
 import 'error.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'runtime.dart';
 import 'source.dart';
 import 'value.dart';
-part 'engine.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `declare_module`, `handle_action`, `new_bridge_call`, `register_fjs`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `ensure_running`, `new_bridge_call`, `register_fjs`
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngineCore>>
-abstract class JsEngineCore implements RustOpaqueInterface {
-  /// Returns the context.
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngine>>
+abstract class JsEngine implements RustOpaqueInterface {
+  /// Calls a function in a module.
+  ///
+  /// Imports the specified module and invokes one of its exported functions.
+  ///
+  /// ## Parameters
+  /// - `module`: The module name to import
+  /// - `method`: The function name to call (must be exported from the module)
+  /// - `params`: Optional parameters to pass to the function
+  ///
+  /// ## Returns
+  /// The result of the function call as a `JsValue`
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If the module cannot be imported
+  /// - If the function does not exist
+  /// - If the function call fails
+  ///
+  /// ## Example
+  /// ```dart
+  /// // Call a function with parameters
+  /// final result = await engine.call(
+  ///   module: 'math-utils',
+  ///   method: 'add',
+  ///   params: [JsValue.int(1), JsValue.int(2)],
+  /// );
+  /// print(result.value); // 3
+  ///
+  /// // Call a function without parameters
+  /// final version = await engine.call(
+  ///   module: 'config',
+  ///   method: 'getVersion',
+  /// );
+  /// ```
+  Future<JsValue> call(
+      {required String module, required String method, List<JsValue>? params});
+
+  /// Clears all dynamically declared modules.
+  ///
+  /// Removes all modules that were registered via `declareNewModule` or `declareNewModules`.
+  /// Built-in modules are not affected.
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If module storage is not available
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.clearNewModules();
+  /// ```
+  Future<void> clearNewModules();
+
+  /// Returns the underlying async context.
+  ///
+  /// This can be used to access lower-level context operations
+  /// if needed.
   JsAsyncContext get context;
 
-  /// Disposes the engine.
+  /// Declares a new module without executing it.
+  ///
+  /// The module will be available for import in subsequent evaluations.
+  /// Use this when you need to register a module for later use.
+  ///
+  /// ## Parameters
+  /// - `module`: The module to declare (name and source code)
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If module storage is not available
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.declareNewModule(module: JsModule.fromCode(
+  ///   module: 'math-utils',
+  ///   code: 'export function add(a, b) { return a + b; }',
+  /// ));
+  ///
+  /// // Later, import and use it
+  /// final result = await engine.eval(source: JsCode.code('''
+  ///   const { add } = await import('math-utils');
+  ///   add(1, 2)
+  /// '''));
+  /// ```
+  Future<void> declareNewModule({required JsModule module});
+
+  /// Declares multiple new modules without executing them.
+  ///
+  /// Convenience method for registering multiple modules at once.
+  ///
+  /// ## Parameters
+  /// - `modules`: List of modules to declare
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If any module declaration fails
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.declareNewModules(modules: [
+  ///   JsModule.fromCode(module: 'utils', code: 'export const VERSION = "1.0"'),
+  ///   JsModule.fromCode(module: 'helpers', code: 'export function log(x) { console.log(x); }'),
+  /// ]);
+  /// ```
+  Future<void> declareNewModules({required List<JsModule> modules});
+
+  /// Disposes the engine and releases resources.
+  ///
+  /// After disposal, the engine cannot be used anymore.
+  /// Any pending operations will fail.
+  ///
+  /// ## Throws
+  /// - If the engine is already disposed
   @override
   Future<void> dispose();
 
-  /// Returns whether the engine is disposed.
+  /// Returns whether the engine has been disposed.
+  ///
+  /// Once disposed, the engine cannot be used anymore.
   bool get disposed;
 
-  /// Executes an action.
-  Future<void> exec({required JsAction action});
+  /// Evaluates JavaScript code and returns the result.
+  ///
+  /// Supports both synchronous and asynchronous JavaScript code.
+  /// Top-level await is enabled by default.
+  ///
+  /// ## Parameters
+  /// - `source`: The JavaScript code to evaluate (string, path, or bytes)
+  /// - `options`: Optional evaluation settings (defaults to promise-enabled mode)
+  ///
+  /// ## Returns
+  /// The result of the evaluation as a `JsValue`
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If the engine is disposed
+  /// - If JavaScript execution fails
+  ///
+  /// ## Example
+  /// ```dart
+  /// // Simple expression
+  /// final result = await engine.eval(source: JsCode.code('1 + 1'));
+  /// print(result.value); // 2
+  ///
+  /// // Async code
+  /// final asyncResult = await engine.eval(source: JsCode.code('''
+  ///   await new Promise(resolve => setTimeout(() => resolve('done'), 100))
+  /// '''));
+  /// ```
+  Future<JsValue> eval({required JsCode source, JsEvalOptions? options});
 
-  /// Creates a new engine core.
-  factory JsEngineCore({required JsAsyncContext context}) =>
-      LibFjs.instance.api.crateApiEngineJsEngineCoreNew(context: context);
+  /// Evaluates a module (registers and executes it).
+  ///
+  /// Unlike `declareNewModule`, this method also executes the module's
+  /// top-level code and returns its default export or last expression value.
+  ///
+  /// ## Parameters
+  /// - `module`: The module to evaluate (name and source code)
+  ///
+  /// ## Returns
+  /// The result of module evaluation
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If module storage is not available
+  /// - If module execution fails
+  ///
+  /// ## Example
+  /// ```dart
+  /// final result = await engine.evaluateModule(module: JsModule.fromCode(
+  ///   module: 'init',
+  ///   code: '''
+  ///     console.log("Module initializing...");
+  ///     export default { version: "1.0" };
+  ///   ''',
+  /// ));
+  /// ```
+  Future<JsValue> evaluateModule({required JsModule module});
 
-  /// Returns whether the engine is running.
+  /// Gets all declared module names.
+  ///
+  /// Returns a list of all dynamically registered module names.
+  ///
+  /// ## Returns
+  /// List of module names as strings
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If module storage is not available
+  ///
+  /// ## Example
+  /// ```dart
+  /// final modules = await engine.getDeclaredModules();
+  /// print('Declared modules: $modules');
+  /// ```
+  Future<List<String>> getDeclaredModules();
+
+  /// Initializes the engine with a bridge callback for Dart-JS communication.
+  ///
+  /// The bridge callback is invoked when JavaScript calls `fjs.bridge_call(value)`.
+  /// This enables bidirectional communication between Dart and JavaScript.
+  ///
+  /// ## Parameters
+  /// - `bridge`: A callback function that receives a `JsValue` from JavaScript
+  ///   and returns a `JsResult` back to JavaScript
+  ///
+  /// ## Throws
+  /// - If the engine is already disposed
+  /// - If the engine is already initialized
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.init(bridge: (value) async {
+  ///   print('Received from JS: \$value');
+  ///   return JsResult.ok(JsValue.string('Response from Dart'));
+  /// });
+  /// ```
+  Future<void> init({required FutureOr<JsResult> Function(JsValue) bridge});
+
+  /// Initializes the engine without a bridge callback.
+  ///
+  /// Use this when you don't need Dart-JS communication via the bridge.
+  /// JavaScript code can still run, but `fjs.bridge_call()` will not be available.
+  ///
+  /// ## Throws
+  /// - If the engine is already disposed
+  /// - If the engine is already initialized
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.initWithoutBridge();
+  /// ```
+  Future<void> initWithoutBridge();
+
+  /// Checks if a module is declared.
+  ///
+  /// ## Parameters
+  /// - `moduleName`: The name of the module to check
+  ///
+  /// ## Returns
+  /// `true` if the module exists, `false` otherwise
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If module storage is not available
+  ///
+  /// ## Example
+  /// ```dart
+  /// if (await engine.isModuleDeclared(moduleName: 'my-module')) {
+  ///   print('Module exists!');
+  /// }
+  /// ```
+  Future<bool> isModuleDeclared({required String moduleName});
+
+  /// Creates a new JavaScript engine from an async context.
+  ///
+  /// The engine starts in a "created" state and must be initialized
+  /// with `init()` or `initWithoutBridge()` before use.
+  ///
+  /// ## Parameters
+  /// - `context`: The async JavaScript execution context
+  ///
+  /// ## Returns
+  /// A new `JsEngine` instance
+  ///
+  /// ## Example
+  /// ```dart
+  /// final engine = JsEngine(context: context);
+  /// ```
+  factory JsEngine({required JsAsyncContext context}) =>
+      LibFjs.instance.api.crateApiEngineJsEngineNew(context: context);
+
+  /// Returns whether the engine is running and ready for execution.
+  ///
+  /// The engine is running after `init()` or `initWithoutBridge()`
+  /// has been called successfully.
   bool get running;
-
-  /// Starts the engine event loop.
-  Future<void> start(
-      {required FutureOr<JsCallbackResult> Function(JsCallback) bridge});
-}
-
-@freezed
-sealed class JsAction with _$JsAction {
-  const JsAction._();
-
-  /// Evaluate JavaScript code.
-  const factory JsAction.eval({
-    required int id,
-    required JsCode source,
-    JsEvalOptions? options,
-  }) = JsAction_Eval;
-
-  /// Declare a new module.
-  const factory JsAction.declareNewModule({
-    required int id,
-    required JsModule module,
-  }) = JsAction_DeclareNewModule;
-
-  /// Declare multiple modules.
-  const factory JsAction.declareNewModules({
-    required int id,
-    required List<JsModule> modules,
-  }) = JsAction_DeclareNewModules;
-
-  /// Clear all dynamic modules.
-  const factory JsAction.clearNewModules({
-    required int id,
-  }) = JsAction_ClearNewModules;
-
-  /// Evaluate a module.
-  const factory JsAction.evaluateModule({
-    required int id,
-    required JsModule module,
-  }) = JsAction_EvaluateModule;
-
-  /// Get all declared module names.
-  const factory JsAction.getDeclaredModules({
-    required int id,
-  }) = JsAction_GetDeclaredModules;
-
-  /// Check if a module is declared.
-  const factory JsAction.isModuleDeclared({
-    required int id,
-    required String moduleName,
-  }) = JsAction_IsModuleDeclared;
-
-  /// Call a function in a module.
-  const factory JsAction.callFunction({
-    required int id,
-    required String module,
-    required String method,
-    List<JsValue>? params,
-  }) = JsAction_CallFunction;
-}
-
-/// Result of a JavaScript action execution.
-@freezed
-sealed class JsActionResult with _$JsActionResult {
-  const factory JsActionResult({
-    required int id,
-    required JsResult result,
-  }) = _JsActionResult;
-}
-
-@freezed
-sealed class JsCallback with _$JsCallback {
-  const JsCallback._();
-
-  /// Engine has been initialized.
-  const factory JsCallback.initialized() = JsCallback_Initialized;
-
-  /// Action execution result.
-  const factory JsCallback.handler(
-    JsActionResult field0,
-  ) = JsCallback_Handler;
-
-  /// Bridge call from JavaScript.
-  const factory JsCallback.bridge(
-    JsValue field0,
-  ) = JsCallback_Bridge;
-}
-
-@freezed
-sealed class JsCallbackResult with _$JsCallbackResult {
-  const JsCallbackResult._();
-
-  /// Initialization acknowledged.
-  const factory JsCallbackResult.initialized() = JsCallbackResult_Initialized;
-
-  /// Handler acknowledged.
-  const factory JsCallbackResult.handler() = JsCallbackResult_Handler;
-
-  /// Bridge call result.
-  const factory JsCallbackResult.bridge(
-    JsResult field0,
-  ) = JsCallbackResult_Bridge;
 }

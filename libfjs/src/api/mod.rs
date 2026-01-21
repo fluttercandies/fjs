@@ -23,7 +23,7 @@ pub mod source;
 pub mod value;
 
 // Re-export main types for convenience
-pub use engine::{JsAction, JsActionResult, JsCallback, JsCallbackResult, JsEngineCore};
+pub use engine::JsEngine;
 pub use error::{JsError, JsResult};
 pub use module::{DynamicModuleLoader, DynamicModuleResolver, GlobalAttachment, ModuleBuilder};
 pub use runtime::{JsAsyncContext, JsAsyncRuntime, JsContext, JsRuntime, MemoryUsage};

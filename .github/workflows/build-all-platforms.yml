@@ -1,0 +1,470 @@
+# Build and release multi-platform Flutter example app
+# This workflow is reusable - just update the env variables at the top
+name: Build All Platforms
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+#####################################
+# PROJECT-SPECIFIC CONFIGURATION
+# Update these values for your project
+#####################################
+env:
+  # Project Info
+  PROJECT_NAME: FJS Example
+  PROJECT_SLUG: fjs-example
+  PROJECT_PACKAGE: fjs_example
+  EXAMPLE_DIR: example
+
+  # Android signing configuration
+  ANDROID_KEYSTORE_FILE: keystore.jks
+  ANDROID_KEYSTORE_SECRET: fjs123456
+  ANDROID_KEY_ALIAS: release
+  ANDROID_KEY_PASSWORD: fjs123456
+  ANDROID_KEY_DNAME: 'CN=FJS Example Release,O=FlutterCandies,C=CN'
+
+  # Flutter configuration
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  #####################################
+  # Test library first
+  #####################################
+  test-library:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Analyze code
+        run: flutter analyze
+
+  #####################################
+  # Prepare release info
+  #####################################
+  prepare:
+    runs-on: ubuntu-latest
+    needs: test-library
+    outputs:
+      release_tag: ${{ steps.tag.outputs.tag }}
+      release_name: ${{ steps.tag.outputs.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          DATE=$(date +'%Y%m%d')
+          SHORT_REF=$(git rev-parse --short HEAD)
+          echo "tag=$DATE-$SHORT_REF" >> $GITHUB_OUTPUT
+          echo "name=Release $DATE-$SHORT_REF" >> $GITHUB_OUTPUT
+
+  #####################################
+  # Android build (multi-architecture)
+  #####################################
+  build-android:
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        arch: [arm64, x64, universal]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Get dependencies
+        run: flutter pub get
+        working-directory: ${{ env.EXAMPLE_DIR }}
+
+      - name: Generate Android keystore
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}/android/app
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > ${{ env.ANDROID_KEYSTORE_FILE }}
+          else
+            keytool -genkey -v -keystore ${{ env.ANDROID_KEYSTORE_FILE }} \
+              -alias ${{ env.ANDROID_KEY_ALIAS }} \
+              -keyalg RSA -keysize 2048 -validity 36135 \
+              -storepass '${{ env.ANDROID_KEYSTORE_SECRET }}' \
+              -keypass '${{ env.ANDROID_KEY_PASSWORD }}' \
+              -dname '${{ env.ANDROID_KEY_DNAME }}'
+          fi
+          if ! grep -q "${{ env.ANDROID_KEYSTORE_FILE }}" .gitignore 2>/dev/null; then
+            echo "${{ env.ANDROID_KEYSTORE_FILE }}" >> .gitignore
+          fi
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
+      - name: Configure Android signing
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}/android/app
+          printf '\n# Signing config\n' >> gradle.properties
+          printf 'RELEASE_STORE_FILE=${{ env.ANDROID_KEYSTORE_FILE }}\n' >> gradle.properties
+          printf 'RELEASE_STORE_PASSWORD=${{ env.ANDROID_KEYSTORE_SECRET }}\n' >> gradle.properties
+          printf 'RELEASE_KEY_ALIAS=${{ env.ANDROID_KEY_ALIAS }}\n' >> gradle.properties
+          printf 'RELEASE_KEY_PASSWORD=${{ env.ANDROID_KEY_PASSWORD }}\n' >> gradle.properties
+
+          cp build.gradle.kts build.gradle.kts.orig
+
+          awk '
+          /^android \{/ {
+            print
+            print ""
+            print "    signingConfigs {"
+            print "        create(\"release\") {"
+            print "            storeFile = file(\"${{ env.ANDROID_KEYSTORE_FILE }}\")"
+            print "            storePassword = \"${{ env.ANDROID_KEYSTORE_SECRET }}\""
+            print "            keyAlias = \"${{ env.ANDROID_KEY_ALIAS }}\""
+            print "            keyPassword = \"${{ env.ANDROID_KEY_PASSWORD }}\""
+            print "        }"
+            print "    }"
+            next
+          }
+          /signingConfig = signingConfigs.getByName\("debug"\)/ {
+            print "            signingConfig = signingConfigs.getByName(\"release\")"
+            next
+          }
+          { print }
+          ' build.gradle.kts.orig > build.gradle.kts
+
+      - name: Build APK for ${{ matrix.arch }}
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          if [ "${{ matrix.arch }}" = "universal" ]; then
+            flutter build apk --release --target-platform android-arm64,android-x64
+          else
+            flutter build apk --release --target-platform android-${{ matrix.arch }}
+          fi
+
+      - name: Rename APK
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}/build/app/outputs/flutter-apk
+          if [ "${{ matrix.arch }}" = "universal" ]; then
+            mv app-release.apk ${{ env.PROJECT_SLUG }}-android-universal.apk
+          else
+            mv app-release.apk ${{ env.PROJECT_SLUG }}-android-${{ matrix.arch }}.apk
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.arch }}
+          path: |
+            ${{ env.EXAMPLE_DIR }}/build/app/outputs/flutter-apk/${{ env.PROJECT_SLUG }}-android-${{ matrix.arch }}.apk
+            ${{ env.EXAMPLE_DIR }}/build/app/outputs/flutter-apk/${{ env.PROJECT_SLUG }}-android-universal.apk
+          retention-days: 30
+          if-no-files-found: ignore
+
+  #####################################
+  # iOS build
+  #####################################
+  build-ios:
+    runs-on: macos-latest
+    needs: prepare
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+        working-directory: ${{ env.EXAMPLE_DIR }}
+
+      - name: Build iOS (no codesign)
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          flutter build ios --release --no-codesign
+
+      - name: Create iOS bundle (zip)
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          mkdir -p build/ios-bundle/Runner.app
+          cp -r build/ios/iphoneos/Runner.app/* build/ios-bundle/Runner.app/
+          cd build/ios-bundle
+          zip -r ../../${{ env.PROJECT_SLUG }}-ios.zip .
+          cd ../..
+
+      - name: Create IPA
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r ${{ env.PROJECT_SLUG }}-ios.ipa Payload
+          rm -rf Payload
+
+      - name: Upload iOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: |
+            ${{ env.EXAMPLE_DIR }}/${{ env.PROJECT_SLUG }}-ios.zip
+            ${{ env.EXAMPLE_DIR }}/${{ env.PROJECT_SLUG }}-ios.ipa
+          retention-days: 30
+
+  #####################################
+  # Windows build
+  #####################################
+  build-windows:
+    runs-on: windows-latest
+    needs: prepare
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+        working-directory: ${{ env.EXAMPLE_DIR }}
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y
+
+      - name: Build Windows
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          flutter build windows --release
+
+      - name: Create Inno Setup script
+        shell: pwsh
+        run: |
+          $script = @"
+          [Setup]
+          AppName=${{ env.PROJECT_NAME }}
+          AppVersion=1.0.0
+          DefaultDirName={pf}\${{ env.PROJECT_NAME }}
+          DefaultGroupName=${{ env.PROJECT_NAME }}
+          OutputBaseFilename=${{ env.PROJECT_SLUG }}-windows-setup
+          Compression=lzma2
+          SolidCompression=yes
+          OutputDir=.
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{group}\${{ env.PROJECT_NAME }}"; Filename: "{app}\${{ env.PROJECT_PACKAGE }}.exe"
+          Name: "{commondesktop}\${{ env.PROJECT_NAME }}"; Filename: "{app}\${{ env.PROJECT_PACKAGE }}.exe"
+          "@
+          $script | Out-File -FilePath ${{ env.EXAMPLE_DIR }}\setup.iss -Encoding UTF8
+
+      - name: Create installer with Inno Setup
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss
+
+      - name: Create Windows zip
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ${{ env.PROJECT_SLUG }}-windows.zip
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            ${{ env.EXAMPLE_DIR }}/${{ env.PROJECT_SLUG }}-windows.zip
+            ${{ env.EXAMPLE_DIR }}/${{ env.PROJECT_SLUG }}-windows-setup.exe
+          retention-days: 30
+          if-no-files-found: ignore
+
+  #####################################
+  # Linux build
+  #####################################
+  build-linux:
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - name: Get dependencies
+        run: flutter pub get
+        working-directory: ${{ env.EXAMPLE_DIR }}
+
+      - name: Build Linux
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          flutter build linux --release
+
+      - name: Create Linux tarball
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          tar -czf ${{ env.PROJECT_SLUG }}-linux.tar.gz -C build/linux/x64/release/bundle .
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: ${{ env.EXAMPLE_DIR }}/${{ env.PROJECT_SLUG }}-linux.tar.gz
+          retention-days: 30
+
+  #####################################
+  # macOS build
+  #####################################
+  build-macos:
+    runs-on: macos-latest
+    needs: prepare
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+        working-directory: ${{ env.EXAMPLE_DIR }}
+
+      - name: Build macOS
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          flutter build macos --release
+
+      - name: Create macOS zip
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          cd build/macos/Build/Products/Release
+          zip -r ../../../../../${{ env.PROJECT_SLUG }}-macos.zip .
+
+      - name: Create DMG
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          mkdir -p dmg/disk
+          cp -r build/macos/Build/Products/Release/*.app dmg/disk/
+          hdiutil create -volname "${{ env.PROJECT_NAME }}" -srcfolder dmg/disk -ov -format UDZO ${{ env.PROJECT_SLUG }}-macos.dmg
+          rm -rf dmg
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            ${{ env.EXAMPLE_DIR }}/${{ env.PROJECT_SLUG }}-macos.zip
+            ${{ env.EXAMPLE_DIR }}/${{ env.PROJECT_SLUG }}-macos.dmg
+          retention-days: 30
+
+  #####################################
+  # Release all builds
+  #####################################
+  release:
+    runs-on: ubuntu-latest
+    needs: [prepare, build-android, build-ios, build-windows, build-linux, build-macos]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: |
+          echo "=== Artifact tree ==="
+          tree artifacts/ || ls -laR artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.prepare.outputs.release_tag }}
+          name: ${{ needs.prepare.outputs.release_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/android-arm64/*.apk
+            artifacts/android-x64/*.apk
+            artifacts/android-universal/*.apk
+            artifacts/ios/*.ipa
+            artifacts/ios/*.zip
+            artifacts/windows/*.exe
+            artifacts/windows/*.zip
+            artifacts/linux/*.tar.gz
+            artifacts/macos/*.dmg
+            artifacts/macos/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          # ✅ Release Created Successfully
+
+          ## Tag: ${{ needs.prepare.outputs.release_tag }}
+
+          ## Artifacts
+
+          | Platform | Format | File |
+          |----------|--------|------|
+          | Android (arm64) | .apk | ${{ env.PROJECT_SLUG }}-android-arm64.apk |
+          | Android (x64) | .apk | ${{ env.PROJECT_SLUG }}-android-x64.apk |
+          | Android (Universal) | .apk | ${{ env.PROJECT_SLUG }}-android-universal.apk |
+          | iOS | .ipa | ${{ env.PROJECT_SLUG }}-ios.ipa |
+          | iOS | .zip | ${{ env.PROJECT_SLUG }}-ios.zip |
+          | Windows | .exe | ${{ env.PROJECT_SLUG }}-windows-setup.exe |
+          | Windows | .zip | ${{ env.PROJECT_SLUG }}-windows.zip |
+          | Linux | .tar.gz | ${{ env.PROJECT_SLUG }}-linux.tar.gz |
+          | macOS | .dmg | ${{ env.PROJECT_SLUG }}-macos.dmg |
+          | macOS | .zip | ${{ env.PROJECT_SLUG }}-macos.zip |
+          SUMMARY
