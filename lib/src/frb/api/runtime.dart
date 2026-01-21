@@ -143,7 +143,7 @@ abstract class JsAsyncContext implements RustOpaqueInterface {
   ///
   /// ## Parameters
   ///
-  /// - `rt`: The runtime to create the context from
+  /// - `runtime`: The runtime to create the context from
   ///
   /// ## Returns
   ///
@@ -224,7 +224,7 @@ abstract class JsAsyncRuntime implements RustOpaqueInterface {
   /// ## Example
   ///
   /// ```dart
-  /// final runtime = JsAsyncRuntime.new();
+  /// final runtime = JsAsyncRuntime();
   /// ```
   factory JsAsyncRuntime() =>
       LibFjs.instance.api.crateApiRuntimeJsAsyncRuntimeNew();
@@ -417,7 +417,7 @@ abstract class JsContext implements RustOpaqueInterface {
   ///
   /// ## Parameters
   ///
-  /// - `rt`: The runtime to create the context from
+  /// - `runtime`: The runtime to create the context from
   ///
   /// ## Returns
   ///
@@ -430,8 +430,8 @@ abstract class JsContext implements RustOpaqueInterface {
   /// ## Example
   ///
   /// ```dart
-  /// final runtime = JsRuntime.new();
-  /// final context = JsContext.new(rt: runtime);
+  /// final runtime = JsRuntime();
+  /// final context = JsContext.from(runtime: runtime);
   /// ```
   static JsContext from({required JsRuntime runtime}) =>
       LibFjs.instance.api.crateApiRuntimeJsContextFrom(runtime: runtime);
@@ -492,7 +492,7 @@ abstract class JsRuntime implements RustOpaqueInterface {
   /// ## Example
   ///
   /// ```dart
-  /// final runtime = JsRuntime.new();
+  /// final runtime = JsRuntime();
   /// ```
   factory JsRuntime() => LibFjs.instance.api.crateApiRuntimeJsRuntimeNew();
 

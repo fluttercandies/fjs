@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1317330669;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2113920709;
 
 // Section: executor
 
@@ -4596,14 +4596,14 @@ fn wire__crate__api__source__js_eval_options_with_promise_impl(
         },
     )
 }
-fn wire__crate__api__source__js_module_from_bytes_impl(
+fn wire__crate__api__source__js_module_bytes_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "js_module_from_bytes(dart_style=fromBytes)",
+            debug_name: "js_module_bytes",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -4621,7 +4621,7 @@ fn wire__crate__api__source__js_module_from_bytes_impl(
             let api_bytes = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(crate::api::source::JsModule::from_bytes(
+                let output_ok = Result::<_, ()>::Ok(crate::api::source::JsModule::bytes(
                     api_module, api_bytes,
                 ))?;
                 Ok(output_ok)
@@ -4629,14 +4629,14 @@ fn wire__crate__api__source__js_module_from_bytes_impl(
         },
     )
 }
-fn wire__crate__api__source__js_module_from_code_impl(
+fn wire__crate__api__source__js_module_code_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "js_module_from_code(dart_style=fromCode)",
+            debug_name: "js_module_code",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -4654,42 +4654,8 @@ fn wire__crate__api__source__js_module_from_code_impl(
             let api_code = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(crate::api::source::JsModule::from_code(
-                    api_module, api_code,
-                ))?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__source__js_module_from_path_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "js_module_from_path(dart_style=fromPath)",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_module = <String>::sse_decode(&mut deserializer);
-            let api_path = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(crate::api::source::JsModule::from_path(
-                    api_module, api_path,
-                ))?;
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::source::JsModule::code(api_module, api_code))?;
                 Ok(output_ok)
             })())
         },
@@ -4722,6 +4688,38 @@ fn wire__crate__api__source__js_module_new_impl(
             transform_result_sse::<_, ()>((move || {
                 let output_ok =
                     Result::<_, ()>::Ok(crate::api::source::JsModule::new(api_name, api_source))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__source__js_module_path_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "js_module_path",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_module = <String>::sse_decode(&mut deserializer);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::source::JsModule::path(api_module, api_path))?;
                 Ok(output_ok)
             })())
         },
@@ -6102,10 +6100,10 @@ fn pde_ffi_dispatcher_sync_impl(
         95 => {
             wire__crate__api__source__js_eval_options_with_promise_impl(ptr, rust_vec_len, data_len)
         }
-        96 => wire__crate__api__source__js_module_from_bytes_impl(ptr, rust_vec_len, data_len),
-        97 => wire__crate__api__source__js_module_from_code_impl(ptr, rust_vec_len, data_len),
-        98 => wire__crate__api__source__js_module_from_path_impl(ptr, rust_vec_len, data_len),
-        99 => wire__crate__api__source__js_module_new_impl(ptr, rust_vec_len, data_len),
+        96 => wire__crate__api__source__js_module_bytes_impl(ptr, rust_vec_len, data_len),
+        97 => wire__crate__api__source__js_module_code_impl(ptr, rust_vec_len, data_len),
+        98 => wire__crate__api__source__js_module_new_impl(ptr, rust_vec_len, data_len),
+        99 => wire__crate__api__source__js_module_path_impl(ptr, rust_vec_len, data_len),
         101 => wire__crate__api__value__js_value_is_array_impl(ptr, rust_vec_len, data_len),
         102 => wire__crate__api__value__js_value_is_boolean_impl(ptr, rust_vec_len, data_len),
         103 => wire__crate__api__value__js_value_is_bytes_impl(ptr, rust_vec_len, data_len),

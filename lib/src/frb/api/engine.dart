@@ -38,7 +38,7 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// final result = await engine.call(
   ///   module: 'math-utils',
   ///   method: 'add',
-  ///   params: [JsValue.int(1), JsValue.int(2)],
+  ///   params: [JsValue.integer(1), JsValue.integer(2)],
   /// );
   /// print(result.value); // 3
   ///

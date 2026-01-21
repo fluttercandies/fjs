@@ -135,15 +135,21 @@ impl JsCode {
 ///
 /// ```dart
 /// // Create a module from inline code
-/// final module = JsModule.fromCode(
+/// final module = JsModule.code(
 ///   module: 'my-utils',
 ///   code: 'export const add = (a, b) => a + b;',
 /// );
 ///
 /// // Create a module from a file
-/// final module2 = JsModule.fromPath(
+/// final module2 = JsModule.path(
 ///   module: 'math',
 ///   path: '/path/to/math.js',
+/// );
+///
+/// // Create a module from bytes
+/// final module3 = JsModule.bytes(
+///   module: 'binary-utils',
+///   bytes: utf8.encode('export const VERSION = "1.0";'),
 /// );
 /// ```
 #[frb(dart_metadata = ("freezed"))]
@@ -172,7 +178,7 @@ impl JsModule {
     }
 
     /// Creates a module from inline code.
-    #[frb(ignore)]
+    #[frb(sync)]
     pub fn code(module: String, code: String) -> Self {
         JsModule {
             name: module,
@@ -181,7 +187,7 @@ impl JsModule {
     }
 
     /// Creates a module from a file path.
-    #[frb(ignore)]
+    #[frb(sync)]
     pub fn path(module: String, path: String) -> Self {
         JsModule {
             name: module,
@@ -190,80 +196,8 @@ impl JsModule {
     }
 
     /// Creates a module from raw bytes.
-    #[frb(ignore)]
+    #[frb(sync)]
     pub fn bytes(module: String, bytes: Vec<u8>) -> Self {
-        JsModule {
-            name: module,
-            source: JsCode::Bytes(bytes),
-        }
-    }
-
-    /// Creates a module from inline code string.
-    ///
-    /// ## Parameters
-    ///
-    /// - `module`: The module name
-    /// - `code`: The JavaScript code as a string
-    ///
-    /// ## Returns
-    ///
-    /// A new `JsModule` instance
-    ///
-    /// ## Example
-    ///
-    /// ```dart
-    /// final module = JsModule.fromCode(
-    ///   module: 'utils',
-    ///   code: 'export const foo = "bar";',
-    /// );
-    /// ```
-    #[frb(sync, name = "fromCode")]
-    pub fn from_code(module: String, code: String) -> Self {
-        JsModule {
-            name: module,
-            source: JsCode::Code(code),
-        }
-    }
-
-    /// Creates a module from a file path string.
-    ///
-    /// ## Parameters
-    ///
-    /// - `module`: The module name
-    /// - `path`: The path to the JavaScript file
-    ///
-    /// ## Returns
-    ///
-    /// A new `JsModule` instance
-    ///
-    /// ## Example
-    ///
-    /// ```dart
-    /// final module = JsModule.fromPath(
-    ///   module: 'math',
-    ///   path: '/path/to/math.js',
-    /// );
-    /// ```
-    #[frb(sync, name = "fromPath")]
-    pub fn from_path(module: String, path: String) -> Self {
-        JsModule {
-            name: module,
-            source: JsCode::Path(path),
-        }
-    }
-
-    /// Creates a module from raw bytes.
-    ///
-    /// ## Parameters
-    ///
-    /// - `module`: The module name
-    /// - `bytes`: The JavaScript code as UTF-8 encoded bytes
-    ///
-    /// ## Returns
-    ///
-    /// A new `JsModule` instance
-    #[frb(sync, name = "fromBytes")]
-    pub fn from_bytes(module: String, bytes: Vec<u8>) -> Self {
         JsModule {
             name: module,
             source: JsCode::Bytes(bytes),
