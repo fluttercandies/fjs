@@ -260,17 +260,20 @@ class ApiOverviewScreen extends StatelessWidget {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: api.features.map((f) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    f,
-                    style: theme.textTheme.labelSmall,
-                  ),
-                )).toList(),
+                children: api.features
+                    .map((f) => Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            f,
+                            style: theme.textTheme.labelSmall,
+                          ),
+                        ))
+                    .toList(),
               ),
             ],
           ),

@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 enum JsExecutionMode {
   /// Script mode - uses eval(), does not support import statements
   script,
+
   /// Module mode - supports import/export statements
   module,
 }
@@ -29,7 +30,7 @@ class FjsService extends ChangeNotifier {
   String? get lastError => _lastError;
 
   String? get lastExecutionResult => _lastExecutionResult;
-  
+
   JsExecutionMode get lastExecutionMode => _lastExecutionMode;
 
   Future<void> initialize() async {
@@ -53,7 +54,7 @@ class FjsService extends ChangeNotifier {
   }
 
   /// Execute JavaScript code in Script mode
-  /// 
+  ///
   /// Script mode uses eval() and does not support static import statements.
   /// If you need to use modules, use dynamic import() or executeAsModule().
   Future<dynamic> executeAsScript(String code) async {
@@ -61,7 +62,7 @@ class FjsService extends ChangeNotifier {
   }
 
   /// Execute JavaScript code in Module mode
-  /// 
+  ///
   /// Module mode supports import/export statements.
   /// Code will be wrapped as a module and evaluated.
   Future<dynamic> executeAsModule(String code) async {
@@ -90,7 +91,7 @@ class FjsService extends ChangeNotifier {
 
     try {
       JsValue result;
-      
+
       if (mode == JsExecutionMode.module) {
         // Module mode: supports import/export
         result = await _executeAsModule(code);
@@ -98,9 +99,8 @@ class FjsService extends ChangeNotifier {
         // Script mode: does not support import
         result = await _executeAsScript(code);
       }
-      
-      _lastExecutionResult =
-          JsonEncoder.withIndent('  ').convert(result.value);
+
+      _lastExecutionResult = JsonEncoder.withIndent('  ').convert(result.value);
       return result;
     } catch (e) {
       _lastError = e.toString();
@@ -120,20 +120,21 @@ class FjsService extends ChangeNotifier {
   Future<JsValue> _executeAsModule(String code) async {
     // Generate unique module name
     final moduleName = '_module_${DateTime.now().millisecondsSinceEpoch}';
-    
+
     if (kDebugMode) {
       print('Executing Module mode:');
       print('Module name: $moduleName');
       print('Code:\n$code');
     }
-    
+
     // Evaluate module
-    await _engine!.evaluateModule(module: JsModule(
+    await _engine!.evaluateModule(
+      module: JsModule(
         name: moduleName,
         source: JsCode.code(code),
       ),
     );
-    
+
     // Import module and get result
     // If module exported default, return default; otherwise return entire module object
     final importCode = '''
@@ -142,7 +143,7 @@ class FjsService extends ChangeNotifier {
   return module.default !== undefined ? module.default : module;
 })()
     ''';
-    
+
     return await _engine!.eval(source: JsCode.code(importCode));
   }
 

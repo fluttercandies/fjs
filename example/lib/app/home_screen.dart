@@ -178,8 +178,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'FJS',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ],
               ),
@@ -296,7 +296,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context, {bool showDrawer = true}) {
+  PreferredSizeWidget _buildAppBar(BuildContext context,
+      {bool showDrawer = true}) {
     return AppBar(
       title: const Text('FJS JavaScript Runtime'),
       automaticallyImplyLeading: showDrawer,
@@ -400,15 +401,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'FJS',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 Text(
                   'Flutter JavaScript Runtime',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.8),
-                  ),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onPrimary
+                            .withValues(alpha: 0.8),
+                      ),
                 ),
               ],
             ),
@@ -617,7 +621,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: const Text('API Docs'),
                 ),
                 FilledButton.tonalIcon(
-                  onPressed: () => Navigator.pushNamed(context, '/js-actions-test'),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/js-actions-test'),
                   icon: const Icon(Icons.science),
                   label: const Text('Run Tests'),
                 ),
@@ -653,7 +658,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             CodeEditorWidget(
               controller: _codeController,
-              hintText: '// Enter your JavaScript code here...\nconsole.log("Hello, FJS!");',
+              hintText:
+                  '// Enter your JavaScript code here...\nconsole.log("Hello, FJS!");',
               height: 200,
               isLoading: _isExecuting,
             ),
@@ -717,7 +723,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 12),
             ResultDisplayWidget(
-              result: _result.isNotEmpty && !_result.startsWith('Error:') ? _result : null,
+              result: _result.isNotEmpty && !_result.startsWith('Error:')
+                  ? _result
+                  : null,
               error: _result.startsWith('Error:') ? _result : null,
               isLoading: _isExecuting,
               height: 200,
@@ -753,7 +761,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 ...JsExampleCategory.values.take(4).map((category) {
-                  final examples = examplesService.getExamplesByCategory(category);
+                  final examples =
+                      examplesService.getExamplesByCategory(category);
                   if (examples.isEmpty) return const SizedBox.shrink();
 
                   return Column(
@@ -771,10 +780,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: examples.take(4).map((example) => ActionChip(
-                          label: Text(example.label),
-                          onPressed: () => _loadExample(example),
-                        )).toList(),
+                        children: examples
+                            .take(4)
+                            .map((example) => ActionChip(
+                                  label: Text(example.label),
+                                  onPressed: () => _loadExample(example),
+                                ))
+                            .toList(),
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -789,7 +801,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadExample(JsExample example) async {
-    final examplesService = Provider.of<JsExamplesService>(context, listen: false);
+    final examplesService =
+        Provider.of<JsExamplesService>(context, listen: false);
     final code = await examplesService.loadExampleCode(example.fileName);
     if (code != null) {
       _codeController.text = code;

@@ -312,7 +312,7 @@ class JsExamplesService extends ChangeNotifier {
       category: JsExampleCategory.llrt,
       executionMode: JsExecutionMode.module,
     ),
-  
+
     JsExample(
       id: 'llrt_fs_readfile',
       label: 'fs.readFile',
@@ -397,7 +397,7 @@ class JsExamplesService extends ChangeNotifier {
       category: JsExampleCategory.testing,
       executionMode: JsExecutionMode.script,
     ),
-    
+
     JsExample(
       id: 'test_crypto',
       label: 'Crypto Module Test',
@@ -647,7 +647,7 @@ class JsExamplesService extends ChangeNotifier {
       category: JsExampleCategory.examples,
       executionMode: JsExecutionMode.module,
     ),
-    
+
     JsExample(
       id: 'fs_example',
       label: 'File System Example',
@@ -756,7 +756,8 @@ class JsExamplesService extends ChangeNotifier {
       for (final example in examples) {
         if (!_loadedExamples.containsKey(example.fileName)) {
           try {
-            final code = await rootBundle.loadString('assets/examples/${example.fileName}');
+            final code = await rootBundle
+                .loadString('assets/examples/${example.fileName}');
             _loadedExamples[example.fileName] = code;
           } catch (e) {
             if (kDebugMode) {

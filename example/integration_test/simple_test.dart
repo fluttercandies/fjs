@@ -537,7 +537,8 @@ void main() {
     test('Complex expression evaluation', () async {
       await engine.initWithoutBridge();
 
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           function fibonacci(n) {
             if (n <= 1) return n;
             return fibonacci(n - 1) + fibonacci(n - 2);
@@ -552,7 +553,8 @@ void main() {
       await engine.initWithoutBridge();
 
       // Declare module
-      await engine.declareNewModule(module: JsModule.code(
+      await engine.declareNewModule(
+        module: JsModule.code(
           module: 'math-utils',
           code: '''
             export const add = (a, b) => a + b;
@@ -563,7 +565,8 @@ void main() {
       );
 
       // Check if module is declared
-      final isDeclared = await engine.isModuleDeclared(moduleName: 'math-utils');
+      final isDeclared =
+          await engine.isModuleDeclared(moduleName: 'math-utils');
       expect(isDeclared, true);
 
       // Get all declared modules
@@ -598,7 +601,9 @@ void main() {
     test('Clear modules', () async {
       await engine.initWithoutBridge();
 
-      await engine.declareNewModule(module: JsModule.code(module: 'temp-module', code: 'export const x = 1;'),
+      await engine.declareNewModule(
+        module:
+            JsModule.code(module: 'temp-module', code: 'export const x = 1;'),
       );
 
       expect(await engine.isModuleDeclared(moduleName: 'temp-module'), true);
@@ -611,7 +616,8 @@ void main() {
     test('Evaluation with options', () async {
       await engine.initWithoutBridge();
 
-      final result = await engine.eval(source: const JsCode.code('let strictVar = 123; strictVar'),
+      final result = await engine.eval(
+        source: const JsCode.code('let strictVar = 123; strictVar'),
         options: JsEvalOptions(strict: true),
       );
       expect(result.value, equals(123));
@@ -627,7 +633,8 @@ void main() {
         },
       );
 
-      final result = await engine.eval(source: const JsCode.code('await fjs.bridge_call("Hello from JS")'),
+      final result = await engine.eval(
+        source: const JsCode.code('await fjs.bridge_call("Hello from JS")'),
         options: JsEvalOptions.withPromise(),
       );
 
@@ -641,11 +648,13 @@ void main() {
       await engine.init(
         bridge: (value) async {
           receivedData = value.value;
-          return JsResult.ok(JsValue.from({'received': true, 'data': receivedData}));
+          return JsResult.ok(
+              JsValue.from({'received': true, 'data': receivedData}));
         },
       );
 
-      final result = await engine.eval(source: const JsCode.code(
+      final result = await engine.eval(
+        source: const JsCode.code(
             'await fjs.bridge_call({name: "test", values: [1, 2, 3]})'),
         options: JsEvalOptions.withPromise(),
       );
@@ -672,7 +681,8 @@ void main() {
       await engine.initWithoutBridge();
 
       expect(
-        () => engine.eval(source: const JsCode.code('undefinedVariable.property')),
+        () => engine.eval(
+            source: const JsCode.code('undefinedVariable.property')),
         throwsA(isA<JsError>()),
       );
     });
@@ -715,7 +725,8 @@ void main() {
       await engine.initWithoutBridge();
 
       // Execute a fast operation
-      final result = await engine.eval(source: const JsCode.code('1 + 1'),
+      final result = await engine.eval(
+        source: const JsCode.code('1 + 1'),
       );
       expect(result.value, equals(2));
     });
@@ -742,7 +753,8 @@ void main() {
     });
 
     test('Class definition', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           class Person {
             constructor(name, age) {
               this.name = name;
@@ -760,7 +772,8 @@ void main() {
     });
 
     test('Class inheritance', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           class Animal {
             constructor(name) { this.name = name; }
             speak() { return this.name + " makes a sound"; }
@@ -776,7 +789,8 @@ void main() {
     });
 
     test('Promise', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           new Promise((resolve) => {
             resolve(42);
           })
@@ -789,7 +803,8 @@ void main() {
     });
 
     test('async/await', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           (async () => {
             const delay = (ms) => new Promise(r => setTimeout(r, ms));
             await delay(10);
@@ -802,7 +817,8 @@ void main() {
     });
 
     test('Map and Set', () async {
-      final mapResult = await engine.eval(source: const JsCode.code('''
+      final mapResult = await engine.eval(
+        source: const JsCode.code('''
           const m = new Map();
           m.set("key", "value");
           m.get("key")
@@ -810,7 +826,8 @@ void main() {
       );
       expect(mapResult.value, equals('value'));
 
-      final setResult = await engine.eval(source: const JsCode.code('''
+      final setResult = await engine.eval(
+        source: const JsCode.code('''
           const s = new Set([1, 2, 3, 2, 1]);
           s.size
         '''),
@@ -819,7 +836,8 @@ void main() {
     });
 
     test('Symbol', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const sym = Symbol("mySymbol");
           typeof sym
         '''),
@@ -828,7 +846,8 @@ void main() {
     });
 
     test('Proxy', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const target = { message: "hello" };
           const handler = {
             get: (obj, prop) => prop === "message" ? obj[prop].toUpperCase() : obj[prop]
@@ -841,7 +860,8 @@ void main() {
     });
 
     test('Generator', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           function* gen() {
             yield 1;
             yield 2;
@@ -854,7 +874,8 @@ void main() {
     });
 
     test('Default parameters', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           function greet(name = "World") {
             return "Hello, " + name;
           }
@@ -865,7 +886,8 @@ void main() {
     });
 
     test('Rest parameters', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           function sum(...numbers) {
             return numbers.reduce((a, b) => a + b, 0);
           }
@@ -876,14 +898,16 @@ void main() {
     });
 
     test('Optional chaining operator', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const objChain = { a: { b: { c: 42 } } };
           objChain?.a?.b?.c
         '''),
       );
       expect(result.value, equals(42));
 
-      final nullResult = await engine.eval(source: const JsCode.code('''
+      final nullResult = await engine.eval(
+        source: const JsCode.code('''
           const objNull = { a: null };
           objNull?.a?.b?.c ?? "default"
         '''),
@@ -892,7 +916,8 @@ void main() {
     });
 
     test('Nullish coalescing operator', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const value = null ?? "default";
           value
         '''),
@@ -901,7 +926,8 @@ void main() {
     });
 
     test('BigInt', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const big = 9007199254740991n + 1n;
           big.toString()
         '''),
@@ -932,13 +958,15 @@ void main() {
 
     test('console module', () async {
       // console.log returns nothing, but should not throw
-      final result = await engine.eval(source: const JsCode.code('console.log("test"); "logged"'),
+      final result = await engine.eval(
+        source: const JsCode.code('console.log("test"); "logged"'),
       );
       expect(result.value, equals('logged'));
     });
 
     test('URL parsing', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const url = new URL("https://example.com:8080/path?query=value#hash");
           ({
             protocol: url.protocol,
@@ -963,7 +991,8 @@ void main() {
     });
 
     test('URLSearchParams', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const params = new URLSearchParams("a=1&b=2&c=3");
           params.get("b")
         '''),
@@ -972,7 +1001,8 @@ void main() {
     });
 
     test('TextEncoder/TextDecoder', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const encoder = new TextEncoder();
           const decoder = new TextDecoder();
           const encoded = encoder.encode("Hello");
@@ -983,11 +1013,13 @@ void main() {
     });
 
     test('atob/btoa', () async {
-      final encodeResult = await engine.eval(source: const JsCode.code('btoa("Hello, World!")'),
+      final encodeResult = await engine.eval(
+        source: const JsCode.code('btoa("Hello, World!")'),
       );
       expect(encodeResult.value, equals('SGVsbG8sIFdvcmxkIQ=='));
 
-      final decodeResult = await engine.eval(source: const JsCode.code('atob("SGVsbG8sIFdvcmxkIQ==")'),
+      final decodeResult = await engine.eval(
+        source: const JsCode.code('atob("SGVsbG8sIFdvcmxkIQ==")'),
       );
       expect(decodeResult.value, equals('Hello, World!'));
     });
@@ -1002,7 +1034,8 @@ void main() {
       final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           let sum = 0;
           for (let i = 0; i < 10000; i++) {
             sum += i;
@@ -1023,7 +1056,8 @@ void main() {
       final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const arr = Array.from({length: 1000}, (_, i) => i);
           arr.reduce((a, b) => a + b, 0)
         '''),
@@ -1101,7 +1135,8 @@ void main() {
     });
 
     test('Nested Promise', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           new Promise((resolve) => {
             resolve(new Promise((resolve2) => {
               resolve2(42);
@@ -1114,7 +1149,8 @@ void main() {
     });
 
     test('Triple nested Promise', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           new Promise((resolve) => {
             resolve(new Promise((resolve2) => {
               resolve2(new Promise((resolve3) => {
@@ -1129,14 +1165,16 @@ void main() {
     });
 
     test('Promise.resolve', () async {
-      final result = await engine.eval(source: const JsCode.code('Promise.resolve(123)'),
+      final result = await engine.eval(
+        source: const JsCode.code('Promise.resolve(123)'),
         options: JsEvalOptions.withPromise(),
       );
       expect(result.value, equals(123));
     });
 
     test('Promise.resolve with object', () async {
-      final result = await engine.eval(source: const JsCode.code('Promise.resolve({a: 1, b: 2})'),
+      final result = await engine.eval(
+        source: const JsCode.code('Promise.resolve({a: 1, b: 2})'),
         options: JsEvalOptions.withPromise(),
       );
       // Result may be wrapped or direct object
@@ -1148,7 +1186,8 @@ void main() {
     });
 
     test('Async function returning object', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           (async () => {
             return {x: 10, y: 20};
           })()
@@ -1163,7 +1202,8 @@ void main() {
     });
 
     test('Async function with await chain', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           (async () => {
             const a = await Promise.resolve(1);
             const b = await Promise.resolve(2);
@@ -1177,7 +1217,8 @@ void main() {
     });
 
     test('Promise with setTimeout', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           new Promise((resolve) => {
             setTimeout(() => resolve("delayed"), 10);
           })
@@ -1188,7 +1229,8 @@ void main() {
     });
 
     test('Promise.all', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           Promise.all([
             Promise.resolve(1),
             Promise.resolve(2),
@@ -1203,7 +1245,8 @@ void main() {
     });
 
     test('Promise.race', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           Promise.race([
             Promise.resolve("first"),
             new Promise(r => setTimeout(() => r("second"), 100))
@@ -1215,7 +1258,8 @@ void main() {
     });
 
     test('Async generator simulation', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           (async () => {
             const results = [];
             for (let i = 0; i < 3; i++) {
@@ -1258,13 +1302,15 @@ void main() {
     });
 
     test('Unicode string', () async {
-      final result = await engine.eval(source: const JsCode.code('"Hello 世界 🌍 مرحبا"'),
+      final result = await engine.eval(
+        source: const JsCode.code('"Hello 世界 🌍 مرحبا"'),
       );
       expect(result.value, equals('Hello 世界 🌍 مرحبا'));
     });
 
     test('Very long string', () async {
-      final result = await engine.eval(source: const JsCode.code('"a".repeat(10000).length'),
+      final result = await engine.eval(
+        source: const JsCode.code('"a".repeat(10000).length'),
       );
       expect(result.value, equals(10000));
     });
@@ -1291,13 +1337,17 @@ void main() {
     });
 
     test('Large integer', () async {
-      final result = await engine.eval(source: const JsCode.code('9007199254740991'), // Number.MAX_SAFE_INTEGER
+      final result = await engine.eval(
+        source:
+            const JsCode.code('9007199254740991'), // Number.MAX_SAFE_INTEGER
       );
       expect(result.value, equals(9007199254740991));
     });
 
     test('Small integer', () async {
-      final result = await engine.eval(source: const JsCode.code('-9007199254740991'), // Number.MIN_SAFE_INTEGER
+      final result = await engine.eval(
+        source:
+            const JsCode.code('-9007199254740991'), // Number.MIN_SAFE_INTEGER
       );
       expect(result.value, equals(-9007199254740991));
     });
@@ -1332,7 +1382,8 @@ void main() {
     });
 
     test('Deeply nested object', () async {
-      final result = await engine.eval(source: const JsCode.code('({a: {b: {c: {d: {e: "deep"}}}}})'),
+      final result = await engine.eval(
+        source: const JsCode.code('({a: {b: {c: {d: {e: "deep"}}}}})'),
       );
       expect(result.isObject(), true);
       final obj = result.value as Map;
@@ -1341,7 +1392,8 @@ void main() {
     });
 
     test('Array with mixed types', () async {
-      final result = await engine.eval(source: const JsCode.code('[1, "two", true, null, {a: 1}, [1, 2]]'),
+      final result = await engine.eval(
+        source: const JsCode.code('[1, "two", true, null, {a: 1}, [1, 2]]'),
       );
       expect(result.isArray(), true);
       final arr = result.value as List;
@@ -1354,7 +1406,8 @@ void main() {
     });
 
     test('Object with special keys', () async {
-      final result = await engine.eval(source: const JsCode.code('({"key with spaces": 1, "123": 2, "": 3})'),
+      final result = await engine.eval(
+        source: const JsCode.code('({"key with spaces": 1, "123": 2, "": 3})'),
       );
       expect(result.isObject(), true);
       final obj = result.value as Map;
@@ -1365,7 +1418,8 @@ void main() {
 
     test('Circular reference handling', () async {
       // This should not cause infinite loop
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           const obj = {a: 1};
           obj.self = obj;
           obj.a
@@ -1375,13 +1429,15 @@ void main() {
     });
 
     test('Date object', () async {
-      final result = await engine.eval(source: const JsCode.code('new Date(1609459200000).getTime()'),
+      final result = await engine.eval(
+        source: const JsCode.code('new Date(1609459200000).getTime()'),
       );
       expect(result.value, equals(1609459200000));
     });
 
     test('RegExp test', () async {
-      final result = await engine.eval(source: const JsCode.code('/hello/.test("hello world")'),
+      final result = await engine.eval(
+        source: const JsCode.code('/hello/.test("hello world")'),
       );
       expect(result.value, equals(true));
     });
@@ -1430,7 +1486,8 @@ void main() {
     });
 
     test('Try-catch in JS', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           try {
             throw new Error("test error");
           } catch (e) {
@@ -1442,7 +1499,8 @@ void main() {
     });
 
     test('Promise rejection handling in JS', () async {
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           (async () => {
             try {
               await Promise.reject("rejected");
@@ -1513,7 +1571,8 @@ void main() {
         },
       );
 
-      await engine.eval(source: const JsCode.code('await fjs.bridge_call(null)'),
+      await engine.eval(
+        source: const JsCode.code('await fjs.bridge_call(null)'),
         options: JsEvalOptions.withPromise(),
       );
       expect(received, isNull);
@@ -1528,7 +1587,8 @@ void main() {
         },
       );
 
-      await engine.eval(source: const JsCode.code('await fjs.bridge_call(undefined)'),
+      await engine.eval(
+        source: const JsCode.code('await fjs.bridge_call(undefined)'),
         options: JsEvalOptions.withPromise(),
       );
       expect(received.isNone(), true);
@@ -1543,7 +1603,8 @@ void main() {
         },
       );
 
-      await engine.eval(source: const JsCode.code('''
+      await engine.eval(
+        source: const JsCode.code('''
           const obj = {};
           for (let i = 0; i < 100; i++) {
             obj["key" + i] = i;
@@ -1565,7 +1626,8 @@ void main() {
         },
       );
 
-      await engine.eval(source: const JsCode.code('await fjs.bridge_call([1, 2, 3, 4, 5])'),
+      await engine.eval(
+        source: const JsCode.code('await fjs.bridge_call([1, 2, 3, 4, 5])'),
         options: JsEvalOptions.withPromise(),
       );
       expect(received, equals([1, 2, 3, 4, 5]));
@@ -1580,7 +1642,8 @@ void main() {
         },
       );
 
-      final result = await engine.eval(source: const JsCode.code('''
+      final result = await engine.eval(
+        source: const JsCode.code('''
           (async () => {
             const a = await fjs.bridge_call(1);
             const b = await fjs.bridge_call(2);
@@ -1609,7 +1672,8 @@ void main() {
         },
       );
 
-      final results = await engine.eval(source: const JsCode.code('''
+      final results = await engine.eval(
+        source: const JsCode.code('''
           (async () => {
             const a = await fjs.bridge_call(0);
             const b = await fjs.bridge_call(1);
@@ -1643,7 +1707,8 @@ void main() {
       await engine.initWithoutBridge();
 
       // This should work with small data
-      final smallResult = await engine.eval(source: const JsCode.code('const arr = [1, 2, 3]; arr.length'),
+      final smallResult = await engine.eval(
+        source: const JsCode.code('const arr = [1, 2, 3]; arr.length'),
       );
       expect(smallResult.value, equals(3));
 
@@ -1660,7 +1725,9 @@ void main() {
 
       // Create and discard objects
       for (int i = 0; i < 100; i++) {
-        await engine.eval(source: JsCode.code('const obj$i = { data: new Array(100).fill($i) };'),
+        await engine.eval(
+          source:
+              JsCode.code('const obj$i = { data: new Array(100).fill($i) };'),
         );
       }
 
@@ -1689,10 +1756,12 @@ void main() {
       await engine2.initWithoutBridge();
 
       // Set variable in engine1
-      await engine1.eval(source: const JsCode.code('globalThis.testVar = "engine1"'));
+      await engine1.eval(
+          source: const JsCode.code('globalThis.testVar = "engine1"'));
 
       // Should not be visible in engine2
-      final result = await engine2.eval(source: const JsCode.code('typeof globalThis.testVar'),
+      final result = await engine2.eval(
+        source: const JsCode.code('typeof globalThis.testVar'),
       );
       expect(result.value, equals('undefined'));
 
