@@ -127,78 +127,173 @@ impl Default for JsValue {
 
 impl JsValue {
     /// Creates a None value.
+    ///
+    /// Represents null or undefined in JavaScript.
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::None` instance
     #[frb(ignore)]
     pub fn none() -> Self {
         JsValue::None
     }
 
     /// Creates a boolean value.
+    ///
+    /// ## Parameters
+    ///
+    /// - `v`: The boolean value
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::Boolean` instance
     #[frb(ignore)]
     pub fn boolean(v: bool) -> Self {
         JsValue::Boolean(v)
     }
 
     /// Creates an integer value.
+    ///
+    /// ## Parameters
+    ///
+    /// - `v`: The integer value
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::Integer` instance
     #[frb(ignore)]
     pub fn integer(v: i64) -> Self {
         JsValue::Integer(v)
     }
 
     /// Creates a float value.
+    ///
+    /// ## Parameters
+    ///
+    /// - `v`: The floating-point value
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::Float` instance
     #[frb(ignore)]
     pub fn float(v: f64) -> Self {
         JsValue::Float(v)
     }
 
     /// Creates a bigint value from a string.
+    ///
+    /// BigInt values are stored as strings to preserve precision
+    /// for arbitrarily large integers.
+    ///
+    /// ## Parameters
+    ///
+    /// - `v`: The bigint value as a string
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::Bigint` instance
     #[frb(ignore)]
     pub fn bigint<S: Into<String>>(v: S) -> Self {
         JsValue::Bigint(v.into())
     }
 
     /// Creates a string value.
+    ///
+    /// ## Parameters
+    ///
+    /// - `v`: The string value
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::String` instance
     #[frb(ignore)]
     pub fn string<S: Into<String>>(v: S) -> Self {
         JsValue::String(v.into())
     }
 
     /// Creates a bytes value.
+    ///
+    /// Represents binary data (ArrayBuffer/TypedArray in JavaScript).
+    ///
+    /// ## Parameters
+    ///
+    /// - `v`: The byte array
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::Bytes` instance
     #[frb(ignore)]
     pub fn bytes(v: Vec<u8>) -> Self {
         JsValue::Bytes(v)
     }
 
     /// Creates an array value.
+    ///
+    /// ## Parameters
+    ///
+    /// - `v`: The array of `JsValue` elements
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::Array` instance
     #[frb(ignore)]
     pub fn array(v: Vec<JsValue>) -> Self {
         JsValue::Array(v)
     }
 
     /// Creates an object value.
+    ///
+    /// ## Parameters
+    ///
+    /// - `v`: The object as a HashMap with string keys
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::Object` instance
     #[frb(ignore)]
     pub fn object(v: HashMap<String, JsValue>) -> Self {
         JsValue::Object(v)
     }
 
     /// Creates a date value from milliseconds since epoch.
+    ///
+    /// ## Parameters
+    ///
+    /// - `ms`: Milliseconds since January 1, 1970, 00:00:00 UTC
+    ///
+    /// ## Returns
+    ///
+    /// A `JsValue::Date` instance
     #[frb(ignore)]
     pub fn date(ms: i64) -> Self {
         JsValue::Date(ms)
     }
 
     /// Returns true if the value is None.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the value is `JsValue::None`, `false` otherwise
     #[frb(sync)]
     pub fn is_none(&self) -> bool {
         matches!(self, JsValue::None)
     }
 
     /// Returns true if the value is a boolean.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the value is `JsValue::Boolean`, `false` otherwise
     #[frb(sync)]
     pub fn is_boolean(&self) -> bool {
         matches!(self, JsValue::Boolean(_))
     }
 
     /// Returns true if the value is a number (integer, float, or bigint).
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the value is any numeric type, `false` otherwise
     #[frb(sync)]
     pub fn is_number(&self) -> bool {
         matches!(
@@ -208,36 +303,62 @@ impl JsValue {
     }
 
     /// Returns true if the value is a string.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the value is `JsValue::String`, `false` otherwise
     #[frb(sync)]
     pub fn is_string(&self) -> bool {
         matches!(self, JsValue::String(_))
     }
 
     /// Returns true if the value is an array.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the value is `JsValue::Array`, `false` otherwise
     #[frb(sync)]
     pub fn is_array(&self) -> bool {
         matches!(self, JsValue::Array(_))
     }
 
     /// Returns true if the value is an object.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the value is `JsValue::Object`, `false` otherwise
     #[frb(sync)]
     pub fn is_object(&self) -> bool {
         matches!(self, JsValue::Object(_))
     }
 
     /// Returns true if the value is a Date.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the value is `JsValue::Date`, `false` otherwise
     #[frb(sync)]
     pub fn is_date(&self) -> bool {
         matches!(self, JsValue::Date(_))
     }
 
     /// Returns true if the value is bytes (binary data).
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the value is `JsValue::Bytes`, `false` otherwise
     #[frb(sync)]
     pub fn is_bytes(&self) -> bool {
         matches!(self, JsValue::Bytes(_))
     }
 
     /// Returns true if the value is a primitive type.
+    ///
+    /// Primitive types include: None, Boolean, Integer, Float, Bigint, and String.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the value is a primitive type, `false` otherwise
     #[frb(sync)]
     pub fn is_primitive(&self) -> bool {
         matches!(
@@ -252,6 +373,19 @@ impl JsValue {
     }
 
     /// Returns the type name of this value.
+    ///
+    /// Returns a string representation of the JavaScript type name.
+    ///
+    /// ## Returns
+    ///
+    /// The type name as a string (e.g., "null", "boolean", "number", "string", "Array", "Object", etc.)
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final value = JsValue.string("hello");
+    /// print(value.typeName()); // "string"
+    /// ```
     #[frb(sync)]
     pub fn type_name(&self) -> String {
         match self {
@@ -409,6 +543,7 @@ impl<'js> FromJs<'js> for JsValue {
             | Type::Promise
             | Type::Exception
             | Type::Module
+            | Type::Proxy
             | Type::Unknown => JsValue::None,
         };
         Ok(v)

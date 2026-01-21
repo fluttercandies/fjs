@@ -10,7 +10,7 @@ import 'value.dart';
 part 'error.freezed.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `bridge`, `cancelled`, `context`, `conversion`, `engine`, `err`, `generic`, `io`, `is_err`, `is_ok`, `map_err`, `map`, `memory_limit`, `module`, `ok`, `promise`, `reference`, `runtime`, `storage`, `syntax`, `timeout`, `type_error`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `bridge`, `cancelled`, `context`, `conversion`, `engine`, `err`, `generic`, `into_result`, `io`, `is_err`, `is_ok`, `map_err`, `map`, `memory_limit`, `module`, `ok`, `promise`, `reference`, `runtime`, `storage`, `syntax`, `timeout`, `type_error`
 
 @freezed
 sealed class JsError with _$JsError {
@@ -135,16 +135,75 @@ sealed class JsError with _$JsError {
   ) = JsError_Cancelled;
 
   /// Returns the error code for this error type.
+  ///
+  /// The error code is a constant string identifier for the error category,
+  /// useful for programmatic error handling.
+  ///
+  /// ## Returns
+  ///
+  /// The error code as a string (e.g., "PROMISE_ERROR", "RUNTIME_ERROR")
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// try {
+  ///   final result = await context.eval(code: 'invalid');
+  /// } catch (e) {
+  ///   if (e is JsError) {
+  ///     switch (e.code()) {
+  ///       case 'SYNTAX_ERROR':
+  ///         print('Syntax error in code');
+  ///         break;
+  ///       case 'RUNTIME_ERROR':
+  ///         print('Runtime error occurred');
+  ///         break;
+  ///       default:
+  ///         print('Other error: ${e.code()}');
+  ///     }
+  ///   }
+  /// }
+  /// ```
   String code() => LibFjs.instance.api.crateApiErrorJsErrorCode(
         that: this,
       );
 
   /// Returns whether this error is recoverable.
+  ///
+  /// Recoverable errors are typically transient issues (like network errors,
+  /// parse errors, or timeout errors) that might succeed if retried.
+  /// Non-recoverable errors indicate serious issues (like context failures,
+  /// memory limits, or stack overflows) that generally cannot be fixed
+  /// without changing the execution environment.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the error is recoverable, `false` otherwise
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// try {
+  ///   final result = await context.eval(code: code);
+  /// } catch (e) {
+  ///   if (e is JsError && e.isRecoverable()) {
+  ///     // Can retry the operation
+  ///     await Future.delayed(Duration(seconds: 1));
+  ///     await context.eval(code: code);
+  ///   } else {
+  ///     // Fatal error, cannot recover
+  ///     rethrow;
+  ///   }
+  /// }
+  /// ```
   bool isRecoverable() => LibFjs.instance.api.crateApiErrorJsErrorIsRecoverable(
         that: this,
       );
 
   /// Converts the error to a string representation.
+  ///
+  /// ## Returns
+  ///
+  /// A formatted string describing the error
   @override
   String toString() => LibFjs.instance.api.crateApiErrorJsErrorToString(
         that: this,
@@ -155,12 +214,12 @@ sealed class JsError with _$JsError {
 sealed class JsResult with _$JsResult {
   const JsResult._();
 
-  /// Successful execution result
+  /// Successful execution result containing the value
   const factory JsResult.ok(
     JsValue field0,
   ) = JsResult_Ok;
 
-  /// Error during execution
+  /// Error during execution containing the error details
   const factory JsResult.err(
     JsError field0,
   ) = JsResult_Err;

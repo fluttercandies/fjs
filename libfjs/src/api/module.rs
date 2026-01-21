@@ -24,7 +24,7 @@
 use crate::api::source::JsBuiltinOptions;
 use flutter_rust_bridge::frb;
 use llrt_utils::module::ModuleInfo;
-use rquickjs::loader::{Loader, ModuleLoader, Resolver};
+use rquickjs::loader::{ImportAttributes, Loader, ModuleLoader, Resolver};
 use rquickjs::module::ModuleDef;
 use rquickjs::{Ctx, JsLifetime, Module};
 use std::collections::{HashMap, HashSet};
@@ -55,12 +55,7 @@ impl Resolver for DynamicModuleResolver {
     /// # Returns
     ///
     /// Returns the resolved module name if found in storage.
-    fn resolve<'js>(
-        &mut self,
-        ctx: &Ctx<'js>,
-        base: &str,
-        name: &str,
-    ) -> rquickjs::Result<String> {
+    fn resolve<'js>(&mut self, ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
         if let Some(modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
             let modules = modules_storage.read().unwrap();
             if modules.contains_key(name) {
@@ -91,6 +86,7 @@ impl Loader for DynamicModuleLoader {
     ///
     /// - `ctx`: The JavaScript context
     /// - `name`: The module name to load
+    /// - `_attributes`: Import attributes (not used for dynamic modules)
     ///
     /// # Returns
     ///
@@ -99,6 +95,7 @@ impl Loader for DynamicModuleLoader {
         &mut self,
         ctx: &Ctx<'js>,
         name: &str,
+        _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
         if let Some(modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
             let modules = modules_storage.read().unwrap();
@@ -173,7 +170,7 @@ pub struct GlobalAttachment {
 
 /// Marker type to track if a context has been initialized with global attachments.
 #[frb(ignore)]
-struct GlobalAttachmentInitialized;
+struct GlobalAttachmentInitialized {}
 
 unsafe impl<'js> JsLifetime<'js> for GlobalAttachmentInitialized {
     type Changed<'to> = GlobalAttachmentInitialized;
@@ -260,7 +257,7 @@ impl GlobalAttachment {
         }
 
         // Mark this context as initialized
-        let _ = ctx.store_userdata(GlobalAttachmentInitialized);
+        let _ = ctx.store_userdata(GlobalAttachmentInitialized {});
 
         if !self.inner.names.is_empty() {
             let _ = ctx.store_userdata(ModuleNames::new(self.inner.names.clone()));
@@ -275,7 +272,7 @@ impl GlobalAttachment {
 /// A resolver for static module names.
 ///
 /// This resolver handles the resolution of statically known module names
-    /// that are registered at runtime configuration time.
+/// that are registered at runtime configuration time.
 #[frb(ignore)]
 #[derive(Debug, Default)]
 pub struct ModuleResolver {

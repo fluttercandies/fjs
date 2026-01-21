@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.0
+
+* **BREAKING**: Simplified Engine API - Removed `JsAction`, `JsCallback`, `JsCallbackResult`, and `JsActionResult` enums
+* **BREAKING**: Replaced action-based messaging with direct async methods for better developer experience
+* **FEATURE**: New direct async methods on `JsEngineCore`: `eval()`, `evaluateModule()`, `declareNewModule()`, `declareNewModules()`, `clearNewModules()`, `getDeclaredModules()`, `isModuleDeclared()`, `call()`
+* **FEATURE**: Simplified bridge callback - now uses `Fn(JsValue) -> DartFnFuture<JsResult>` instead of complex enum-based callbacks
+* **FEATURE**: Added `initWithoutBridge()` method for engines that don't need Dart bridge communication
+* **IMPROVEMENT**: Reduced code complexity by removing the action queue and channel-based messaging
+* **IMPROVEMENT**: Better error handling with direct result returns instead of callback-based error propagation
+* **IMPROVEMENT**: Cleaner API surface - engine methods now return results directly
+* **INTERNAL**: Updated FRB codegen for new API structure
+* **INTERNAL**: Refactored internal state management using `Arc<RwLock<Option<...>>>` for bridge storage
+* **DOCS**: Updated workflow configuration for FJS example builds
+
 ## 1.4.0
 
 * **BREAKING**: Restructured API modules - removed deprecated `js` module, added `engine`, `error`, `runtime`, and `source` modules for better organization

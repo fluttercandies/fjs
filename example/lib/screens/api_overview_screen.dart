@@ -311,18 +311,16 @@ final runtime = await JsAsyncRuntime.withOptions(
   builtin: JsBuiltinOptions.all(),
 );
 final context = await JsAsyncContext.from(rt: runtime);
-final engine = JsEngine(context);
-await engine.init();
+final engine = JsEngine(context: context);
+await engine.initWithoutBridge();
 
 // Evaluate code
-final result = await engine.eval(
-  JsCode.code('Math.random() * 100'),
+final result = await engine.eval(source: JsCode.code('Math.random() * 100'),
 );
 print(result.value);
 
 // Declare modules
-await engine.declareNewModule(
-  JsModule.fromCode(
+await engine.declareNewModule(module: JsModule.fromCode(
     module: 'utils',
     code: 'export function add(a, b) { return a + b; }',
   ),

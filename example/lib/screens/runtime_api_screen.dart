@@ -35,8 +35,8 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
         builtin: JsBuiltinOptions.all(),
       );
       _context = await JsAsyncContext.from(rt: _runtime!);
-      _engine = JsEngine(_context!);
-      await _engine!.init();
+      _engine = JsEngine(context: _context!);
+      await _engine!.initWithoutBridge();
       setState(() => _isInitialized = true);
     } catch (e) {
       if (kDebugMode) print('Failed to initialize runtime: $e');

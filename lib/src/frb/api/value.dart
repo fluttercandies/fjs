@@ -77,51 +77,102 @@ sealed class JsValue with _$JsValue {
       LibFjs.instance.api.crateApiValueJsValueDefault();
 
   /// Returns true if the value is an array.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the value is `JsValue::Array`, `false` otherwise
   bool isArray() => LibFjs.instance.api.crateApiValueJsValueIsArray(
         that: this,
       );
 
   /// Returns true if the value is a boolean.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the value is `JsValue::Boolean`, `false` otherwise
   bool isBoolean() => LibFjs.instance.api.crateApiValueJsValueIsBoolean(
         that: this,
       );
 
   /// Returns true if the value is bytes (binary data).
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the value is `JsValue::Bytes`, `false` otherwise
   bool isBytes() => LibFjs.instance.api.crateApiValueJsValueIsBytes(
         that: this,
       );
 
   /// Returns true if the value is a Date.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the value is `JsValue::Date`, `false` otherwise
   bool isDate() => LibFjs.instance.api.crateApiValueJsValueIsDate(
         that: this,
       );
 
   /// Returns true if the value is None.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the value is `JsValue::None`, `false` otherwise
   bool isNone() => LibFjs.instance.api.crateApiValueJsValueIsNone(
         that: this,
       );
 
   /// Returns true if the value is a number (integer, float, or bigint).
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the value is any numeric type, `false` otherwise
   bool isNumber() => LibFjs.instance.api.crateApiValueJsValueIsNumber(
         that: this,
       );
 
   /// Returns true if the value is an object.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the value is `JsValue::Object`, `false` otherwise
   bool isObject() => LibFjs.instance.api.crateApiValueJsValueIsObject(
         that: this,
       );
 
   /// Returns true if the value is a primitive type.
+  ///
+  /// Primitive types include: None, Boolean, Integer, Float, Bigint, and String.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the value is a primitive type, `false` otherwise
   bool isPrimitive() => LibFjs.instance.api.crateApiValueJsValueIsPrimitive(
         that: this,
       );
 
   /// Returns true if the value is a string.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if the value is `JsValue::String`, `false` otherwise
   bool isString() => LibFjs.instance.api.crateApiValueJsValueIsString(
         that: this,
       );
 
   /// Returns the type name of this value.
+  ///
+  /// Returns a string representation of the JavaScript type name.
+  ///
+  /// ## Returns
+  ///
+  /// The type name as a string (e.g., "null", "boolean", "number", "string", "Array", "Object", etc.)
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final value = JsValue.string("hello");
+  /// print(value.typeName()); // "string"
+  /// ```
   String typeName() => LibFjs.instance.api.crateApiValueJsValueTypeName(
         that: this,
       );

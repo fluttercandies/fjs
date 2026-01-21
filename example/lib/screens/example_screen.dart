@@ -20,7 +20,7 @@ class MyEngine {
   }
 
   static Future<void> initialize({
-    FutureOr<JsValue?> Function(JsValue)? bridgeCall,
+    FutureOr<JsResult> Function(JsValue)? bridgeCall,
   }) async {
     if (_initialized) {
       return;
@@ -46,8 +46,12 @@ class MyEngine {
               source: JsCode.bytes(linkedom.buffer.asUint8List())),
         ]);
     final context = await JsAsyncContext.from(rt: rt);
-    final engine = JsEngine(context);
-    await engine.init(bridgeCall: bridgeCall);
+    final engine = JsEngine(context: context);
+    if (bridgeCall != null) {
+      await engine.init(bridge: bridgeCall);
+    } else {
+      await engine.initWithoutBridge();
+    }
     _instance = MyEngine._(engine);
     _initialized = true;
   }
@@ -61,8 +65,8 @@ class MyEngine {
   Future<JsValue> evaluateModule(String taskId, String code) async {
     _assertInitialized();
     await _engine
-        .evaluateModule(JsModule(name: taskId, source: JsCode.code(code)));
-    final result = await _engine.eval(JsCode.code('''
+        .evaluateModule(module: JsModule(name: taskId, source: JsCode.code(code)));
+    final result = await _engine.eval(source: JsCode.code('''
     (()=>{
       const result = globalThis['$taskId'];
       delete globalThis['$taskId'];
@@ -74,14 +78,14 @@ class MyEngine {
 
   Future<JsValue> evaluate(String code) async {
     _assertInitialized();
-    return _engine.eval(JsCode.code(code));
+    return _engine.eval(source: JsCode.code(code));
   }
 }
 
 Future<void> test1MyEngine() async {
   await MyEngine.initialize(bridgeCall: (value) async {
     print('Bridge call with value: $value');
-    return JsValue.string('Response from Dart');
+    return JsResult.ok(JsValue.string('Response from Dart'));
   });
 
   final engine = MyEngine();
@@ -103,7 +107,7 @@ await (async () => {
 Future<void> test2MyEngine() async {
   await MyEngine.initialize(bridgeCall: (value) async {
     print('Bridge call with value: $value');
-    return JsValue.string('Response from Dart');
+    return JsResult.ok(JsValue.string('Response from Dart'));
   });
 
   final engine = MyEngine();
