@@ -34,7 +34,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
       _runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      _context = await JsAsyncContext.from(rt: _runtime!);
+      _context = await JsAsyncContext.from(runtime: _runtime!);
       _engine = JsEngine(context: _context!);
       await _engine!.initWithoutBridge();
       setState(() => _isInitialized = true);
@@ -250,7 +250,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           error: _testResults['context_create']?.error,
           onRun: () => _runTest('context_create', () async {
             final rt = JsAsyncRuntime();
-            final ctx = await JsAsyncContext.from(rt: rt);
+            final ctx = await JsAsyncContext.from(runtime: rt);
             return 'JsAsyncContext (${ctx.hashCode}) created from runtime (${rt.hashCode})';
           }),
         ),

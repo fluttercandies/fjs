@@ -45,7 +45,7 @@ class MyEngine {
               name: 'linkedom',
               source: JsCode.bytes(linkedom.buffer.asUint8List())),
         ]);
-    final context = await JsAsyncContext.from(rt: rt);
+    final context = await JsAsyncContext.from(runtime: rt);
     final engine = JsEngine(context: context);
     if (bridgeCall != null) {
       await engine.init(bridge: bridgeCall);

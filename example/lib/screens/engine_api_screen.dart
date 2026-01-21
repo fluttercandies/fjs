@@ -36,7 +36,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
       _runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      _context = await JsAsyncContext.from(rt: _runtime!);
+      _context = await JsAsyncContext.from(runtime: _runtime!);
       _engine = JsEngine(context: _context!);
       await _engine!.init(
         bridge: (value) async {

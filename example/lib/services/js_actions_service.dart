@@ -24,7 +24,7 @@ class JsActionsService extends ChangeNotifier {
       final runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      final context = await JsAsyncContext.from(rt: runtime);
+      final context = await JsAsyncContext.from(runtime: runtime);
       _engine = JsEngine(context: context);
 
       await _engine!.initWithoutBridge();

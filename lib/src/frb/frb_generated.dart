@@ -74,7 +74,7 @@ class LibFjs extends BaseEntrypoint<LibFjsApi, LibFjsApiImpl, LibFjsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1317330669;
+  int get rustContentHash => 2113920709;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -348,17 +348,17 @@ abstract class LibFjsApi extends BaseApi {
 
   JsEvalOptions crateApiSourceJsEvalOptionsWithPromise();
 
-  JsModule crateApiSourceJsModuleFromBytes(
+  JsModule crateApiSourceJsModuleBytes(
       {required String module, required List<int> bytes});
 
-  JsModule crateApiSourceJsModuleFromCode(
+  JsModule crateApiSourceJsModuleCode(
       {required String module, required String code});
-
-  JsModule crateApiSourceJsModuleFromPath(
-      {required String module, required String path});
 
   JsModule crateApiSourceJsModuleNew(
       {required String name, required JsCode source});
+
+  JsModule crateApiSourceJsModulePath(
+      {required String module, required String path});
 
   Future<JsValue> crateApiValueJsValueDefault();
 
@@ -2935,7 +2935,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       );
 
   @override
-  JsModule crateApiSourceJsModuleFromBytes(
+  JsModule crateApiSourceJsModuleBytes(
       {required String module, required List<int> bytes}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -2948,20 +2948,20 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         decodeSuccessData: sse_decode_js_module,
         decodeErrorData: null,
       ),
-      constMeta: kCrateApiSourceJsModuleFromBytesConstMeta,
+      constMeta: kCrateApiSourceJsModuleBytesConstMeta,
       argValues: [module, bytes],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiSourceJsModuleFromBytesConstMeta =>
+  TaskConstMeta get kCrateApiSourceJsModuleBytesConstMeta =>
       const TaskConstMeta(
-        debugName: "js_module_from_bytes(dart_style=fromBytes)",
+        debugName: "js_module_bytes",
         argNames: ["module", "bytes"],
       );
 
   @override
-  JsModule crateApiSourceJsModuleFromCode(
+  JsModule crateApiSourceJsModuleCode(
       {required String module, required String code}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -2974,42 +2974,15 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         decodeSuccessData: sse_decode_js_module,
         decodeErrorData: null,
       ),
-      constMeta: kCrateApiSourceJsModuleFromCodeConstMeta,
+      constMeta: kCrateApiSourceJsModuleCodeConstMeta,
       argValues: [module, code],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiSourceJsModuleFromCodeConstMeta =>
-      const TaskConstMeta(
-        debugName: "js_module_from_code(dart_style=fromCode)",
+  TaskConstMeta get kCrateApiSourceJsModuleCodeConstMeta => const TaskConstMeta(
+        debugName: "js_module_code",
         argNames: ["module", "code"],
-      );
-
-  @override
-  JsModule crateApiSourceJsModuleFromPath(
-      {required String module, required String path}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(module, serializer);
-        sse_encode_String(path, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 98)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_js_module,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateApiSourceJsModuleFromPathConstMeta,
-      argValues: [module, path],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateApiSourceJsModuleFromPathConstMeta =>
-      const TaskConstMeta(
-        debugName: "js_module_from_path(dart_style=fromPath)",
-        argNames: ["module", "path"],
       );
 
   @override
@@ -3020,7 +2993,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(name, serializer);
         sse_encode_box_autoadd_js_code(source, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 99)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 98)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module,
@@ -3035,6 +3008,31 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
   TaskConstMeta get kCrateApiSourceJsModuleNewConstMeta => const TaskConstMeta(
         debugName: "js_module_new",
         argNames: ["name", "source"],
+      );
+
+  @override
+  JsModule crateApiSourceJsModulePath(
+      {required String module, required String path}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(module, serializer);
+        sse_encode_String(path, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 99)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_js_module,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSourceJsModulePathConstMeta,
+      argValues: [module, path],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSourceJsModulePathConstMeta => const TaskConstMeta(
+        debugName: "js_module_path",
+        argNames: ["module", "path"],
       );
 
   @override
@@ -5796,7 +5794,7 @@ class JsEngineImpl extends RustOpaque implements JsEngine {
   /// final result = await engine.call(
   ///   module: 'math-utils',
   ///   method: 'add',
-  ///   params: [JsValue.int(1), JsValue.int(2)],
+  ///   params: [JsValue.integer(1), JsValue.integer(2)],
   /// );
   /// print(result.value); // 3
   ///

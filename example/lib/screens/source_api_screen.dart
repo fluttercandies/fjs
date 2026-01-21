@@ -34,7 +34,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
       _runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      _context = await JsAsyncContext.from(rt: _runtime!);
+      _context = await JsAsyncContext.from(runtime: _runtime!);
       _engine = JsEngine(context: _context!);
       await _engine!.initWithoutBridge();
       setState(() => _isInitialized = true);
@@ -246,7 +246,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
           }),
         ),
         ApiTestCard(
-          title: 'JsModule.fromCode()',
+          title: 'JsModule.code()',
           subtitle: 'Create module from code string',
           icon: Icons.text_snippet,
           isSuccess: _testResults['module_from_code']?.isSuccess,
@@ -254,7 +254,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
           result: _testResults['module_from_code']?.result,
           error: _testResults['module_from_code']?.error,
           onRun: () => _runTest('module_from_code', () async {
-            final module = JsModule.fromCode(
+            final module = JsModule.code(
               module: 'code-module',
               code: '''
                 export function greet(name) {
@@ -277,7 +277,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
           }),
         ),
         ApiTestCard(
-          title: 'JsModule.fromBytes()',
+          title: 'JsModule.bytes()',
           subtitle: 'Create module from bytes',
           icon: Icons.data_array,
           isSuccess: _testResults['module_from_bytes']?.isSuccess,
@@ -286,7 +286,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
           error: _testResults['module_from_bytes']?.error,
           onRun: () => _runTest('module_from_bytes', () async {
             final codeBytes = 'export const PI = 3.14159;'.codeUnits;
-            final module = JsModule.fromBytes(
+            final module = JsModule.bytes(
               module: 'bytes-module',
               bytes: codeBytes,
             );
@@ -320,7 +320,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
             await _engine!.clearNewModules();
 
             // Create base module
-            await _engine!.declareNewModule(module: JsModule.fromCode(
+            await _engine!.declareNewModule(module: JsModule.code(
               module: 'math-base',
               code: '''
                 export const PI = 3.14159;
@@ -329,7 +329,7 @@ class _SourceApiScreenState extends State<SourceApiScreen> {
             ));
 
             // Create dependent module
-            await _engine!.declareNewModule(module: JsModule.fromCode(
+            await _engine!.declareNewModule(module: JsModule.code(
               module: 'math-advanced',
               code: '''
                 import { PI, square } from 'math-base';
