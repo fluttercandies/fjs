@@ -64,8 +64,8 @@ class MyEngine {
 
   Future<JsValue> evaluateModule(String taskId, String code) async {
     _assertInitialized();
-    await _engine
-        .evaluateModule(module: JsModule(name: taskId, source: JsCode.code(code)));
+    await _engine.evaluateModule(
+        module: JsModule(name: taskId, source: JsCode.code(code)));
     final result = await _engine.eval(source: JsCode.code('''
     (()=>{
       const result = globalThis['$taskId'];

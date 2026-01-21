@@ -1,4 +1,3 @@
-
 import 'package:fjs/fjs.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +42,8 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           if (kDebugMode) {
             print('Bridge call received: ${value.value}');
           }
-          return JsResult.ok(JsValue.string('Response from Dart: ${value.value}'));
+          return JsResult.ok(
+              JsValue.string('Response from Dart: ${value.value}'));
         },
       );
       setState(() => _isInitialized = true);
@@ -157,7 +157,8 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
         color: _isInitialized ? Colors.green.shade50 : Colors.orange.shade50,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _isInitialized ? Colors.green.shade200 : Colors.orange.shade200,
+          color:
+              _isInitialized ? Colors.green.shade200 : Colors.orange.shade200,
         ),
       ),
       child: Row(
@@ -283,19 +284,20 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           error: _testResults['eval_options']?.error,
           onRun: () => _runTest('eval_options', () async {
             if (_engine == null) throw 'Engine not initialized';
-            
+
             // Test with strict mode
             final strictResult = await _engine!.eval(
               source: JsCode.code('"use strict"; let x = 10; x * 2'),
               options: JsEvalOptions(strict: true),
             );
-            
+
             // Test with global scope
             final globalResult = await _engine!.eval(
-              source: JsCode.code('globalThis.myGlobal = 42; globalThis.myGlobal'),
+              source:
+                  JsCode.code('globalThis.myGlobal = 42; globalThis.myGlobal'),
               options: JsEvalOptions(global: true),
             );
-            
+
             return {
               'strictMode': {
                 'result': strictResult.value,
@@ -345,19 +347,21 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           error: _testResults['eval_complex']?.error,
           onRun: () => _runTest('eval_complex', () async {
             if (_engine == null) throw 'Engine not initialized';
-            
+
             final expressions = {
               'math': 'Math.sqrt(16) + Math.pow(2, 3)',
               'string': '"Hello".split("").reverse().join("")',
               'array': '[1,2,3].map(x => x * 2).filter(x => x > 2)',
-              'object': '({name: "FJS", version: "1.0", features: ["fast", "safe"]})',
+              'object':
+                  '({name: "FJS", version: "1.0", features: ["fast", "safe"]})',
               'date': 'new Date().toISOString()',
               'json': 'JSON.stringify({a: 1, b: [2, 3]})',
             };
-            
+
             final results = <String, dynamic>{};
             for (final entry in expressions.entries) {
-              final result = await _engine!.eval(source: JsCode.code(entry.value));
+              final result =
+                  await _engine!.eval(source: JsCode.code(entry.value));
               results[entry.key] = {
                 'expression': entry.value,
                 'result': result.value,
@@ -408,21 +412,21 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
             if (_engine == null) throw 'Engine not initialized';
             await _engine!.declareNewModules(
               modules: [
-              JsModule(
-                name: 'string-utils',
-                source: JsCode.code('''
+                JsModule(
+                  name: 'string-utils',
+                  source: JsCode.code('''
                   export function reverse(s) { return s.split('').reverse().join(''); }
                   export function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
                 '''),
-              ),
-              JsModule(
-                name: 'array-utils',
-                source: JsCode.code('''
+                ),
+                JsModule(
+                  name: 'array-utils',
+                  source: JsCode.code('''
                   export function sum(arr) { return arr.reduce((a, b) => a + b, 0); }
                   export function unique(arr) { return [...new Set(arr)]; }
                 '''),
-              ),
-            ],
+                ),
+              ],
             );
             return {'status': 'Modules declared: string-utils, array-utils'};
           }),
@@ -454,8 +458,10 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           error: _testResults['is_module_declared']?.error,
           onRun: () => _runTest('is_module_declared', () async {
             if (_engine == null) throw 'Engine not initialized';
-            final exists = await _engine!.isModuleDeclared(moduleName: 'test-math');
-            final notExists = await _engine!.isModuleDeclared(moduleName: 'non-existent');
+            final exists =
+                await _engine!.isModuleDeclared(moduleName: 'test-math');
+            final notExists =
+                await _engine!.isModuleDeclared(moduleName: 'non-existent');
             return {
               'test-math': exists,
               'non-existent': notExists,
@@ -498,7 +504,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           error: _testResults['use_module']?.error,
           onRun: () => _runTest('use_module', () async {
             if (_engine == null) throw 'Engine not initialized';
-            
+
             // First make sure module is declared
             await _engine!.declareNewModule(
               module: JsModule(
@@ -516,7 +522,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
                 '''),
               ),
             );
-            
+
             // Then use it via dynamic import
             final result = await _engine!.eval(
               source: JsCode.code('''

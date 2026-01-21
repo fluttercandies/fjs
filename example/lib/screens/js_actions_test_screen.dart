@@ -34,7 +34,8 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
     });
 
     try {
-      final jsActionsService = Provider.of<JsActionsService>(context, listen: false);
+      final jsActionsService =
+          Provider.of<JsActionsService>(context, listen: false);
       final results = await jsActionsService.runTestSuite();
 
       setState(() {
@@ -66,7 +67,8 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
     }
   }
 
-  Future<void> _runIndividualTest(String testName, Future<Map<String, dynamic>> Function() test) async {
+  Future<void> _runIndividualTest(
+      String testName, Future<Map<String, dynamic>> Function() test) async {
     try {
       final result = await test();
       setState(() {
@@ -209,9 +211,10 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
                   children: [
                     // Main test button
                     FilledButton.icon(
-                      onPressed: jsActionsService.isInitialized && !_isRunningTests
-                          ? _runAllTests
-                          : null,
+                      onPressed:
+                          jsActionsService.isInitialized && !_isRunningTests
+                              ? _runAllTests
+                              : null,
                       icon: _isRunningTests
                           ? const SizedBox(
                               width: 16,
@@ -222,7 +225,9 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
                               ),
                             )
                           : const Icon(Icons.play_arrow),
-                      label: Text(_isRunningTests ? 'Running Tests...' : 'Run All Tests'),
+                      label: Text(_isRunningTests
+                          ? 'Running Tests...'
+                          : 'Run All Tests'),
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.blue,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -246,47 +251,53 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
                       runSpacing: 8,
                       children: [
                         ElevatedButton.icon(
-                          onPressed: jsActionsService.isInitialized && !_isRunningTests
+                          onPressed: jsActionsService.isInitialized &&
+                                  !_isRunningTests
                               ? () => _runIndividualTest(
-                                  'declare_module',
-                                  () => jsActionsService.testDeclareModule(
-                                    moduleName: 'test-module',
-                                    code: 'export const value = 42;',
-                                  ),
-                                )
+                                    'declare_module',
+                                    () => jsActionsService.testDeclareModule(
+                                      moduleName: 'test-module',
+                                      code: 'export const value = 42;',
+                                    ),
+                                  )
                               : null,
                           icon: const Icon(Icons.add),
                           label: const Text('Declare Module'),
                         ),
                         ElevatedButton.icon(
-                          onPressed: jsActionsService.isInitialized && !_isRunningTests
+                          onPressed: jsActionsService.isInitialized &&
+                                  !_isRunningTests
                               ? () => _runIndividualTest(
-                                  'evaluate_module',
-                                  () => jsActionsService.testEvaluateModule(
-                                    moduleName: 'test-eval',
-                                    code: 'export const result = "Hello from module";',
-                                  ),
-                                )
+                                    'evaluate_module',
+                                    () => jsActionsService.testEvaluateModule(
+                                      moduleName: 'test-eval',
+                                      code:
+                                          'export const result = "Hello from module";',
+                                    ),
+                                  )
                               : null,
                           icon: const Icon(Icons.play_circle_outline),
                           label: const Text('Evaluate Module'),
                         ),
                         ElevatedButton.icon(
-                          onPressed: jsActionsService.isInitialized && !_isRunningTests
-                              ? () => _runIndividualTest(
-                                  'get_modules',
-                                  () => jsActionsService.testGetDeclaredModules(),
-                                )
-                              : null,
+                          onPressed:
+                              jsActionsService.isInitialized && !_isRunningTests
+                                  ? () => _runIndividualTest(
+                                        'get_modules',
+                                        () => jsActionsService
+                                            .testGetDeclaredModules(),
+                                      )
+                                  : null,
                           icon: const Icon(Icons.list),
                           label: const Text('Get Modules'),
                         ),
                         ElevatedButton.icon(
-                          onPressed: jsActionsService.isInitialized && !_isRunningTests
+                          onPressed: jsActionsService.isInitialized &&
+                                  !_isRunningTests
                               ? () => _runIndividualTest(
-                                  'clear_modules',
-                                  () => jsActionsService.testClearModules(),
-                                )
+                                    'clear_modules',
+                                    () => jsActionsService.testClearModules(),
+                                  )
                               : null,
                           icon: const Icon(Icons.delete_outline),
                           label: const Text('Clear Modules'),
@@ -346,7 +357,8 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
                           itemBuilder: (context, index) {
                             final result = _testResults[index];
                             final isSuccess = result['success'] == true;
-                            final action = result['action'] as String? ?? 'Unknown';
+                            final action =
+                                result['action'] as String? ?? 'Unknown';
 
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -358,8 +370,12 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
                                     Row(
                                       children: [
                                         Icon(
-                                          isSuccess ? Icons.check_circle : Icons.error,
-                                          color: isSuccess ? Colors.green : Colors.red,
+                                          isSuccess
+                                              ? Icons.check_circle
+                                              : Icons.error,
+                                          color: isSuccess
+                                              ? Colors.green
+                                              : Colors.red,
                                           size: 20,
                                         ),
                                         const SizedBox(width: 8),
@@ -368,7 +384,9 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
                                             action,
                                             style: TextStyle(
                                               fontWeight: FontWeight.w600,
-                                              color: isSuccess ? Colors.green.shade700 : Colors.red.shade700,
+                                              color: isSuccess
+                                                  ? Colors.green.shade700
+                                                  : Colors.red.shade700,
                                             ),
                                           ),
                                         ),
@@ -387,11 +405,14 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
                                           color: Colors.red.shade50,
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: Colors.red.shade200),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                              color: Colors.red.shade200),
                                         ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               'Error:',
@@ -418,11 +439,14 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
                                           color: Colors.green.shade50,
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: Colors.green.shade200),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                              color: Colors.green.shade200),
                                         ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               'Success:',
@@ -436,7 +460,8 @@ class _JsActionsTestScreenState extends State<JsActionsTestScreen> {
                                             Text(
                                               JsonEncoder.withIndent('  ')
                                                   .convert(result)
-                                                  .replaceAll('Success: true,\n', ''),
+                                                  .replaceAll(
+                                                      'Success: true,\n', ''),
                                               style: TextStyle(
                                                 color: Colors.green.shade800,
                                                 fontFamily: 'monospace',
