@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'source.freezed.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `cmp`, `cmp`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `hash`, `hash`, `partial_cmp`, `partial_cmp`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `as_path`, `bytes`, `bytes`, `code`, `code`, `get_raw_source_code_sync`, `get_raw_source_code`, `path`, `path`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `as_path`, `bytes`, `code`, `get_raw_source_code_sync`, `get_raw_source_code`, `path`
 
 /// Options for configuring builtin Node.js modules.
 ///
@@ -321,15 +321,21 @@ sealed class JsEvalOptions with _$JsEvalOptions {
 ///
 /// ```dart
 /// // Create a module from inline code
-/// final module = JsModule.fromCode(
+/// final module = JsModule.code(
 ///   module: 'my-utils',
 ///   code: 'export const add = (a, b) => a + b;',
 /// );
 ///
 /// // Create a module from a file
-/// final module2 = JsModule.fromPath(
+/// final module2 = JsModule.path(
 ///   module: 'math',
 ///   path: '/path/to/math.js',
+/// );
+///
+/// // Create a module from bytes
+/// final module3 = JsModule.bytes(
+///   module: 'binary-utils',
+///   bytes: utf8.encode('export const VERSION = "1.0";'),
 /// );
 /// ```
 @freezed
@@ -341,65 +347,14 @@ sealed class JsModule with _$JsModule {
   }) = _JsModule;
 
   /// Creates a module from raw bytes.
-  ///
-  /// ## Parameters
-  ///
-  /// - `module`: The module name
-  /// - `bytes`: The JavaScript code as UTF-8 encoded bytes
-  ///
-  /// ## Returns
-  ///
-  /// A new `JsModule` instance
-  static JsModule fromBytes(
-          {required String module, required List<int> bytes}) =>
+  static JsModule bytes({required String module, required List<int> bytes}) =>
       LibFjs.instance.api
-          .crateApiSourceJsModuleFromBytes(module: module, bytes: bytes);
+          .crateApiSourceJsModuleBytes(module: module, bytes: bytes);
 
-  /// Creates a module from inline code string.
-  ///
-  /// ## Parameters
-  ///
-  /// - `module`: The module name
-  /// - `code`: The JavaScript code as a string
-  ///
-  /// ## Returns
-  ///
-  /// A new `JsModule` instance
-  ///
-  /// ## Example
-  ///
-  /// ```dart
-  /// final module = JsModule.fromCode(
-  ///   module: 'utils',
-  ///   code: 'export const foo = "bar";',
-  /// );
-  /// ```
-  static JsModule fromCode({required String module, required String code}) =>
+  /// Creates a module from inline code.
+  static JsModule code({required String module, required String code}) =>
       LibFjs.instance.api
-          .crateApiSourceJsModuleFromCode(module: module, code: code);
-
-  /// Creates a module from a file path string.
-  ///
-  /// ## Parameters
-  ///
-  /// - `module`: The module name
-  /// - `path`: The path to the JavaScript file
-  ///
-  /// ## Returns
-  ///
-  /// A new `JsModule` instance
-  ///
-  /// ## Example
-  ///
-  /// ```dart
-  /// final module = JsModule.fromPath(
-  ///   module: 'math',
-  ///   path: '/path/to/math.js',
-  /// );
-  /// ```
-  static JsModule fromPath({required String module, required String path}) =>
-      LibFjs.instance.api
-          .crateApiSourceJsModuleFromPath(module: module, path: path);
+          .crateApiSourceJsModuleCode(module: module, code: code);
 
   /// Creates a new module with the given name and source.
   ///
@@ -413,4 +368,9 @@ sealed class JsModule with _$JsModule {
   /// A new `JsModule` instance
   factory JsModule({required String name, required JsCode source}) =>
       LibFjs.instance.api.crateApiSourceJsModuleNew(name: name, source: source);
+
+  /// Creates a module from a file path.
+  static JsModule path({required String module, required String path}) =>
+      LibFjs.instance.api
+          .crateApiSourceJsModulePath(module: module, path: path);
 }

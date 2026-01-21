@@ -180,14 +180,14 @@ void main() {
   group('JsModule Tests', () {
     test('Create modules', () {
       final fromCode =
-          JsModule.fromCode(module: 'test', code: 'export const x = 1;');
+          JsModule.code(module: 'test', code: 'export const x = 1;');
       expect(fromCode.name, 'test');
 
       final fromPath =
-          JsModule.fromPath(module: 'test2', path: '/path/to/module.js');
+          JsModule.path(module: 'test2', path: '/path/to/module.js');
       expect(fromPath.name, 'test2');
 
-      final fromBytes = JsModule.fromBytes(
+      final fromBytes = JsModule.bytes(
         module: 'test3',
         bytes: [65, 66, 67],
       );
@@ -250,7 +250,7 @@ void main() {
       runtime = await JsRuntime.withOptions(
         builtin: JsBuiltinOptions.essential(),
       );
-      context = JsContext(rt: runtime);
+      context = JsContext.from(runtime: runtime);
     });
 
     test('Basic expression evaluation', () {
@@ -441,7 +441,7 @@ void main() {
       runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.essential(),
       );
-      context = await JsAsyncContext.from(rt: runtime);
+      context = await JsAsyncContext.from(runtime: runtime);
     });
 
     test('Async basic expression evaluation', () async {
@@ -510,7 +510,7 @@ void main() {
       runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(rt: runtime);
+      context = await JsAsyncContext.from(runtime: runtime);
       engine = JsEngine(context: context);
     });
 
@@ -552,7 +552,7 @@ void main() {
       await engine.initWithoutBridge();
 
       // Declare module
-      await engine.declareNewModule(module: JsModule.fromCode(
+      await engine.declareNewModule(module: JsModule.code(
           module: 'math-utils',
           code: '''
             export const add = (a, b) => a + b;
@@ -575,14 +575,14 @@ void main() {
       await engine.initWithoutBridge();
 
       await engine.declareNewModules(modules: [
-        JsModule.fromCode(
+        JsModule.code(
           module: 'string-utils',
           code: '''
             export const reverse = (s) => s.split("").reverse().join("");
             export const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
           ''',
         ),
-        JsModule.fromCode(
+        JsModule.code(
           module: 'array-utils',
           code: '''
             export const sum = (arr) => arr.reduce((a, b) => a + b, 0);
@@ -598,7 +598,7 @@ void main() {
     test('Clear modules', () async {
       await engine.initWithoutBridge();
 
-      await engine.declareNewModule(module: JsModule.fromCode(module: 'temp-module', code: 'export const x = 1;'),
+      await engine.declareNewModule(module: JsModule.code(module: 'temp-module', code: 'export const x = 1;'),
       );
 
       expect(await engine.isModuleDeclared(moduleName: 'temp-module'), true);
@@ -730,7 +730,7 @@ void main() {
       runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(rt: runtime);
+      context = await JsAsyncContext.from(runtime: runtime);
       engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
@@ -919,7 +919,7 @@ void main() {
       runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(rt: runtime);
+      context = await JsAsyncContext.from(runtime: runtime);
       engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
@@ -998,7 +998,7 @@ void main() {
       final runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.essential(),
       );
-      final context = await JsAsyncContext.from(rt: runtime);
+      final context = await JsAsyncContext.from(runtime: runtime);
       final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
@@ -1019,7 +1019,7 @@ void main() {
       final runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.essential(),
       );
-      final context = await JsAsyncContext.from(rt: runtime);
+      final context = await JsAsyncContext.from(runtime: runtime);
       final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
@@ -1037,7 +1037,7 @@ void main() {
       final runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.essential(),
       );
-      final context = await JsAsyncContext.from(rt: runtime);
+      final context = await JsAsyncContext.from(runtime: runtime);
       final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
@@ -1056,7 +1056,7 @@ void main() {
         final runtime = await JsAsyncRuntime.withOptions(
           builtin: JsBuiltinOptions.essential(),
         );
-        final context = await JsAsyncContext.from(rt: runtime);
+        final context = await JsAsyncContext.from(runtime: runtime);
         final engine = JsEngine(context: context);
         await engine.initWithoutBridge();
         engines.add(engine);
@@ -1089,7 +1089,7 @@ void main() {
       runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(rt: runtime);
+      context = await JsAsyncContext.from(runtime: runtime);
       engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
@@ -1241,7 +1241,7 @@ void main() {
       runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(rt: runtime);
+      context = await JsAsyncContext.from(runtime: runtime);
       engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
@@ -1418,7 +1418,7 @@ void main() {
       runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(rt: runtime);
+      context = await JsAsyncContext.from(runtime: runtime);
       engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
@@ -1494,7 +1494,7 @@ void main() {
       runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(rt: runtime);
+      context = await JsAsyncContext.from(runtime: runtime);
       engine = JsEngine(context: context);
     });
 
@@ -1634,7 +1634,7 @@ void main() {
       final runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.essential(),
       );
-      final context = await JsAsyncContext.from(rt: runtime);
+      final context = await JsAsyncContext.from(runtime: runtime);
 
       // Set a small memory limit
       await runtime.setMemoryLimit(limit: BigInt.from(1024 * 1024)); // 1MB
@@ -1654,7 +1654,7 @@ void main() {
       final runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.essential(),
       );
-      final context = await JsAsyncContext.from(rt: runtime);
+      final context = await JsAsyncContext.from(runtime: runtime);
       final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
@@ -1679,8 +1679,8 @@ void main() {
         builtin: JsBuiltinOptions.essential(),
       );
 
-      final context1 = await JsAsyncContext.from(rt: runtime);
-      final context2 = await JsAsyncContext.from(rt: runtime);
+      final context1 = await JsAsyncContext.from(runtime: runtime);
+      final context2 = await JsAsyncContext.from(runtime: runtime);
 
       final engine1 = JsEngine(context: context1);
       final engine2 = JsEngine(context: context2);
