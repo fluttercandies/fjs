@@ -15,6 +15,26 @@ part 'source.freezed.dart';
 ///
 /// This struct provides fine-grained control over which Node.js
 /// compatibility modules should be available in the runtime.
+///
+/// ## Example
+///
+/// ```dart
+/// // Enable all builtins
+/// final opts1 = JsBuiltinOptions.all();
+///
+/// // Enable only essential modules
+/// final opts2 = JsBuiltinOptions.essential();
+///
+/// // Web-like environment
+/// final opts3 = JsBuiltinOptions.web();
+///
+/// // Custom configuration
+/// final opts4 = JsBuiltinOptions(
+///   console: Some(true),
+///   timers: Some(true),
+///   // ... other options
+/// );
+/// ```
 @freezed
 sealed class JsBuiltinOptions with _$JsBuiltinOptions {
   const JsBuiltinOptions._();
@@ -48,6 +68,20 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
   }) = _JsBuiltinOptions;
 
   /// Creates builtin options with all modules enabled.
+  ///
+  /// This enables every available Node.js-compatible builtin module,
+  /// providing maximum compatibility at the cost of larger binary size.
+  ///
+  /// ## Returns
+  ///
+  /// A `JsBuiltinOptions` instance with all modules enabled
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final opts = JsBuiltinOptions.all();
+  /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+  /// ```
   static JsBuiltinOptions all() =>
       LibFjs.instance.api.crateApiSourceJsBuiltinOptionsAll();
 
@@ -55,21 +89,74 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
       LibFjs.instance.api.crateApiSourceJsBuiltinOptionsDefault();
 
   /// Creates builtin options with essential modules only.
-  /// Includes: console, timers, buffer, util, json
+  ///
+  /// Enables only the most commonly needed modules: console, timers, buffer, util, json.
+  /// This provides a good balance between functionality and binary size.
+  ///
+  /// ## Returns
+  ///
+  /// A `JsBuiltinOptions` instance with essential modules
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final opts = JsBuiltinOptions.essential();
+  /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+  /// ```
   static JsBuiltinOptions essential() =>
       LibFjs.instance.api.crateApiSourceJsBuiltinOptionsEssential();
 
   /// Creates builtin options for Node.js-like environment.
-  /// Includes most modules except OS-specific ones.
+  ///
+  /// Enables most Node.js-compatible modules except OS-specific ones.
+  /// Suitable for server-side JavaScript applications.
+  ///
+  /// ## Returns
+  ///
+  /// A `JsBuiltinOptions` instance configured for Node.js-like environment
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final opts = JsBuiltinOptions.node();
+  /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+  /// ```
   static JsBuiltinOptions node() =>
       LibFjs.instance.api.crateApiSourceJsBuiltinOptionsNode();
 
   /// Creates builtin options with no modules enabled.
+  ///
+  /// Creates a minimal runtime without any builtin modules.
+  /// Use this when you want complete control over which modules are available.
+  ///
+  /// ## Returns
+  ///
+  /// A `JsBuiltinOptions` instance with no modules enabled
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final opts = JsBuiltinOptions.none();
+  /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+  /// ```
   static JsBuiltinOptions none() =>
       LibFjs.instance.api.crateApiSourceJsBuiltinOptionsNone();
 
   /// Creates builtin options for web-like environment.
-  /// Includes: console, timers, fetch, url, crypto, stream_web
+  ///
+  /// Enables modules typically available in web browsers:
+  /// console, timers, fetch, url, crypto, stream_web, navigator, exceptions, json.
+  ///
+  /// ## Returns
+  ///
+  /// A `JsBuiltinOptions` instance configured for web-like environment
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final opts = JsBuiltinOptions.web();
+  /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+  /// ```
   static JsBuiltinOptions web() =>
       LibFjs.instance.api.crateApiSourceJsBuiltinOptionsWeb();
 }
@@ -94,16 +181,28 @@ sealed class JsCode with _$JsCode {
   ) = JsCode_Bytes;
 
   /// Returns true if this is a Bytes variant.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if this is a Bytes variant, `false` otherwise
   bool isBytes() => LibFjs.instance.api.crateApiSourceJsCodeIsBytes(
         that: this,
       );
 
   /// Returns true if this is a Code variant.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if this is a Code variant, `false` otherwise
   bool isCode() => LibFjs.instance.api.crateApiSourceJsCodeIsCode(
         that: this,
       );
 
   /// Returns true if this is a Path variant.
+  ///
+  /// ## Returns
+  ///
+  /// `true` if this is a Path variant, `false` otherwise
   bool isPath() => LibFjs.instance.api.crateApiSourceJsCodeIsPath(
         that: this,
       );
@@ -113,6 +212,24 @@ sealed class JsCode with _$JsCode {
 ///
 /// This struct provides configuration options for how JavaScript
 /// code should be executed and evaluated.
+///
+/// ## Example
+///
+/// ```dart
+/// // Default options
+/// final opts1 = JsEvalOptions.defaults();
+///
+/// // With promise support
+/// final opts2 = JsEvalOptions.withPromise();
+///
+/// // Custom options
+/// final opts3 = JsEvalOptions(
+///   global: true,
+///   strict: true,
+///   backtraceBarrier: false,
+///   promise: true,
+/// );
+/// ```
 @freezed
 sealed class JsEvalOptions with _$JsEvalOptions {
   const JsEvalOptions._();
@@ -126,14 +243,47 @@ sealed class JsEvalOptions with _$JsEvalOptions {
       LibFjs.instance.api.crateApiSourceJsEvalOptionsDefault();
 
   /// Creates options with default values (global scope, strict mode).
+  ///
+  /// Default settings:
+  /// - global: true
+  /// - strict: true
+  /// - backtrace_barrier: false
+  /// - promise: false
+  ///
+  /// ## Returns
+  ///
+  /// A `JsEvalOptions` instance with default values
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final opts = JsEvalOptions.defaults();
+  /// ```
   static JsEvalOptions defaults() =>
       LibFjs.instance.api.crateApiSourceJsEvalOptionsDefaults();
 
   /// Creates options for module evaluation.
+  ///
+  /// Module scope (not global), strict mode, with promise support.
+  ///
+  /// ## Returns
+  ///
+  /// A `JsEvalOptions` instance configured for modules
   static JsEvalOptions module() =>
       LibFjs.instance.api.crateApiSourceJsEvalOptionsModule();
 
   /// Creates new evaluation options with the specified parameters.
+  ///
+  /// ## Parameters
+  ///
+  /// - `global`: Whether to evaluate in global scope
+  /// - `strict`: Whether to enforce strict mode
+  /// - `backtraceBarrier`: Whether to create a backtrace barrier
+  /// - `promise`: Whether to enable promise/async support
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsEvalOptions` instance
   factory JsEvalOptions(
           {bool? global,
           bool? strict,
@@ -146,6 +296,18 @@ sealed class JsEvalOptions with _$JsEvalOptions {
           promise: promise);
 
   /// Creates options with promise support enabled.
+  ///
+  /// Enables top-level await and async/await support.
+  ///
+  /// ## Returns
+  ///
+  /// A `JsEvalOptions` instance with promise support
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final opts = JsEvalOptions.withPromise();
+  /// ```
   static JsEvalOptions withPromise() =>
       LibFjs.instance.api.crateApiSourceJsEvalOptionsWithPromise();
 }
@@ -154,6 +316,22 @@ sealed class JsEvalOptions with _$JsEvalOptions {
 ///
 /// This struct defines a module with a name and source code,
 /// which can be loaded and executed in the JavaScript runtime.
+///
+/// ## Example
+///
+/// ```dart
+/// // Create a module from inline code
+/// final module = JsModule.fromCode(
+///   module: 'my-utils',
+///   code: 'export const add = (a, b) => a + b;',
+/// );
+///
+/// // Create a module from a file
+/// final module2 = JsModule.fromPath(
+///   module: 'math',
+///   path: '/path/to/math.js',
+/// );
+/// ```
 @freezed
 sealed class JsModule with _$JsModule {
   const JsModule._();
@@ -163,22 +341,76 @@ sealed class JsModule with _$JsModule {
   }) = _JsModule;
 
   /// Creates a module from raw bytes.
+  ///
+  /// ## Parameters
+  ///
+  /// - `module`: The module name
+  /// - `bytes`: The JavaScript code as UTF-8 encoded bytes
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsModule` instance
   static JsModule fromBytes(
           {required String module, required List<int> bytes}) =>
       LibFjs.instance.api
           .crateApiSourceJsModuleFromBytes(module: module, bytes: bytes);
 
   /// Creates a module from inline code string.
+  ///
+  /// ## Parameters
+  ///
+  /// - `module`: The module name
+  /// - `code`: The JavaScript code as a string
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsModule` instance
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final module = JsModule.fromCode(
+  ///   module: 'utils',
+  ///   code: 'export const foo = "bar";',
+  /// );
+  /// ```
   static JsModule fromCode({required String module, required String code}) =>
       LibFjs.instance.api
           .crateApiSourceJsModuleFromCode(module: module, code: code);
 
   /// Creates a module from a file path string.
+  ///
+  /// ## Parameters
+  ///
+  /// - `module`: The module name
+  /// - `path`: The path to the JavaScript file
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsModule` instance
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final module = JsModule.fromPath(
+  ///   module: 'math',
+  ///   path: '/path/to/math.js',
+  /// );
+  /// ```
   static JsModule fromPath({required String module, required String path}) =>
       LibFjs.instance.api
           .crateApiSourceJsModuleFromPath(module: module, path: path);
 
   /// Creates a new module with the given name and source.
+  ///
+  /// ## Parameters
+  ///
+  /// - `name`: The module name
+  /// - `source`: The source code
+  ///
+  /// ## Returns
+  ///
+  /// A new `JsModule` instance
   factory JsModule({required String name, required JsCode source}) =>
       LibFjs.instance.api.crateApiSourceJsModuleNew(name: name, source: source);
 }

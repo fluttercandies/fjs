@@ -5,13 +5,29 @@
 
 use flutter_rust_bridge::frb;
 
-/// Maximum file size for JavaScript source files (10 MB)
+/// Maximum file size for JavaScript source files (10 MB).
+///
+/// This limit prevents loading excessively large files that could
+/// cause memory issues or performance problems.
 pub const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024;
 
 /// Represents the source of JavaScript code.
 ///
 /// This enum provides three ways to specify JavaScript source:
 /// inline code as a string, a file path to load code from, or raw bytes.
+///
+/// ## Example
+///
+/// ```dart
+/// // Inline code
+/// final code1 = JsCode.code('console.log("Hello");');
+///
+/// // From file
+/// final code2 = JsCode.path('/path/to/script.js');
+///
+/// // From bytes
+/// final code3 = JsCode.bytes(utf8.encode('print("Hi");'));
+/// ```
 #[frb(dart_metadata = ("freezed"))]
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum JsCode {
@@ -25,24 +41,52 @@ pub enum JsCode {
 
 impl JsCode {
     /// Creates inline code source.
+    ///
+    /// ## Parameters
+    ///
+    /// - `code`: The JavaScript code as a string
+    ///
+    /// ## Returns
+    ///
+    /// A `JsCode::Code` instance
     #[frb(ignore)]
     pub fn code(code: String) -> Self {
         JsCode::Code(code)
     }
 
     /// Creates file path source.
+    ///
+    /// ## Parameters
+    ///
+    /// - `path`: The path to the JavaScript file
+    ///
+    /// ## Returns
+    ///
+    /// A `JsCode::Path` instance
     #[frb(ignore)]
     pub fn path(path: String) -> Self {
         JsCode::Path(path)
     }
 
     /// Creates bytes source.
+    ///
+    /// ## Parameters
+    ///
+    /// - `bytes`: The JavaScript code as UTF-8 encoded bytes
+    ///
+    /// ## Returns
+    ///
+    /// A `JsCode::Bytes` instance
     #[frb(ignore)]
     pub fn bytes(bytes: Vec<u8>) -> Self {
         JsCode::Bytes(bytes)
     }
 
     /// Returns the file path if this is a Path variant.
+    ///
+    /// ## Returns
+    ///
+    /// `Some(path)` if this is a Path variant, `None` otherwise
     #[frb(ignore)]
     pub fn as_path(&self) -> Option<&str> {
         match self {
@@ -52,18 +96,30 @@ impl JsCode {
     }
 
     /// Returns true if this is a Path variant.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if this is a Path variant, `false` otherwise
     #[frb(sync)]
     pub fn is_path(&self) -> bool {
         matches!(self, JsCode::Path(_))
     }
 
     /// Returns true if this is a Code variant.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if this is a Code variant, `false` otherwise
     #[frb(sync)]
     pub fn is_code(&self) -> bool {
         matches!(self, JsCode::Code(_))
     }
 
     /// Returns true if this is a Bytes variant.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if this is a Bytes variant, `false` otherwise
     #[frb(sync)]
     pub fn is_bytes(&self) -> bool {
         matches!(self, JsCode::Bytes(_))
@@ -74,6 +130,22 @@ impl JsCode {
 ///
 /// This struct defines a module with a name and source code,
 /// which can be loaded and executed in the JavaScript runtime.
+///
+/// ## Example
+///
+/// ```dart
+/// // Create a module from inline code
+/// final module = JsModule.fromCode(
+///   module: 'my-utils',
+///   code: 'export const add = (a, b) => a + b;',
+/// );
+///
+/// // Create a module from a file
+/// final module2 = JsModule.fromPath(
+///   module: 'math',
+///   path: '/path/to/math.js',
+/// );
+/// ```
 #[frb(dart_metadata = ("freezed"))]
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct JsModule {
@@ -85,6 +157,15 @@ pub struct JsModule {
 
 impl JsModule {
     /// Creates a new module with the given name and source.
+    ///
+    /// ## Parameters
+    ///
+    /// - `name`: The module name
+    /// - `source`: The source code
+    ///
+    /// ## Returns
+    ///
+    /// A new `JsModule` instance
     #[frb(sync)]
     pub fn new(name: String, source: JsCode) -> Self {
         JsModule { name, source }
@@ -118,6 +199,24 @@ impl JsModule {
     }
 
     /// Creates a module from inline code string.
+    ///
+    /// ## Parameters
+    ///
+    /// - `module`: The module name
+    /// - `code`: The JavaScript code as a string
+    ///
+    /// ## Returns
+    ///
+    /// A new `JsModule` instance
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final module = JsModule.fromCode(
+    ///   module: 'utils',
+    ///   code: 'export const foo = "bar";',
+    /// );
+    /// ```
     #[frb(sync, name = "fromCode")]
     pub fn from_code(module: String, code: String) -> Self {
         JsModule {
@@ -127,6 +226,24 @@ impl JsModule {
     }
 
     /// Creates a module from a file path string.
+    ///
+    /// ## Parameters
+    ///
+    /// - `module`: The module name
+    /// - `path`: The path to the JavaScript file
+    ///
+    /// ## Returns
+    ///
+    /// A new `JsModule` instance
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final module = JsModule.fromPath(
+    ///   module: 'math',
+    ///   path: '/path/to/math.js',
+    /// );
+    /// ```
     #[frb(sync, name = "fromPath")]
     pub fn from_path(module: String, path: String) -> Self {
         JsModule {
@@ -136,6 +253,15 @@ impl JsModule {
     }
 
     /// Creates a module from raw bytes.
+    ///
+    /// ## Parameters
+    ///
+    /// - `module`: The module name
+    /// - `bytes`: The JavaScript code as UTF-8 encoded bytes
+    ///
+    /// ## Returns
+    ///
+    /// A new `JsModule` instance
     #[frb(sync, name = "fromBytes")]
     pub fn from_bytes(module: String, bytes: Vec<u8>) -> Self {
         JsModule {
@@ -149,6 +275,24 @@ impl JsModule {
 ///
 /// This struct provides configuration options for how JavaScript
 /// code should be executed and evaluated.
+///
+/// ## Example
+///
+/// ```dart
+/// // Default options
+/// final opts1 = JsEvalOptions.defaults();
+///
+/// // With promise support
+/// final opts2 = JsEvalOptions.withPromise();
+///
+/// // Custom options
+/// final opts3 = JsEvalOptions(
+///   global: true,
+///   strict: true,
+///   backtraceBarrier: false,
+///   promise: true,
+/// );
+/// ```
 #[frb(dart_metadata = ("freezed"))]
 #[derive(Debug, Clone, Default)]
 pub struct JsEvalOptions {
@@ -164,6 +308,17 @@ pub struct JsEvalOptions {
 
 impl JsEvalOptions {
     /// Creates new evaluation options with the specified parameters.
+    ///
+    /// ## Parameters
+    ///
+    /// - `global`: Whether to evaluate in global scope
+    /// - `strict`: Whether to enforce strict mode
+    /// - `backtraceBarrier`: Whether to create a backtrace barrier
+    /// - `promise`: Whether to enable promise/async support
+    ///
+    /// ## Returns
+    ///
+    /// A new `JsEvalOptions` instance
     #[frb(sync)]
     pub fn new(
         global: Option<bool>,
@@ -180,6 +335,22 @@ impl JsEvalOptions {
     }
 
     /// Creates options with default values (global scope, strict mode).
+    ///
+    /// Default settings:
+    /// - global: true
+    /// - strict: true
+    /// - backtrace_barrier: false
+    /// - promise: false
+    ///
+    /// ## Returns
+    ///
+    /// A `JsEvalOptions` instance with default values
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final opts = JsEvalOptions.defaults();
+    /// ```
     #[frb(sync)]
     pub fn defaults() -> Self {
         JsEvalOptions {
@@ -191,6 +362,18 @@ impl JsEvalOptions {
     }
 
     /// Creates options with promise support enabled.
+    ///
+    /// Enables top-level await and async/await support.
+    ///
+    /// ## Returns
+    ///
+    /// A `JsEvalOptions` instance with promise support
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final opts = JsEvalOptions.withPromise();
+    /// ```
     #[frb(sync)]
     pub fn with_promise() -> Self {
         JsEvalOptions {
@@ -202,6 +385,12 @@ impl JsEvalOptions {
     }
 
     /// Creates options for module evaluation.
+    ///
+    /// Module scope (not global), strict mode, with promise support.
+    ///
+    /// ## Returns
+    ///
+    /// A `JsEvalOptions` instance configured for modules
     #[frb(sync)]
     pub fn module() -> Self {
         JsEvalOptions {
@@ -228,6 +417,26 @@ impl From<JsEvalOptions> for rquickjs::context::EvalOptions {
 ///
 /// This struct provides fine-grained control over which Node.js
 /// compatibility modules should be available in the runtime.
+///
+/// ## Example
+///
+/// ```dart
+/// // Enable all builtins
+/// final opts1 = JsBuiltinOptions.all();
+///
+/// // Enable only essential modules
+/// final opts2 = JsBuiltinOptions.essential();
+///
+/// // Web-like environment
+/// final opts3 = JsBuiltinOptions.web();
+///
+/// // Custom configuration
+/// final opts4 = JsBuiltinOptions(
+///   console: Some(true),
+///   timers: Some(true),
+///   // ... other options
+/// );
+/// ```
 #[frb(dart_metadata = ("freezed"))]
 #[derive(Debug, Clone, Default)]
 pub struct JsBuiltinOptions {
@@ -287,6 +496,20 @@ pub struct JsBuiltinOptions {
 
 impl JsBuiltinOptions {
     /// Creates builtin options with all modules enabled.
+    ///
+    /// This enables every available Node.js-compatible builtin module,
+    /// providing maximum compatibility at the cost of larger binary size.
+    ///
+    /// ## Returns
+    ///
+    /// A `JsBuiltinOptions` instance with all modules enabled
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final opts = JsBuiltinOptions.all();
+    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// ```
     #[frb(sync)]
     pub fn all() -> Self {
         JsBuiltinOptions {
@@ -320,13 +543,40 @@ impl JsBuiltinOptions {
     }
 
     /// Creates builtin options with no modules enabled.
+    ///
+    /// Creates a minimal runtime without any builtin modules.
+    /// Use this when you want complete control over which modules are available.
+    ///
+    /// ## Returns
+    ///
+    /// A `JsBuiltinOptions` instance with no modules enabled
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final opts = JsBuiltinOptions.none();
+    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// ```
     #[frb(sync)]
     pub fn none() -> Self {
         JsBuiltinOptions::default()
     }
 
     /// Creates builtin options with essential modules only.
-    /// Includes: console, timers, buffer, util, json
+    ///
+    /// Enables only the most commonly needed modules: console, timers, buffer, util, json.
+    /// This provides a good balance between functionality and binary size.
+    ///
+    /// ## Returns
+    ///
+    /// A `JsBuiltinOptions` instance with essential modules
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final opts = JsBuiltinOptions.essential();
+    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// ```
     #[frb(sync)]
     pub fn essential() -> Self {
         JsBuiltinOptions {
@@ -340,7 +590,20 @@ impl JsBuiltinOptions {
     }
 
     /// Creates builtin options for web-like environment.
-    /// Includes: console, timers, fetch, url, crypto, stream_web
+    ///
+    /// Enables modules typically available in web browsers:
+    /// console, timers, fetch, url, crypto, stream_web, navigator, exceptions, json.
+    ///
+    /// ## Returns
+    ///
+    /// A `JsBuiltinOptions` instance configured for web-like environment
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final opts = JsBuiltinOptions.web();
+    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// ```
     #[frb(sync)]
     pub fn web() -> Self {
         JsBuiltinOptions {
@@ -358,7 +621,20 @@ impl JsBuiltinOptions {
     }
 
     /// Creates builtin options for Node.js-like environment.
-    /// Includes most modules except OS-specific ones.
+    ///
+    /// Enables most Node.js-compatible modules except OS-specific ones.
+    /// Suitable for server-side JavaScript applications.
+    ///
+    /// ## Returns
+    ///
+    /// A `JsBuiltinOptions` instance configured for Node.js-like environment
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final opts = JsBuiltinOptions.node();
+    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// ```
     #[frb(sync)]
     pub fn node() -> Self {
         JsBuiltinOptions {
