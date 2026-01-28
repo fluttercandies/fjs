@@ -23,6 +23,10 @@
 - **跨平台** - Android、iOS、Linux、macOS、Windows
 - **内存安全** - 内置 GC，可配置内存限制
 
+## 🎯 真实使用案例
+
+**[Mikan Flutter](https://github.com/iota9star/mikan_flutter)** - [蜜柑计划](https://mikanani.me)的 Flutter 客户端，一款动漫番剧订阅与管理应用。FJS 为其核心 JavaScript 执行引擎提供动力。
+
 ## 📦 安装
 
 ```yaml
