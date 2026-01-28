@@ -1,6 +1,6 @@
 name: fjs
 description: "A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS."
-version: 2.0.0
+version: 2.0.1
 homepage: https://github.com/fluttercandies/fjs
 repository: https://github.com/fluttercandies/fjs
 issue_tracker: https://github.com/fluttercandies/fjs/issues
