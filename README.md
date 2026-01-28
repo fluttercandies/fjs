@@ -23,6 +23,10 @@
 - **Cross Platform** - Android, iOS, Linux, macOS, Windows
 - **Memory Safe** - Built-in GC with configurable limits
 
+## 🎯 Real-world Usage
+
+**[Mikan Flutter](https://github.com/iota9star/mikan_flutter)** - A Flutter client for [Mikan Project](https://mikanani.me), an anime subscription and management platform. FJS powers its core JavaScript execution engine.
+
 ## 📦 Installation
 
 ```yaml
