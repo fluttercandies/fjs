@@ -92,7 +92,7 @@ Future<void> test1MyEngine() async {
   final code = '''
 await (async () => {
     const {parseHTML} = await import('linkedom');
-    const html = await fetch("https://example.com").then((res) => res.text());
+    const html = await fetch("https://httpbin.org/").then((res) => res.text());
     console.log("Fetched HTML:", html);
     const {document} = parseHTML(html);
 
@@ -116,7 +116,7 @@ Future<void> test2MyEngine() async {
 import {parseHTML} from 'linkedom';
 
 globalThis['$taskId'] = await (async () => {
-    const html = await fetch("https://example.com").then((res) => res.text());
+    const html = await fetch("https://httpbin.org/").then((res) => res.text());
     console.log("Fetched HTML:", html);
     const {document} = parseHTML(html);
 
