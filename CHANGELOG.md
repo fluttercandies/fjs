@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.1
+
+* **IMPROVEMENT**: Upgraded LLRT dependencies from revision 77edb18 to d375ad0
+* **IMPROVEMENT**: Added webpki-roots feature to llrt_fetch for enhanced TLS certificate validation
+* **IMPROVEMENT**: Added comprehensive test suite to libfjs with 10 test modules
+* **IMPROVEMENT**: Updated sysinfo dependency from 0.37.2 to 0.38.0
+* **IMPROVEMENT**: Updated windows crates from 0.61.x to 0.62.x
+* **FIX**: Fixed example fetch URL to use httpbin.org for proper HTML response testing
+
 ## 2.0.0
 
 * **BREAKING**: Renamed `JsEngineCore` to `JsEngine` for clearer naming convention
