@@ -222,9 +222,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 label: Text('API'),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.science_outlined),
-                selectedIcon: Icon(Icons.science),
-                label: Text('Tests'),
+                icon: Icon(Icons.lightbulb_outline),
+                selectedIcon: Icon(Icons.lightbulb),
+                label: Text('Examples'),
               ),
             ],
           ),
@@ -291,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.pushNamed(context, '/api');
         break;
       case 3:
-        Navigator.pushNamed(context, '/js-actions-test');
+        Navigator.pushNamed(context, '/example');
         break;
     }
   }
@@ -330,8 +330,8 @@ class _HomeScreenState extends State<HomeScreen> {
               case 'api':
                 Navigator.pushNamed(context, '/api');
                 break;
-              case 'js-actions-test':
-                Navigator.pushNamed(context, '/js-actions-test');
+              case 'example':
+                Navigator.pushNamed(context, '/example');
                 break;
             }
           },
@@ -357,12 +357,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const PopupMenuItem(
-              value: 'js-actions-test',
+              value: 'example',
               child: Row(
                 children: [
-                  Icon(Icons.science),
+                  Icon(Icons.lightbulb),
                   SizedBox(width: 8),
-                  Text('JsActions Test'),
+                  Text('Examples'),
                 ],
               ),
             ),
@@ -492,17 +492,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.science),
-            title: const Text('JsActions Test'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/js-actions-test');
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.science),
-            title: const Text('Example Screen'),
+            leading: const Icon(Icons.lightbulb),
+            title: const Text('Examples'),
             onTap: () {
               Navigator.pop(context);
               Navigator.pushNamed(context, '/example');
@@ -622,9 +613,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 FilledButton.tonalIcon(
                   onPressed: () =>
-                      Navigator.pushNamed(context, '/js-actions-test'),
-                  icon: const Icon(Icons.science),
-                  label: const Text('Run Tests'),
+                      Navigator.pushNamed(context, '/example'),
+                  icon: const Icon(Icons.lightbulb),
+                  label: const Text('View Examples'),
                 ),
               ],
             ),
