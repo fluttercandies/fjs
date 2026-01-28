@@ -4,7 +4,6 @@ import '../screens/api_overview_screen.dart';
 import '../screens/engine_api_screen.dart';
 import '../screens/error_api_screen.dart';
 import '../screens/example_screen.dart';
-import '../screens/js_actions_test_screen.dart';
 import '../screens/playground_screen.dart';
 import '../screens/runtime_api_screen.dart';
 import '../screens/source_api_screen.dart';
@@ -21,10 +20,6 @@ class AppRouter {
       case '/playground':
         return MaterialPageRoute(
           builder: (_) => const PlaygroundScreen(),
-        );
-      case '/js-actions-test':
-        return MaterialPageRoute(
-          builder: (_) => const JsActionsTestScreen(),
         );
       case '/api':
         return MaterialPageRoute(

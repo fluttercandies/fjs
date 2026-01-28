@@ -5,7 +5,6 @@ import 'router.dart';
 import 'theme.dart';
 import 'home_screen.dart';
 import '../services/fjs_service.dart';
-import '../services/js_actions_service.dart';
 import '../services/js_examples_service.dart';
 import '../services/storage_service.dart';
 
@@ -17,7 +16,6 @@ class FjsExampleApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => FjsService()),
-        ChangeNotifierProvider(create: (_) => JsActionsService()),
         ChangeNotifierProvider(create: (_) => JsExamplesService()),
         ChangeNotifierProvider(create: (_) => StorageService()),
       ],
