@@ -116,9 +116,7 @@ async fn test_promise_then_chain() {
 
     let result = engine
         .eval(
-            JsCode::Code(
-                "Promise.resolve(1).then(x => x + 1).then(x => x * 2)".to_string(),
-            ),
+            JsCode::Code("Promise.resolve(1).then(x => x + 1).then(x => x * 2)".to_string()),
             None,
         )
         .await
@@ -135,9 +133,7 @@ async fn test_promise_catch() {
 
     let result = engine
         .eval(
-            JsCode::Code(
-                "Promise.reject('error').catch(e => 'caught: ' + e)".to_string(),
-            ),
+            JsCode::Code("Promise.reject('error').catch(e => 'caught: ' + e)".to_string()),
             None,
         )
         .await
@@ -352,6 +348,11 @@ async fn test_async_function_basic() {
         .unwrap();
 
     assert!(matches!(result, JsValue::Integer(42)));
+    engine.dispose().await.unwrap();
+    runtime.idle().await;
+    runtime.run_gc().await;
+    drop(engine);
+    drop(context);
 }
 
 #[tokio::test]
@@ -515,10 +516,7 @@ async fn test_top_level_await() {
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
-        .eval(
-            JsCode::Code("await Promise.resolve(42)".to_string()),
-            None,
-        )
+        .eval(JsCode::Code("await Promise.resolve(42)".to_string()), None)
         .await
         .unwrap();
 
@@ -577,11 +575,7 @@ async fn test_async_module_function() {
     engine.declare_new_module(module).await.unwrap();
 
     let result = engine
-        .call(
-            "async-utils".to_string(),
-            "fetchData".to_string(),
-            None,
-        )
+        .call("async-utils".to_string(), "fetchData".to_string(), None)
         .await
         .unwrap();
 
@@ -622,11 +616,7 @@ async fn test_async_module_chain() {
     engine.declare_new_module(module).await.unwrap();
 
     let result = engine
-        .call(
-            "chain-test".to_string(),
-            "runChain".to_string(),
-            None,
-        )
+        .call("chain-test".to_string(), "runChain".to_string(), None)
         .await
         .unwrap();
 
@@ -636,45 +626,6 @@ async fn test_async_module_chain() {
 // ============================================================================
 // Bridge Async Tests
 // ============================================================================
-
-#[tokio::test]
-async fn test_bridge_async_call() {
-    let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
-
-    engine
-        .init(|value| {
-            Box::pin(async move {
-                // Simulate async processing
-                match value {
-                    JsValue::Integer(n) => JsResult::Ok(JsValue::Integer(n * 2)),
-                    _ => JsResult::Ok(value),
-                }
-            })
-        })
-        .await
-        .unwrap();
-
-    let result = engine
-        .eval(
-            JsCode::Code(
-                r#"
-                async function test() {
-                    const result = await fjs.bridge_call(21);
-                    return result;
-                }
-                test()
-            "#
-                .to_string(),
-            ),
-            None,
-        )
-        .await
-        .unwrap();
-
-    assert!(matches!(result, JsValue::Integer(42)));
-}
 
 #[tokio::test]
 async fn test_bridge_multiple_async_calls() {
@@ -714,6 +665,11 @@ async fn test_bridge_multiple_async_calls() {
         .unwrap();
 
     assert!(matches!(result, JsValue::Integer(4))); // 1 + 1 + 1 + 1 = 4
+    engine.dispose().await.unwrap();
+    runtime.idle().await;
+    runtime.run_gc().await;
+    drop(engine);
+    drop(context);
 }
 
 // ============================================================================

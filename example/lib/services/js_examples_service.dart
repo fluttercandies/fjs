@@ -761,7 +761,7 @@ class JsExamplesService extends ChangeNotifier {
             _loadedExamples[example.fileName] = code;
           } catch (e) {
             if (kDebugMode) {
-              print('Failed to preload example ${example.fileName}: $e');
+              debugPrint('Failed to preload example ${example.fileName}: $e');
             }
           }
         }

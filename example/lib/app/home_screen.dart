@@ -1,9 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'mounted_state_mixin.dart';
 import '../services/fjs_service.dart';
 import '../services/js_examples_service.dart';
 import '../services/storage_service.dart';
@@ -17,7 +16,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with MountedStateMixin<HomeScreen> {
   final TextEditingController _codeController = TextEditingController();
   String _result = '';
   bool _isExecuting = false;
@@ -40,29 +40,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final fjsService = Provider.of<FjsService>(context, listen: false);
+      final mode = fjsService.inferExecutionMode(_codeController.text);
+      final result = mode == JsExecutionMode.module
+          ? await fjsService.executeAsModule(_codeController.text)
+          : await fjsService.executeAsScript(_codeController.text);
 
-      // Check for import statements to auto-select mode
-      final hasImport = RegExp(
-        r'^\s*import\s+.*\s+from\s+',
-        multiLine: true,
-      ).hasMatch(_codeController.text);
-
-      dynamic result;
-      if (hasImport) {
-        result = await fjsService.executeAsModule(_codeController.text);
-      } else {
-        result = await fjsService.executeAsScript(_codeController.text);
-      }
-
-      setState(() {
-        _result = const JsonEncoder.withIndent('  ').convert(result.value);
+      setStateIfMounted(() {
+        _result = fjsService.lastExecutionResult ?? result.value.toString();
       });
     } catch (e) {
-      setState(() {
+      setStateIfMounted(() {
         _result = 'Error: $e';
       });
     } finally {
-      setState(() {
+      setStateIfMounted(() {
         _isExecuting = false;
       });
     }
@@ -74,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await Clipboard.setData(ClipboardData(text: _result));
 
-      setState(() {
+      setStateIfMounted(() {
         _copiedToClipboard = true;
       });
 
@@ -155,7 +146,6 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationRail(
             selectedIndex: _selectedNavIndex,
             onDestinationSelected: (index) {
-              setState(() => _selectedNavIndex = index);
               _handleNavigation(index);
             },
             labelType: NavigationRailLabelType.all,
@@ -282,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _handleNavigation(int index) {
     switch (index) {
       case 0:
-        // Already on home
+        setStateIfMounted(() => _selectedNavIndex = 0);
         break;
       case 1:
         Navigator.pushNamed(context, '/playground');
@@ -612,8 +602,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: const Text('API Docs'),
                 ),
                 FilledButton.tonalIcon(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/example'),
+                  onPressed: () => Navigator.pushNamed(context, '/example'),
                   icon: const Icon(Icons.lightbulb),
                   label: const Text('View Examples'),
                 ),
@@ -795,9 +784,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final examplesService =
         Provider.of<JsExamplesService>(context, listen: false);
     final code = await examplesService.loadExampleCode(example.fileName);
-    if (code != null) {
-      _codeController.text = code;
+    if (!mounted || code == null) {
+      return;
     }
+    _codeController.text = code;
   }
 }
 

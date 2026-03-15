@@ -21,11 +21,14 @@ mixin _$JsBuiltinOptions {
   bool? get childProcess;
   bool? get console;
   bool? get crypto;
+  bool? get dgram;
   bool? get dns;
   bool? get events;
   bool? get exceptions;
   bool? get fetch;
   bool? get fs;
+  bool? get https;
+  bool? get intl;
   bool? get navigator;
   bool? get net;
   bool? get os;
@@ -34,6 +37,7 @@ mixin _$JsBuiltinOptions {
   bool? get process;
   bool? get streamWeb;
   bool? get stringDecoder;
+  bool? get temporal;
   bool? get timers;
   bool? get tty;
   bool? get url;
@@ -63,12 +67,15 @@ mixin _$JsBuiltinOptions {
                 other.childProcess == childProcess) &&
             (identical(other.console, console) || other.console == console) &&
             (identical(other.crypto, crypto) || other.crypto == crypto) &&
+            (identical(other.dgram, dgram) || other.dgram == dgram) &&
             (identical(other.dns, dns) || other.dns == dns) &&
             (identical(other.events, events) || other.events == events) &&
             (identical(other.exceptions, exceptions) ||
                 other.exceptions == exceptions) &&
             (identical(other.fetch, fetch) || other.fetch == fetch) &&
             (identical(other.fs, fs) || other.fs == fs) &&
+            (identical(other.https, https) || other.https == https) &&
+            (identical(other.intl, intl) || other.intl == intl) &&
             (identical(other.navigator, navigator) ||
                 other.navigator == navigator) &&
             (identical(other.net, net) || other.net == net) &&
@@ -81,6 +88,8 @@ mixin _$JsBuiltinOptions {
                 other.streamWeb == streamWeb) &&
             (identical(other.stringDecoder, stringDecoder) ||
                 other.stringDecoder == stringDecoder) &&
+            (identical(other.temporal, temporal) ||
+                other.temporal == temporal) &&
             (identical(other.timers, timers) || other.timers == timers) &&
             (identical(other.tty, tty) || other.tty == tty) &&
             (identical(other.url, url) || other.url == url) &&
@@ -99,11 +108,14 @@ mixin _$JsBuiltinOptions {
         childProcess,
         console,
         crypto,
+        dgram,
         dns,
         events,
         exceptions,
         fetch,
         fs,
+        https,
+        intl,
         navigator,
         net,
         os,
@@ -112,6 +124,7 @@ mixin _$JsBuiltinOptions {
         process,
         streamWeb,
         stringDecoder,
+        temporal,
         timers,
         tty,
         url,
@@ -122,7 +135,7 @@ mixin _$JsBuiltinOptions {
 
   @override
   String toString() {
-    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
+    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dgram: $dgram, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, https: $https, intl: $intl, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, temporal: $temporal, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
   }
 }
 
@@ -140,11 +153,14 @@ abstract mixin class $JsBuiltinOptionsCopyWith<$Res> {
       bool? childProcess,
       bool? console,
       bool? crypto,
+      bool? dgram,
       bool? dns,
       bool? events,
       bool? exceptions,
       bool? fetch,
       bool? fs,
+      bool? https,
+      bool? intl,
       bool? navigator,
       bool? net,
       bool? os,
@@ -153,6 +169,7 @@ abstract mixin class $JsBuiltinOptionsCopyWith<$Res> {
       bool? process,
       bool? streamWeb,
       bool? stringDecoder,
+      bool? temporal,
       bool? timers,
       bool? tty,
       bool? url,
@@ -181,11 +198,14 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? childProcess = freezed,
     Object? console = freezed,
     Object? crypto = freezed,
+    Object? dgram = freezed,
     Object? dns = freezed,
     Object? events = freezed,
     Object? exceptions = freezed,
     Object? fetch = freezed,
     Object? fs = freezed,
+    Object? https = freezed,
+    Object? intl = freezed,
     Object? navigator = freezed,
     Object? net = freezed,
     Object? os = freezed,
@@ -194,6 +214,7 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? process = freezed,
     Object? streamWeb = freezed,
     Object? stringDecoder = freezed,
+    Object? temporal = freezed,
     Object? timers = freezed,
     Object? tty = freezed,
     Object? url = freezed,
@@ -230,6 +251,10 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
           ? _self.crypto
           : crypto // ignore: cast_nullable_to_non_nullable
               as bool?,
+      dgram: freezed == dgram
+          ? _self.dgram
+          : dgram // ignore: cast_nullable_to_non_nullable
+              as bool?,
       dns: freezed == dns
           ? _self.dns
           : dns // ignore: cast_nullable_to_non_nullable
@@ -249,6 +274,14 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
       fs: freezed == fs
           ? _self.fs
           : fs // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      https: freezed == https
+          ? _self.https
+          : https // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      intl: freezed == intl
+          ? _self.intl
+          : intl // ignore: cast_nullable_to_non_nullable
               as bool?,
       navigator: freezed == navigator
           ? _self.navigator
@@ -281,6 +314,10 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
       stringDecoder: freezed == stringDecoder
           ? _self.stringDecoder
           : stringDecoder // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      temporal: freezed == temporal
+          ? _self.temporal
+          : temporal // ignore: cast_nullable_to_non_nullable
               as bool?,
       timers: freezed == timers
           ? _self.timers
@@ -409,11 +446,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? childProcess,
             bool? console,
             bool? crypto,
+            bool? dgram,
             bool? dns,
             bool? events,
             bool? exceptions,
             bool? fetch,
             bool? fs,
+            bool? https,
+            bool? intl,
             bool? navigator,
             bool? net,
             bool? os,
@@ -422,6 +462,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? process,
             bool? streamWeb,
             bool? stringDecoder,
+            bool? temporal,
             bool? timers,
             bool? tty,
             bool? url,
@@ -442,11 +483,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.childProcess,
             _that.console,
             _that.crypto,
+            _that.dgram,
             _that.dns,
             _that.events,
             _that.exceptions,
             _that.fetch,
             _that.fs,
+            _that.https,
+            _that.intl,
             _that.navigator,
             _that.net,
             _that.os,
@@ -455,6 +499,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.process,
             _that.streamWeb,
             _that.stringDecoder,
+            _that.temporal,
             _that.timers,
             _that.tty,
             _that.url,
@@ -489,11 +534,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? childProcess,
             bool? console,
             bool? crypto,
+            bool? dgram,
             bool? dns,
             bool? events,
             bool? exceptions,
             bool? fetch,
             bool? fs,
+            bool? https,
+            bool? intl,
             bool? navigator,
             bool? net,
             bool? os,
@@ -502,6 +550,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? process,
             bool? streamWeb,
             bool? stringDecoder,
+            bool? temporal,
             bool? timers,
             bool? tty,
             bool? url,
@@ -521,11 +570,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.childProcess,
             _that.console,
             _that.crypto,
+            _that.dgram,
             _that.dns,
             _that.events,
             _that.exceptions,
             _that.fetch,
             _that.fs,
+            _that.https,
+            _that.intl,
             _that.navigator,
             _that.net,
             _that.os,
@@ -534,6 +586,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.process,
             _that.streamWeb,
             _that.stringDecoder,
+            _that.temporal,
             _that.timers,
             _that.tty,
             _that.url,
@@ -565,11 +618,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? childProcess,
             bool? console,
             bool? crypto,
+            bool? dgram,
             bool? dns,
             bool? events,
             bool? exceptions,
             bool? fetch,
             bool? fs,
+            bool? https,
+            bool? intl,
             bool? navigator,
             bool? net,
             bool? os,
@@ -578,6 +634,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? process,
             bool? streamWeb,
             bool? stringDecoder,
+            bool? temporal,
             bool? timers,
             bool? tty,
             bool? url,
@@ -597,11 +654,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.childProcess,
             _that.console,
             _that.crypto,
+            _that.dgram,
             _that.dns,
             _that.events,
             _that.exceptions,
             _that.fetch,
             _that.fs,
+            _that.https,
+            _that.intl,
             _that.navigator,
             _that.net,
             _that.os,
@@ -610,6 +670,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.process,
             _that.streamWeb,
             _that.stringDecoder,
+            _that.temporal,
             _that.timers,
             _that.tty,
             _that.url,
@@ -633,11 +694,14 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
       this.childProcess,
       this.console,
       this.crypto,
+      this.dgram,
       this.dns,
       this.events,
       this.exceptions,
       this.fetch,
       this.fs,
+      this.https,
+      this.intl,
       this.navigator,
       this.net,
       this.os,
@@ -646,6 +710,7 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
       this.process,
       this.streamWeb,
       this.stringDecoder,
+      this.temporal,
       this.timers,
       this.tty,
       this.url,
@@ -669,6 +734,8 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
   @override
   final bool? crypto;
   @override
+  final bool? dgram;
+  @override
   final bool? dns;
   @override
   final bool? events;
@@ -678,6 +745,10 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
   final bool? fetch;
   @override
   final bool? fs;
+  @override
+  final bool? https;
+  @override
+  final bool? intl;
   @override
   final bool? navigator;
   @override
@@ -694,6 +765,8 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
   final bool? streamWeb;
   @override
   final bool? stringDecoder;
+  @override
+  final bool? temporal;
   @override
   final bool? timers;
   @override
@@ -729,12 +802,15 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
                 other.childProcess == childProcess) &&
             (identical(other.console, console) || other.console == console) &&
             (identical(other.crypto, crypto) || other.crypto == crypto) &&
+            (identical(other.dgram, dgram) || other.dgram == dgram) &&
             (identical(other.dns, dns) || other.dns == dns) &&
             (identical(other.events, events) || other.events == events) &&
             (identical(other.exceptions, exceptions) ||
                 other.exceptions == exceptions) &&
             (identical(other.fetch, fetch) || other.fetch == fetch) &&
             (identical(other.fs, fs) || other.fs == fs) &&
+            (identical(other.https, https) || other.https == https) &&
+            (identical(other.intl, intl) || other.intl == intl) &&
             (identical(other.navigator, navigator) ||
                 other.navigator == navigator) &&
             (identical(other.net, net) || other.net == net) &&
@@ -747,6 +823,8 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
                 other.streamWeb == streamWeb) &&
             (identical(other.stringDecoder, stringDecoder) ||
                 other.stringDecoder == stringDecoder) &&
+            (identical(other.temporal, temporal) ||
+                other.temporal == temporal) &&
             (identical(other.timers, timers) || other.timers == timers) &&
             (identical(other.tty, tty) || other.tty == tty) &&
             (identical(other.url, url) || other.url == url) &&
@@ -765,11 +843,14 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
         childProcess,
         console,
         crypto,
+        dgram,
         dns,
         events,
         exceptions,
         fetch,
         fs,
+        https,
+        intl,
         navigator,
         net,
         os,
@@ -778,6 +859,7 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
         process,
         streamWeb,
         stringDecoder,
+        temporal,
         timers,
         tty,
         url,
@@ -788,7 +870,7 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
 
   @override
   String toString() {
-    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
+    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dgram: $dgram, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, https: $https, intl: $intl, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, temporal: $temporal, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
   }
 }
 
@@ -808,11 +890,14 @@ abstract mixin class _$JsBuiltinOptionsCopyWith<$Res>
       bool? childProcess,
       bool? console,
       bool? crypto,
+      bool? dgram,
       bool? dns,
       bool? events,
       bool? exceptions,
       bool? fetch,
       bool? fs,
+      bool? https,
+      bool? intl,
       bool? navigator,
       bool? net,
       bool? os,
@@ -821,6 +906,7 @@ abstract mixin class _$JsBuiltinOptionsCopyWith<$Res>
       bool? process,
       bool? streamWeb,
       bool? stringDecoder,
+      bool? temporal,
       bool? timers,
       bool? tty,
       bool? url,
@@ -849,11 +935,14 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? childProcess = freezed,
     Object? console = freezed,
     Object? crypto = freezed,
+    Object? dgram = freezed,
     Object? dns = freezed,
     Object? events = freezed,
     Object? exceptions = freezed,
     Object? fetch = freezed,
     Object? fs = freezed,
+    Object? https = freezed,
+    Object? intl = freezed,
     Object? navigator = freezed,
     Object? net = freezed,
     Object? os = freezed,
@@ -862,6 +951,7 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? process = freezed,
     Object? streamWeb = freezed,
     Object? stringDecoder = freezed,
+    Object? temporal = freezed,
     Object? timers = freezed,
     Object? tty = freezed,
     Object? url = freezed,
@@ -898,6 +988,10 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
           ? _self.crypto
           : crypto // ignore: cast_nullable_to_non_nullable
               as bool?,
+      dgram: freezed == dgram
+          ? _self.dgram
+          : dgram // ignore: cast_nullable_to_non_nullable
+              as bool?,
       dns: freezed == dns
           ? _self.dns
           : dns // ignore: cast_nullable_to_non_nullable
@@ -917,6 +1011,14 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
       fs: freezed == fs
           ? _self.fs
           : fs // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      https: freezed == https
+          ? _self.https
+          : https // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      intl: freezed == intl
+          ? _self.intl
+          : intl // ignore: cast_nullable_to_non_nullable
               as bool?,
       navigator: freezed == navigator
           ? _self.navigator
@@ -949,6 +1051,10 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
       stringDecoder: freezed == stringDecoder
           ? _self.stringDecoder
           : stringDecoder // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      temporal: freezed == temporal
+          ? _self.temporal
+          : temporal // ignore: cast_nullable_to_non_nullable
               as bool?,
       timers: freezed == timers
           ? _self.timers

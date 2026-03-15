@@ -15,15 +15,214 @@
 
 use flutter_rust_bridge::frb;
 use rquickjs::function::Constructor;
-use rquickjs::{Ctx, FromAtom, FromJs, IntoJs, Null, Type};
+use rquickjs::{Ctx, FromAtom, FromJs, IntoJs, JsLifetime, Null, Type};
 use std::collections::HashMap;
+use std::marker::PhantomData;
+
+const JS_MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
+const JS_MIN_SAFE_INTEGER: i64 = -JS_MAX_SAFE_INTEGER;
+
+#[frb(ignore)]
+pub(crate) struct ValueIntrinsics<'js> {
+    date_constructor: rquickjs::Object<'js>,
+    date_get_time: rquickjs::Function<'js>,
+    array_buffer_is_view: rquickjs::Function<'js>,
+    _marker: PhantomData<&'js ()>,
+}
+
+unsafe impl<'js> JsLifetime<'js> for ValueIntrinsics<'js> {
+    type Changed<'to> = ValueIntrinsics<'to>;
+}
+
+impl<'js> ValueIntrinsics<'js> {
+    fn capture(ctx: &Ctx<'js>) -> rquickjs::Result<Self> {
+        let global = ctx.globals();
+        let date_constructor = global.get::<_, rquickjs::Object>("Date")?;
+        let date_prototype = date_constructor.get::<_, rquickjs::Object>("prototype")?;
+        let date_get_time = date_prototype.get::<_, rquickjs::Function>("getTime")?;
+
+        let array_buffer: rquickjs::Object = global.get("ArrayBuffer")?;
+        let array_buffer_is_view = array_buffer.get::<_, rquickjs::Function>("isView")?;
+
+        Ok(Self {
+            date_constructor,
+            date_get_time,
+            array_buffer_is_view,
+            _marker: PhantomData,
+        })
+    }
+}
+
+pub(crate) fn install_value_intrinsics<'js>(ctx: &Ctx<'js>) -> anyhow::Result<()> {
+    if ctx.userdata::<ValueIntrinsics<'js>>().is_some() {
+        return Ok(());
+    }
+
+    let intrinsics = ValueIntrinsics::capture(ctx)?;
+    ctx.store_userdata(intrinsics)
+        .map_err(|e| anyhow::anyhow!("Failed to store value intrinsics: {:?}", e))?;
+    Ok(())
+}
+
+fn is_safe_js_integer(value: i64) -> bool {
+    (JS_MIN_SAFE_INTEGER..=JS_MAX_SAFE_INTEGER).contains(&value)
+}
+
+fn dynamic_view_bytes<'js>(
+    ctx: &Ctx<'js>,
+    obj: &rquickjs::Object<'js>,
+    intrinsics: Option<&ValueIntrinsics<'js>>,
+) -> rquickjs::Result<Option<Vec<u8>>> {
+    if let Some(bytes) = obj
+        .as_typed_array::<i8>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+    if let Some(bytes) = obj
+        .as_typed_array::<u8>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+    if let Some(bytes) = obj
+        .as_typed_array::<i16>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+    if let Some(bytes) = obj
+        .as_typed_array::<u16>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+    if let Some(bytes) = obj
+        .as_typed_array::<i32>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+    if let Some(bytes) = obj
+        .as_typed_array::<u32>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+    if let Some(bytes) = obj
+        .as_typed_array::<f32>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+    if let Some(bytes) = obj
+        .as_typed_array::<f64>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+    if let Some(bytes) = obj
+        .as_typed_array::<i64>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+    if let Some(bytes) = obj
+        .as_typed_array::<u64>()
+        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
+    {
+        return Ok(Some(bytes));
+    }
+
+    let is_view = if let Some(intrinsics) = intrinsics {
+        intrinsics
+            .array_buffer_is_view
+            .call::<_, bool>((obj.clone(),))
+            .unwrap_or(false)
+    } else {
+        let global = ctx.globals();
+        match global
+            .get::<_, rquickjs::Object>("ArrayBuffer")
+            .and_then(|array_buffer| array_buffer.get::<_, rquickjs::Function>("isView"))
+        {
+            Ok(is_view) => is_view.call::<_, bool>((obj.clone(),)).unwrap_or(false),
+            Err(_) => false,
+        }
+    };
+
+    if !is_view {
+        return Ok(None);
+    }
+
+    let buffer = obj.get::<_, rquickjs::Object>("buffer")?;
+    let byte_offset = obj.get::<_, usize>("byteOffset")?;
+    let byte_length = obj.get::<_, usize>("byteLength")?;
+    let array_buffer = rquickjs::ArrayBuffer::from_object(buffer)
+        .ok_or_else(|| rquickjs::Error::new_from_js("value", "ArrayBuffer"))?;
+    let bytes = array_buffer
+        .as_bytes()
+        .ok_or_else(|| rquickjs::Error::new_from_js("value", "ArrayBuffer"))?;
+    let end = byte_offset.checked_add(byte_length).ok_or_else(|| {
+        rquickjs::Error::new_from_js_message("value", "Bytes", "Binary view overflow")
+    })?;
+    let slice = bytes.get(byte_offset..end).ok_or_else(|| {
+        rquickjs::Error::new_from_js_message("value", "Bytes", "Binary view is out of bounds")
+    })?;
+    Ok(Some(slice.to_vec()))
+}
+
+fn date_millis<'js>(
+    ctx: &Ctx<'js>,
+    obj: &rquickjs::Object<'js>,
+    intrinsics: Option<&ValueIntrinsics<'js>>,
+) -> rquickjs::Result<Option<i64>> {
+    let (date_constructor, date_get_time) = if let Some(intrinsics) = intrinsics {
+        (
+            intrinsics.date_constructor.clone(),
+            intrinsics.date_get_time.clone(),
+        )
+    } else {
+        let global = ctx.globals();
+        let date_constructor = match global.get::<_, rquickjs::Object>("Date") {
+            Ok(value) => value,
+            Err(_) => return Ok(None),
+        };
+        let date_prototype = match date_constructor.get::<_, rquickjs::Object>("prototype") {
+            Ok(value) => value,
+            Err(_) => return Ok(None),
+        };
+        let date_get_time = match date_prototype.get::<_, rquickjs::Function>("getTime") {
+            Ok(value) => value,
+            Err(_) => return Ok(None),
+        };
+        (date_constructor, date_get_time)
+    };
+
+    if !obj.is_instance_of(&date_constructor) {
+        return Ok(None);
+    }
+
+    let ms = date_get_time
+        .call::<_, f64>((rquickjs::function::This(obj.clone()),))
+        .map_err(|e| rquickjs::Error::new_from_js_message("Date", "number", e.to_string()))?;
+
+    if !ms.is_finite() {
+        return Err(rquickjs::Error::new_from_js_message(
+            "Date",
+            "JsValue::Date",
+            "Invalid Date cannot be converted to JsValue::Date",
+        ));
+    }
+
+    Ok(Some(ms as i64))
+}
 
 /// Represents a JavaScript value with type-safe conversion.
 ///
 /// This enum provides a comprehensive representation of all JavaScript value types,
 /// enabling safe and efficient conversion between JavaScript and Rust/Dart values.
 /// Each variant corresponds to a specific JavaScript type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[frb(dart_metadata = ("freezed"), dart_code = r#"
 
   /// Creates a JsValue from any Dart object.
@@ -33,6 +232,10 @@ use std::collections::HashMap;
     } else if (any is bool) {
       return JsValue.boolean(any);
     } else if (any is int) {
+      const maxSafeInteger = 9007199254740991;
+      if (any > maxSafeInteger || any < -maxSafeInteger) {
+        return JsValue.bigint(any.toString());
+      }
       return JsValue.integer(any);
     } else if (any is double) {
       return JsValue.float(any);
@@ -94,10 +297,11 @@ use std::collections::HashMap;
 "#)]
 pub enum JsValue {
     /// Represents null or undefined values in JavaScript
+    #[default]
     None,
     /// Represents boolean values (true/false)
     Boolean(bool),
-    /// Represents 64-bit integer values
+    /// Represents JavaScript safe integers (`Number` within +/- 2^53 - 1)
     Integer(i64),
     /// Represents floating-point number values
     Float(f64),
@@ -105,7 +309,7 @@ pub enum JsValue {
     Bigint(String),
     /// Represents string values
     String(String),
-    /// Represents binary data (ArrayBuffer/TypedArray)
+    /// Represents binary data (ArrayBuffer or typed array bytes)
     Bytes(Vec<u8>),
     /// Represents arrays with nested value support
     Array(Vec<JsValue>),
@@ -117,12 +321,6 @@ pub enum JsValue {
     Symbol(String),
     /// Represents function references (serialized name/id)
     Function(String),
-}
-
-impl Default for JsValue {
-    fn default() -> Self {
-        JsValue::None
-    }
 }
 
 impl JsValue {
@@ -431,6 +629,7 @@ impl<'js> FromJs<'js> for JsValue {
                 let obj = value
                     .as_object()
                     .ok_or_else(|| rquickjs::Error::new_from_js("value", "Object"))?;
+                let intrinsics = ctx.userdata::<ValueIntrinsics<'js>>();
 
                 // Check for ArrayBuffer
                 if let Some(ab) = rquickjs::ArrayBuffer::from_object(obj.clone()) {
@@ -438,17 +637,12 @@ impl<'js> FromJs<'js> for JsValue {
                     return Ok(JsValue::Bytes(bytes));
                 }
 
-                // Check for Date object by looking at constructor name
-                if let Ok(constructor) = obj.get::<_, rquickjs::Function>("constructor") {
-                    if let Ok(name) = constructor.get::<_, String>("name") {
-                        if name == "Date" {
-                            if let Ok(get_time) = obj.get::<_, rquickjs::Function>("getTime") {
-                                if let Ok(ms) = get_time.call::<_, f64>(()) {
-                                    return Ok(JsValue::Date(ms as i64));
-                                }
-                            }
-                        }
-                    }
+                if let Some(bytes) = dynamic_view_bytes(ctx, obj, intrinsics.as_deref())? {
+                    return Ok(JsValue::Bytes(bytes));
+                }
+
+                if let Some(ms) = date_millis(ctx, obj, intrinsics.as_deref())? {
+                    return Ok(JsValue::Date(ms));
                 }
 
                 // Regular object
@@ -479,31 +673,14 @@ impl<'js> FromJs<'js> for JsValue {
                 JsValue::Float(f)
             }
             Type::BigInt => {
-                // Convert BigInt using native rquickjs API
-                if let Some(bigint) = value.as_big_int() {
-                    // Try to convert to i64 first, if it fails, use string representation
-                    match bigint.clone().to_i64() {
-                        Ok(v) => JsValue::Bigint(v.to_string()),
-                        Err(_) => {
-                            // For very large BigInts, use JSON.stringify approach
-                            let global = ctx.globals();
-                            if let Ok(json) = global.get::<_, rquickjs::Object>("JSON") {
-                                if let Ok(stringify) =
-                                    json.get::<_, rquickjs::Function>("stringify")
-                                {
-                                    if let Ok(s) = stringify.call::<_, rquickjs::String>((value,))
-                                    {
-                                        return Ok(JsValue::Bigint(s.to_string()?));
-                                    }
-                                }
-                            }
-                            // Fallback
-                            JsValue::Bigint("0".to_string())
-                        }
-                    }
-                } else {
-                    JsValue::None
-                }
+                let global = ctx.globals();
+                let to_string = global
+                    .get::<_, rquickjs::Function>("String")
+                    .map_err(|_| rquickjs::Error::new_from_js("value", "BigInt"))?;
+                let s = to_string
+                    .call::<_, rquickjs::String>((value.clone(),))
+                    .map_err(|_| rquickjs::Error::new_from_js("value", "BigInt"))?;
+                JsValue::Bigint(s.to_string()?)
             }
             Type::Symbol => {
                 // Get symbol description using native rquickjs Symbol API
@@ -524,7 +701,7 @@ impl<'js> FromJs<'js> for JsValue {
                     JsValue::Symbol(String::new())
                 }
             }
-            Type::Function => {
+            Type::Function | Type::Constructor => {
                 // Serialize function name if available
                 if let Some(func) = value.as_function() {
                     if let Ok(name) = func.get::<_, String>("name") {
@@ -539,7 +716,6 @@ impl<'js> FromJs<'js> for JsValue {
             Type::Uninitialized
             | Type::Undefined
             | Type::Null
-            | Type::Constructor
             | Type::Promise
             | Type::Exception
             | Type::Module
@@ -556,11 +732,21 @@ impl<'js> IntoJs<'js> for JsValue {
         match self {
             JsValue::None => Null.into_js(ctx),
             JsValue::Boolean(v) => Ok(rquickjs::Value::new_bool(ctx.clone(), v)),
-            JsValue::Integer(v) => Ok(rquickjs::Value::new_number(ctx.clone(), v as _)),
+            JsValue::Integer(v) => {
+                if !is_safe_js_integer(v) {
+                    return Err(rquickjs::Error::new_from_js_message(
+                        "i64",
+                        "number",
+                        "Integer exceeds JavaScript's safe integer range; use JsValue::Bigint instead",
+                    ));
+                }
+                Ok(rquickjs::Value::new_number(ctx.clone(), v as _))
+            }
             JsValue::Float(v) => Ok(rquickjs::Value::new_float(ctx.clone(), v)),
             JsValue::Bigint(v) => {
-                let value = rquickjs::String::from_str(ctx.clone(), &v)?.into_js(ctx)?;
-                rquickjs::BigInt::from_value(value).into_js(ctx)
+                let global = ctx.globals();
+                let bigint_constructor: rquickjs::Function = global.get("BigInt")?;
+                bigint_constructor.call::<_, rquickjs::Value>((v,))
             }
             JsValue::String(v) => rquickjs::String::from_str(ctx.clone(), &v)?.into_js(ctx),
             JsValue::Bytes(v) => {

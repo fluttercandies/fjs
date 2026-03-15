@@ -46,11 +46,14 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
     bool? childProcess,
     bool? console,
     bool? crypto,
+    bool? dgram,
     bool? dns,
     bool? events,
     bool? exceptions,
     bool? fetch,
     bool? fs,
+    bool? https,
+    bool? intl,
     bool? navigator,
     bool? net,
     bool? os,
@@ -59,6 +62,7 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
     bool? process,
     bool? streamWeb,
     bool? stringDecoder,
+    bool? temporal,
     bool? timers,
     bool? tty,
     bool? url,
@@ -69,7 +73,7 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
 
   /// Creates builtin options with all modules enabled.
   ///
-  /// This enables every available Node.js-compatible builtin module,
+  /// This enables every available builtin module,
   /// providing maximum compatibility at the cost of larger binary size.
   ///
   /// ## Returns
@@ -145,7 +149,7 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
   /// Creates builtin options for web-like environment.
   ///
   /// Enables modules typically available in web browsers:
-  /// console, timers, fetch, url, crypto, stream_web, navigator, exceptions, json.
+  /// console, timers, fetch, url, crypto, stream_web, navigator, exceptions, intl, json.
   ///
   /// ## Returns
   ///

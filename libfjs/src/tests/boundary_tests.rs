@@ -49,8 +49,7 @@ fn test_bigint_very_large() {
     let runtime = JsRuntime::new().unwrap();
     let context = JsContext::from(&runtime).unwrap();
 
-    let result =
-        context.eval("BigInt('123456789012345678901234567890')".to_string());
+    let result = context.eval("BigInt('123456789012345678901234567890')".to_string());
     match result {
         JsResult::Ok(v) => {
             assert!(v.is_number()); // BigInt is numeric
@@ -584,9 +583,7 @@ async fn test_promise_chain() {
 
     let result = engine
         .eval(
-            JsCode::Code(
-                "Promise.resolve(1).then(x => x + 1).then(x => x + 1)".to_string(),
-            ),
+            JsCode::Code("Promise.resolve(1).then(x => x + 1).then(x => x + 1)".to_string()),
             None,
         )
         .await;
@@ -625,9 +622,7 @@ async fn test_promise_race() {
 
     let result = engine
         .eval(
-            JsCode::Code(
-                "Promise.race([Promise.resolve(1), Promise.resolve(2)])".to_string(),
-            ),
+            JsCode::Code("Promise.race([Promise.resolve(1), Promise.resolve(2)])".to_string()),
             None,
         )
         .await;
@@ -736,10 +731,7 @@ async fn test_module_non_existent_export() {
     let engine = JsEngine::new(&context).unwrap();
     engine.init_without_bridge().await.unwrap();
 
-    let module = JsModule::code(
-        "my-module".to_string(),
-        "export const a = 1;".to_string(),
-    );
+    let module = JsModule::code("my-module".to_string(), "export const a = 1;".to_string());
     engine.declare_new_module(module).await.unwrap();
 
     // Try to import non-existent export
@@ -773,7 +765,8 @@ async fn test_module_default_and_named_exports() {
     let result = engine
         .eval(
             JsCode::Code(
-                "import def, { a, b } from 'exports-module'; [def, a, b]".to_string(),
+                "const { default: def, a, b } = await import('exports-module'); [def, a, b]"
+                    .to_string(),
             ),
             None,
         )
@@ -790,10 +783,7 @@ async fn test_module_re_export() {
     let engine = JsEngine::new(&context).unwrap();
     engine.init_without_bridge().await.unwrap();
 
-    let original = JsModule::code(
-        "original".to_string(),
-        "export const x = 42;".to_string(),
-    );
+    let original = JsModule::code("original".to_string(), "export const x = 42;".to_string());
     let reexport = JsModule::code(
         "reexport".to_string(),
         "export { x } from 'original';".to_string(),
@@ -804,7 +794,7 @@ async fn test_module_re_export() {
 
     let result = engine
         .eval(
-            JsCode::Code("import { x } from 'reexport'; x".to_string()),
+            JsCode::Code("const { x } = await import('reexport'); x".to_string()),
             None,
         )
         .await;
@@ -911,7 +901,7 @@ fn test_jsvalue_nested_object_deep() {
 
 #[test]
 fn test_jsvalue_large_array() {
-    let arr: Vec<JsValue> = (0..1000).map(|i| JsValue::Integer(i)).collect();
+    let arr: Vec<JsValue> = (0..1000).map(JsValue::Integer).collect();
     let value = JsValue::Array(arr);
     assert!(value.is_array());
 }

@@ -4,6 +4,14 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fjs/fjs.dart';
 
+Matcher throwsAnyhowException() => throwsA(
+      predicate<Object?>(
+        (error) =>
+            error != null && error.toString().startsWith('AnyhowException('),
+        'AnyhowException',
+      ),
+    );
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async => await LibFjs.init());
@@ -492,10 +500,6 @@ void main() {
       final result = await context.eval(
         code: 'new Promise((resolve) => { resolve(42); })',
       );
-      print('DEBUG JsAsyncContext Promise: result.isOk = ${result.isOk}');
-      print('DEBUG JsAsyncContext Promise: result.ok = ${result.ok}');
-      print(
-          'DEBUG JsAsyncContext Promise: result.ok.value = ${result.ok.value}');
       expect(result.isOk, true);
       expect(result.ok.value, equals(42));
     });
@@ -598,7 +602,7 @@ void main() {
       expect(modules, containsAll(['string-utils', 'array-utils']));
     });
 
-    test('Clear modules', () async {
+    test('Clear pending modules', () async {
       await engine.initWithoutBridge();
 
       await engine.declareNewModule(
@@ -608,7 +612,7 @@ void main() {
 
       expect(await engine.isModuleDeclared(moduleName: 'temp-module'), true);
 
-      await engine.clearNewModules();
+      await engine.clearPendingModules();
 
       expect(await engine.isModuleDeclared(moduleName: 'temp-module'), false);
     });
@@ -659,9 +663,6 @@ void main() {
         options: JsEvalOptions.withPromise(),
       );
 
-      print('DEBUG: receivedData = $receivedData');
-      print('DEBUG: result = $result');
-      print('DEBUG: result.runtimeType = ${result.runtimeType}');
       expect(receivedData, isA<Map>());
       expect((receivedData as Map)['name'], equals('test'));
       // The bridge_call returns the value passed back from Dart
@@ -673,7 +674,7 @@ void main() {
 
       expect(
         () => engine.eval(source: const JsCode.code('function {')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
@@ -683,7 +684,7 @@ void main() {
       expect(
         () => engine.eval(
             source: const JsCode.code('undefinedVariable.property')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
@@ -700,7 +701,7 @@ void main() {
 
       expect(
         () => engine.initWithoutBridge(),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
@@ -710,14 +711,14 @@ void main() {
 
       expect(
         () => engine.eval(source: const JsCode.code('1 + 1')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
     test('Use without initialization should throw', () async {
       expect(
         () => engine.eval(source: const JsCode.code('1 + 1')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
@@ -797,8 +798,6 @@ void main() {
         '''),
         options: JsEvalOptions.withPromise(),
       );
-      print('DEBUG Promise: result = $result');
-      print('DEBUG Promise: result.runtimeType = ${result.runtimeType}');
       expect(result.value, equals(42));
     });
 
@@ -978,8 +977,6 @@ void main() {
           })
         '''),
       );
-      print('DEBUG URL: result = $result');
-      print('DEBUG URL: result.value = ${result.value}');
       expect(result.isObject(), true);
       final obj = result.value as Map;
       expect(obj['protocol'], equals('https:'));
@@ -1517,28 +1514,28 @@ void main() {
     test('TypeError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('null.property')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
     test('ReferenceError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('nonExistentVariable')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
     test('SyntaxError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('function {')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
     test('RangeError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('new Array(-1)')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
   });

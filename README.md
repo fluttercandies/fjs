@@ -52,10 +52,10 @@ void main() async {
   );
 
   // Create context
-  final context = await JsAsyncContext.from(runtime);
+  final context = await JsAsyncContext.from(runtime: runtime);
 
   // Create engine
-  final engine = JsEngine(context);
+  final engine = JsEngine(context: context);
   await engine.init(bridge: (jsValue) {
     return JsResult.ok(JsValue.string('Hello from Dart'));
   });
@@ -84,11 +84,13 @@ await engine.declareNewModule(
 
 // Use modules
 await engine.eval(source: JsCode.code('''
-  import { add, multiply } from 'math';
+  const { add, multiply } = await import('math');
   console.log(add(2, 3));        // 5
   console.log(multiply(4, 5));   // 20
 '''));
 ```
+
+Dynamic modules can be cleared only before they are loaded. After a module has been imported or evaluated in a context, recreate the context to replace it.
 
 ## 🌉 Bridge Communication
 
@@ -141,8 +143,10 @@ class JsEngine {
 
   Future<void> declareNewModule({required JsModule module});
   Future<void> declareNewModules({required List<JsModule> modules});
-  Future<void> clearNewModules();
+  Future<void> clearPendingModules();
+  Future<List<String>> getAvailableModules();
   Future<bool> isModuleDeclared({required String moduleName});
+  Future<bool> isModuleAvailable({required String moduleName});
   Future<List<String>> getDeclaredModules();
   Future<JsValue> evaluateModule({required JsModule module});
 
@@ -200,38 +204,42 @@ sealed class JsResult {
 }
 ```
 
-## 🧩 Built-in Modules
+## 🧩 Built-in Runtime Features
 
-| Module | Description |
+Some builtin options expose importable modules, and some install globals directly on the runtime.
+
+| Option | Description |
 |--------|-------------|
-| `console` | Console logging (`console.log`, `console.error`, etc.) |
-| `timers` | Timer functions (`setTimeout`, `setInterval`, `setImmediate`) |
-| `buffer` | Buffer utilities for binary data |
-| `util` | Utility functions |
-| `json` | JSON parsing and serialization |
-| `fetch` | HTTP client (Fetch API) |
-| `url` | URL parsing and formatting |
-| `crypto` | Cryptographic functions (hash, HMAC, random bytes) |
-| `events` | EventEmitter implementation |
-| `streamWeb` | Web Streams API |
-| `navigator` | Navigator information (web-compatible) |
-| `exceptions` | Error handling utilities |
-| `fs` | File system operations (Node.js-compatible) |
-| `path` | Path manipulation (POSIX/Windows) |
-| `process` | Process information and environment |
-| `os` | Operating system utilities |
-| `net` | Network TCP/UDP sockets |
-| `dns` | DNS resolution |
-| `childProcess` | Child process spawning |
-| `workerThreads` | Worker thread support |
+| `abort` | `AbortController` and abort-related globals |
+| `assert` | Assertion helpers |
 | `asyncHooks` | Async lifecycle tracking |
+| `buffer` | Buffer utilities for binary data |
+| `childProcess` | Child process spawning |
+| `console` | Console logging (`console.log`, `console.error`, etc.) |
+| `crypto` | Cryptographic functions and Web Crypto globals |
+| `dgram` | UDP sockets |
+| `dns` | DNS resolution |
+| `events` | `EventEmitter` support |
+| `exceptions` | Exception helpers installed globally |
+| `fetch` | Fetch API globals |
+| `fs` | File system operations |
+| `https` | HTTPS client module |
+| `intl` | Lightweight `Intl.DateTimeFormat` timezone support |
+| `navigator` | Navigator globals |
+| `net` | TCP sockets |
+| `os` | Operating system utilities (`not available on iOS`) |
+| `path` | Path manipulation (POSIX/Windows) |
 | `perfHooks` | Performance measurement APIs |
-| `perfHooks` | Performance measurement APIs |
-| `tty` | Terminal utilities |
+| `process` | Process information and environment |
+| `streamWeb` | Web Streams API |
 | `stringDecoder` | String decoding from buffers |
+| `temporal` | `Temporal` global |
+| `timers` | Timer functions (`setTimeout`, `setInterval`, `setImmediate`) |
+| `tty` | Terminal utilities |
+| `url` | URL parsing and formatting |
+| `util` | Utility functions |
 | `zlib` | Compression/decompression (gzip, deflate) |
-| `assert` | Assertion testing |
-| `abort` | AbortController support |
+| `json` | JSON static method compatibility helpers |
 
 ### Quick Presets
 
@@ -239,10 +247,10 @@ sealed class JsResult {
 // Essential: console, timers, buffer, util, json
 JsBuiltinOptions.essential()
 
-// Web: console, timers, fetch, url, crypto, streamWeb, navigator, exceptions, json
+// Web: console, timers, fetch, url, crypto, streamWeb, navigator, exceptions, intl, json
 JsBuiltinOptions.web()
 
-// Node.js: Most modules except OS-specific ones
+// Node.js: Most Node-compatible modules, plus https and intl
 JsBuiltinOptions.node()
 
 // All modules
@@ -260,12 +268,16 @@ JsBuiltinOptions(
 ## ⚠️ Error Handling
 
 ```dart
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+
 try {
   final result = await engine.eval(source: JsCode.code('invalid.code()'));
-} on JsError catch (e) {
-  print('Error: ${e.code()} - ${e}');
+} on AnyhowException catch (e) {
+  print('Execution failed: ${e.message}');
 }
 ```
+
+`JsError` is returned inside `JsResult.err(...)` for structured bridge results. Public execution APIs like `eval()` and `call()` currently surface Rust-side failures as `AnyhowException`.
 
 ## ⚡ Performance Tips
 

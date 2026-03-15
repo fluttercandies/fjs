@@ -388,6 +388,8 @@ pub struct JsBuiltinOptions {
     pub console: Option<bool>,
     /// Enable crypto module
     pub crypto: Option<bool>,
+    /// Enable dgram module
+    pub dgram: Option<bool>,
     /// Enable dns module
     pub dns: Option<bool>,
     /// Enable events module
@@ -398,6 +400,10 @@ pub struct JsBuiltinOptions {
     pub fetch: Option<bool>,
     /// Enable fs module
     pub fs: Option<bool>,
+    /// Enable https module
+    pub https: Option<bool>,
+    /// Enable lightweight Intl.DateTimeFormat timezone support
+    pub intl: Option<bool>,
     /// Enable navigator object
     pub navigator: Option<bool>,
     /// Enable net module
@@ -414,6 +420,8 @@ pub struct JsBuiltinOptions {
     pub stream_web: Option<bool>,
     /// Enable string_decoder module
     pub string_decoder: Option<bool>,
+    /// Enable Temporal global
+    pub temporal: Option<bool>,
     /// Enable timers module
     pub timers: Option<bool>,
     /// Enable tty module
@@ -431,7 +439,7 @@ pub struct JsBuiltinOptions {
 impl JsBuiltinOptions {
     /// Creates builtin options with all modules enabled.
     ///
-    /// This enables every available Node.js-compatible builtin module,
+    /// This enables every available builtin module,
     /// providing maximum compatibility at the cost of larger binary size.
     ///
     /// ## Returns
@@ -454,11 +462,14 @@ impl JsBuiltinOptions {
             child_process: Some(true),
             console: Some(true),
             crypto: Some(true),
+            dgram: Some(true),
             dns: Some(true),
             events: Some(true),
             exceptions: Some(true),
             fetch: Some(true),
             fs: Some(true),
+            https: Some(true),
+            intl: Some(true),
             navigator: Some(true),
             net: Some(true),
             os: Some(true),
@@ -467,6 +478,7 @@ impl JsBuiltinOptions {
             process: Some(true),
             stream_web: Some(true),
             string_decoder: Some(true),
+            temporal: Some(true),
             timers: Some(true),
             tty: Some(true),
             url: Some(true),
@@ -526,7 +538,7 @@ impl JsBuiltinOptions {
     /// Creates builtin options for web-like environment.
     ///
     /// Enables modules typically available in web browsers:
-    /// console, timers, fetch, url, crypto, stream_web, navigator, exceptions, json.
+    /// console, timers, fetch, url, crypto, stream_web, navigator, exceptions, intl, json.
     ///
     /// ## Returns
     ///
@@ -546,6 +558,7 @@ impl JsBuiltinOptions {
             fetch: Some(true),
             url: Some(true),
             crypto: Some(true),
+            intl: Some(true),
             stream_web: Some(true),
             navigator: Some(true),
             exceptions: Some(true),
@@ -578,10 +591,13 @@ impl JsBuiltinOptions {
             buffer: Some(true),
             console: Some(true),
             crypto: Some(true),
+            dgram: Some(true),
             dns: Some(true),
             events: Some(true),
             exceptions: Some(true),
             fs: Some(true),
+            https: Some(true),
+            intl: Some(true),
             path: Some(true),
             perf_hooks: Some(true),
             process: Some(true),

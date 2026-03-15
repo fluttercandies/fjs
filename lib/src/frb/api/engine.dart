@@ -10,7 +10,7 @@ import 'runtime.dart';
 import 'source.dart';
 import 'value.dart';
 
-// These functions are ignored because they are not marked as `pub`: `ensure_running`, `new_bridge_call`, `register_fjs`
+// These functions are ignored because they are not marked as `pub`: `begin_init`, `ensure_running`, `new_bridge_call`, `register_fjs`, `rollback_init`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngine>>
 abstract class JsEngine implements RustOpaqueInterface {
@@ -51,10 +51,11 @@ abstract class JsEngine implements RustOpaqueInterface {
   Future<JsValue> call(
       {required String module, required String method, List<JsValue>? params});
 
-  /// Clears all dynamically declared modules.
+  /// Clears dynamic modules that have not been loaded into the QuickJS module cache.
   ///
-  /// Removes all modules that were registered via `declareNewModule` or `declareNewModules`.
-  /// Built-in modules are not affected.
+  /// Dynamic modules become immutable for the lifetime of the context once they are loaded.
+  /// This method only removes still-pending module registrations. Built-in modules and already
+  /// loaded dynamic modules are not affected.
   ///
   /// ## Throws
   /// - If the engine is not initialized
@@ -62,9 +63,9 @@ abstract class JsEngine implements RustOpaqueInterface {
   ///
   /// ## Example
   /// ```dart
-  /// await engine.clearNewModules();
+  /// await engine.clearPendingModules();
   /// ```
-  Future<void> clearNewModules();
+  Future<void> clearPendingModules();
 
   /// Returns the underlying async context.
   ///
@@ -76,6 +77,8 @@ abstract class JsEngine implements RustOpaqueInterface {
   ///
   /// The module will be available for import in subsequent evaluations.
   /// Use this when you need to register a module for later use.
+  /// Once a dynamic module has been loaded into this context, it cannot
+  /// be replaced without recreating the context.
   ///
   /// ## Parameters
   /// - `module`: The module to declare (name and source code)
@@ -105,6 +108,9 @@ abstract class JsEngine implements RustOpaqueInterface {
   ///
   /// ## Parameters
   /// - `modules`: List of modules to declare
+  ///
+  /// Loaded dynamic modules cannot be redefined; recreating the context is
+  /// required to replace them.
   ///
   /// ## Throws
   /// - If the engine is not initialized
@@ -179,6 +185,7 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// - If the engine is not initialized
   /// - If module storage is not available
   /// - If module execution fails
+  /// - If the module name has already been loaded in this context
   ///
   /// ## Example
   /// ```dart
@@ -191,6 +198,12 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// ));
   /// ```
   Future<JsValue> evaluateModule({required JsModule module});
+
+  /// Gets all modules available to this engine.
+  ///
+  /// Returns builtin modules, statically configured extra modules,
+  /// and dynamically declared modules in a sorted list.
+  Future<List<String>> getAvailableModules();
 
   /// Gets all declared module names.
   ///
@@ -246,6 +259,12 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// await engine.initWithoutBridge();
   /// ```
   Future<void> initWithoutBridge();
+
+  /// Checks if a module is available to the engine.
+  ///
+  /// This includes builtin modules, statically configured extra modules,
+  /// and dynamically declared modules.
+  Future<bool> isModuleAvailable({required String moduleName});
 
   /// Checks if a module is declared.
   ///

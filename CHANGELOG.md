@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.0
+
+* **IMPROVEMENT**: Upgraded LLRT dependencies to revision `a2e1640`
+* **IMPROVEMENT**: Added more LLRT-backed runtime capabilities, including `dgram`, `https`, `intl`, and `temporal`
+* **IMPROVEMENT**: Added module inventory APIs to inspect all available modules, including builtins and additional configured modules
+* **IMPROVEMENT**: Clarified dynamic module lifecycle with `clearPendingModules()`, which only clears not-yet-loaded registrations
+* **FIX**: Prevented redefinition of dynamically loaded modules inside the same context lifecycle
+* **FIX**: Corrected relative resolution for dynamically declared modules
+* **FIX**: Hardened `JsValue` conversions for `Date`, `BigInt`, safe integers, and typed arrays
+* **FIX**: Removed implicit runtime draining from hot execution paths; pending jobs now advance only through explicit runtime APIs
+* **DOCS**: Updated README, README_zh, and example code to match the current production API and module semantics
+
 ## 2.0.1
 
 * **IMPROVEMENT**: Upgraded LLRT dependencies from revision 77edb18 to d375ad0

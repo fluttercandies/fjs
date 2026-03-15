@@ -52,10 +52,10 @@ void main() async {
   );
 
   // 创建上下文
-  final context = await JsAsyncContext.from(runtime);
+  final context = await JsAsyncContext.from(runtime: runtime);
 
   // 创建引擎
-  final engine = JsEngine(context);
+  final engine = JsEngine(context: context);
   await engine.init(bridge: (jsValue) {
     return JsResult.ok(JsValue.string('来自 Dart 的问候'));
   });
@@ -84,11 +84,13 @@ await engine.declareNewModule(
 
 // 使用模块
 await engine.eval(source: JsCode.code('''
-  import { add, multiply } from 'math';
+  const { add, multiply } = await import('math');
   console.log(add(2, 3));        // 5
   console.log(multiply(4, 5));   // 20
 '''));
 ```
+
+动态模块只有在尚未加载进当前 context 时才能清除。模块一旦被 `import()` 或 `evaluateModule()` 载入，就需要重建 context 才能替换。
 
 ## 🌉 桥接通信
 
@@ -141,8 +143,10 @@ class JsEngine {
 
   Future<void> declareNewModule({required JsModule module});
   Future<void> declareNewModules({required List<JsModule> modules});
-  Future<void> clearNewModules();
+  Future<void> clearPendingModules();
+  Future<List<String>> getAvailableModules();
   Future<bool> isModuleDeclared({required String moduleName});
+  Future<bool> isModuleAvailable({required String moduleName});
   Future<List<String>> getDeclaredModules();
   Future<JsValue> evaluateModule({required JsModule module});
 
@@ -200,36 +204,42 @@ sealed class JsResult {
 }
 ```
 
-## 🧩 内置模块
+## 🧩 内置运行时能力
 
-| 模块 | 描述 |
+有些 builtin 选项会暴露可 `import` 的模块，有些则会直接在运行时注入全局对象。
+
+| 选项 | 描述 |
 |------|------|
-| `console` | 控制台日志（`console.log`、`console.error` 等） |
-| `timers` | 定时器函数（`setTimeout`、`setInterval`、`setImmediate`） |
-| `buffer` | Buffer 二进制数据处理 |
-| `util` | 工具函数 |
-| `json` | JSON 解析与序列化 |
-| `fetch` | HTTP 客户端（Fetch API） |
-| `url` | URL 解析与格式化 |
-| `crypto` | 加密函数（哈希、HMAC、随机字节） |
-| `events` | EventEmitter 实现 |
-| `streamWeb` | Web Streams API |
-| `navigator` | Navigator 信息（Web 兼容） |
-| `exceptions` | 错误处理工具 |
-| `fs` | 文件系统操作（Node.js 兼容） |
-| `path` | 路径处理（POSIX/Windows） |
-| `process` | 进程信息与环境变量 |
-| `os` | 操作系统工具 |
-| `net` | 网络 TCP/UDP 套接字 |
-| `dns` | DNS 解析 |
-| `childProcess` | 子进程派生 |
+| `abort` | `AbortController` 及相关全局对象 |
+| `assert` | 断言辅助 |
 | `asyncHooks` | 异步生命周期追踪 |
+| `buffer` | Buffer 二进制数据处理 |
+| `childProcess` | 子进程派生 |
+| `console` | 控制台日志（`console.log`、`console.error` 等） |
+| `crypto` | 加密能力和 Web Crypto 全局对象 |
+| `dgram` | UDP 套接字 |
+| `dns` | DNS 解析 |
+| `events` | `EventEmitter` 支持 |
+| `exceptions` | 全局异常辅助 |
+| `fetch` | Fetch API 全局对象 |
+| `fs` | 文件系统操作 |
+| `https` | HTTPS 客户端模块 |
+| `intl` | 轻量 `Intl.DateTimeFormat` 时区支持 |
+| `navigator` | Navigator 全局对象 |
+| `net` | TCP 套接字 |
+| `os` | 操作系统工具（`iOS` 不提供） |
+| `path` | 路径处理（POSIX/Windows） |
 | `perfHooks` | 性能测量 API |
-| `tty` | 终端工具 |
+| `process` | 进程信息与环境变量 |
+| `streamWeb` | Web Streams API |
 | `stringDecoder` | Buffer 字符串解码 |
+| `temporal` | `Temporal` 全局对象 |
+| `timers` | 定时器函数（`setTimeout`、`setInterval`、`setImmediate`） |
+| `tty` | 终端工具 |
+| `url` | URL 解析与格式化 |
+| `util` | 工具函数 |
 | `zlib` | 压缩/解压（gzip、deflate） |
-| `assert` | 断言测试 |
-| `abort` | AbortController 支持 |
+| `json` | JSON 静态方法兼容辅助 |
 
 ### 快速预设
 
@@ -237,10 +247,10 @@ sealed class JsResult {
 // 基础模块：console、timers、buffer、util、json
 JsBuiltinOptions.essential()
 
-// Web 环境：console、timers、fetch、url、crypto、streamWeb、navigator、exceptions、json
+// Web 环境：console、timers、fetch、url、crypto、streamWeb、navigator、exceptions、intl、json
 JsBuiltinOptions.web()
 
-// Node.js 环境：除 OS 特定模块外的大部分模块
+// Node.js 环境：大部分 Node 兼容模块，包含 https 和 intl
 JsBuiltinOptions.node()
 
 // 全部模块
@@ -258,12 +268,16 @@ JsBuiltinOptions(
 ## ⚠️ 错误处理
 
 ```dart
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+
 try {
   final result = await engine.eval(source: JsCode.code('invalid.code()'));
-} on JsError catch (e) {
-  print('错误: ${e.code()} - ${e}');
+} on AnyhowException catch (e) {
+  print('执行失败: ${e.message}');
 }
 ```
+
+`JsError` 主要出现在 `JsResult.err(...)` 这类结构化返回值里。`eval()`、`call()` 之类公开执行 API 当前抛出的 Rust 侧失败会表现为 `AnyhowException`。
 
 ## ⚡ 性能建议
 

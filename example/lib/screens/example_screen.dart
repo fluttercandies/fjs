@@ -4,6 +4,7 @@ import 'package:fjs/fjs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../app/mounted_state_mixin.dart';
 import '../widgets/widgets.dart';
 
 /// Example Screen demonstrating advanced FJS features
@@ -19,18 +20,32 @@ class ExampleScreen extends StatefulWidget {
   State<ExampleScreen> createState() => _ExampleScreenState();
 }
 
-class _ExampleScreenState extends State<ExampleScreen> {
+class _ExampleScreenState extends State<ExampleScreen>
+    with MountedStateMixin<ExampleScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<String> _logs = [];
   bool _isExecuting = false;
   int _selectedExampleIndex = 0;
 
+  // ignore: unused_field - retained to keep the opaque runtime/context alive
+  JsAsyncRuntime? _runtime;
+  // ignore: unused_field - retained to keep the opaque runtime/context alive
+  JsAsyncContext? _context;
   JsEngine? _engine;
+
+  JsEngine get _engineOrThrow =>
+      _engine ?? (throw StateError('Engine not initialized'));
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _engine?.dispose();
+    final engine = _engine;
+    _runtime = null;
+    _context = null;
+    _engine = null;
+    if (engine != null) {
+      unawaited(engine.dispose());
+    }
     super.dispose();
   }
 
@@ -39,46 +54,69 @@ class _ExampleScreenState extends State<ExampleScreen> {
 
     _addLog('⚠️ Initializing JavaScript engine...');
 
-    // Load custom modules (linkedom and canvas)
-    final linkedomBundle =
-        await rootBundle.load('assets/examples/linkedom.bundle.mjs');
-    final canvasBundle =
-        await rootBundle.load('assets/examples/canvas.bundle.mjs');
+    JsAsyncRuntime? runtime;
+    JsAsyncContext? context;
+    JsEngine? engine;
 
-    // Create runtime with builtin modules and custom modules
-    final runtime = await JsAsyncRuntime.withOptions(
-      builtin: JsBuiltinOptions(
-        console: true,
-        fetch: true,
-        timers: true,
-        url: true,
-      ),
-      additional: [
-        JsModule(
-          name: 'canvas',
-          source: JsCode.bytes(canvasBundle.buffer.asUint8List()),
+    try {
+      // Load custom modules (linkedom and canvas)
+      final linkedomBundle =
+          await rootBundle.load('assets/examples/linkedom.bundle.mjs');
+      final canvasBundle =
+          await rootBundle.load('assets/examples/canvas.bundle.mjs');
+
+      // Create runtime with builtin modules and custom modules
+      runtime = await JsAsyncRuntime.withOptions(
+        builtin: JsBuiltinOptions(
+          console: true,
+          fetch: true,
+          timers: true,
+          url: true,
         ),
-        JsModule(
-          name: 'linkedom',
-          source: JsCode.bytes(linkedomBundle.buffer.asUint8List()),
-        ),
-      ],
-    );
+        additional: [
+          JsModule(
+            name: 'canvas',
+            source: JsCode.bytes(canvasBundle.buffer.asUint8List()),
+          ),
+          JsModule(
+            name: 'linkedom',
+            source: JsCode.bytes(linkedomBundle.buffer.asUint8List()),
+          ),
+        ],
+      );
 
-    final context = await JsAsyncContext.from(runtime: runtime);
-    _engine = JsEngine(context: context);
-    await _engine!.initWithoutBridge();
+      context = await JsAsyncContext.from(runtime: runtime);
+      engine = JsEngine(context: context);
+      await engine.initWithoutBridge();
 
-    _addLog('✅ Engine initialized with linkedom and canvas support!');
+      if (!mounted) {
+        await engine.dispose();
+        return;
+      }
+
+      _runtime = runtime;
+      _context = context;
+      _engine = engine;
+      _addLog('✅ Engine initialized with linkedom and canvas support!');
+    } catch (_) {
+      if (engine != null) {
+        await engine.dispose();
+      }
+      rethrow;
+    }
   }
 
   void _addLog(String message) {
-    setState(() {
-      _logs.add('[${DateTime.now().toIso8601String().substring(11, 19)}] $message');
+    setStateIfMounted(() {
+      _logs.add(
+          '[${DateTime.now().toIso8601String().substring(11, 19)}] $message');
     });
 
     // Auto-scroll to bottom
     Future.delayed(const Duration(milliseconds: 50), () {
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -90,7 +128,7 @@ class _ExampleScreenState extends State<ExampleScreen> {
   }
 
   void _clearLogs() {
-    setState(() {
+    setStateIfMounted(() {
       _logs.clear();
     });
   }
@@ -98,7 +136,7 @@ class _ExampleScreenState extends State<ExampleScreen> {
   Future<void> _runExample(int index) async {
     if (_isExecuting) return;
 
-    setState(() {
+    setStateIfMounted(() {
       _isExecuting = true;
       _selectedExampleIndex = index;
     });
@@ -123,7 +161,7 @@ class _ExampleScreenState extends State<ExampleScreen> {
     } catch (e) {
       _addLog('❌ Error: $e');
     } finally {
-      setState(() {
+      setStateIfMounted(() {
         _isExecuting = false;
       });
     }
@@ -151,7 +189,7 @@ await (async () => {
 })()
 ''';
 
-    final result = await _engine!.eval(source: JsCode.code(code));
+    final result = await _engineOrThrow.eval(source: JsCode.code(code));
 
     _addLog('✅ DOM Example completed!');
     _addLog('  Result: ${result.value}');
@@ -194,12 +232,12 @@ globalThis['$taskId'] = await (async () => {
 })();
 ''';
 
-    await _engine!.evaluateModule(
+    await _engineOrThrow.evaluateModule(
       module: JsModule(name: taskId, source: JsCode.code(moduleCode)),
     );
 
     // Get result from globalThis
-    final result = await _engine!.eval(source: JsCode.code('''
+    final result = await _engineOrThrow.eval(source: JsCode.code('''
 (async () => {
   const result = globalThis['$taskId'];
   delete globalThis['$taskId'];
@@ -230,7 +268,7 @@ await (async () => {
 })()
 ''';
 
-    final result = await _engine!.eval(source: JsCode.code(code));
+    final result = await _engineOrThrow.eval(source: JsCode.code(code));
 
     _addLog('✅ Fetch Example completed!');
     _addLog('  Result: ${result.value}');
@@ -268,7 +306,7 @@ await (async () => {
 })()
 ''';
 
-    final result = await _engine!.eval(source: JsCode.code(code));
+    final result = await _engineOrThrow.eval(source: JsCode.code(code));
 
     _addLog('✅ Async Example completed!');
     _addLog('  Result: ${result.value}');
@@ -482,7 +520,9 @@ await (async () => {
                 )),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: _isExecuting ? null : () => _runExample(_selectedExampleIndex),
+              onPressed: _isExecuting
+                  ? null
+                  : () => _runExample(_selectedExampleIndex),
               icon: _isExecuting
                   ? const SizedBox(
                       width: 16,
@@ -492,7 +532,8 @@ await (async () => {
                   : const Icon(Icons.play_arrow),
               label: Text(_isExecuting ? 'Running...' : 'Run Example'),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -558,7 +599,8 @@ await (async () => {
                     itemCount: _logs.length,
                     itemBuilder: (context, index) {
                       final log = _logs[index];
-                      final isError = log.contains('❌') || log.contains('Error');
+                      final isError =
+                          log.contains('❌') || log.contains('Error');
                       final isSuccess = log.contains('✅');
                       final isWarning = log.contains('⚠️');
 

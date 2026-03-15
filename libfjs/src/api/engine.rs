@@ -11,19 +11,23 @@
 //! - `declare_new_modules()` - Register multiple modules
 //! - `evaluate_module()` - Register and execute a module
 //! - `call()` - Call a function in a module
-//! - `clear_new_modules()` - Clear all dynamic modules
+//! - `clear_pending_modules()` - Clear dynamic modules that have not been loaded yet
 //! - `get_declared_modules()` - Get all module names
+//! - `get_available_modules()` - Get builtin and dynamic module names
 //! - `is_module_declared()` - Check if a module exists
+//! - `is_module_available()` - Check if a builtin or dynamic module exists
 
 use crate::api::error::{JsError, JsResult};
-use crate::api::runtime::{call_module_method, result_from_promise, JsAsyncContext};
-use crate::api::source::{get_raw_source_code, JsCode, JsEvalOptions, JsModule};
+use crate::api::module::{
+    get_loaded_dynamic_module_names, is_dynamic_module_loaded, mark_dynamic_module_loaded,
+};
+use crate::api::runtime::{JsAsyncContext, call_module_method, result_from_promise};
+use crate::api::source::{JsCode, JsEvalOptions, JsModule, get_raw_source_code};
 use crate::api::value::JsValue;
 use anyhow::anyhow;
-use flutter_rust_bridge::{frb, DartFnFuture};
-use rquickjs::function::Args;
+use flutter_rust_bridge::{DartFnFuture, frb};
 use rquickjs::{CatchResultExt, FromJs, Module, Object, Promise};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, RwLock};
 
@@ -123,6 +127,37 @@ impl JsEngine {
         }
     }
 
+    /// Transitions the engine into the initializing/running state.
+    fn begin_init(&self) -> anyhow::Result<()> {
+        let current = self.state.load(Ordering::Acquire);
+        if current == STATE_DISPOSED {
+            return Err(anyhow!("Engine is disposed"));
+        }
+        if current == STATE_RUNNING {
+            return Err(anyhow!("Engine is already initialized"));
+        }
+
+        self.state
+            .compare_exchange(
+                STATE_CREATED,
+                STATE_RUNNING,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .map_err(|_| anyhow!("Failed to initialize engine - invalid state"))?;
+        Ok(())
+    }
+
+    /// Rolls back the init state when initialization fails.
+    fn rollback_init(&self) {
+        let _ = self.state.compare_exchange(
+            STATE_RUNNING,
+            STATE_CREATED,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        );
+    }
+
     /// Initializes the engine with a bridge callback for Dart-JS communication.
     ///
     /// The bridge callback is invoked when JavaScript calls `fjs.bridge_call(value)`.
@@ -147,44 +182,31 @@ impl JsEngine {
         &self,
         bridge: impl Fn(JsValue) -> DartFnFuture<JsResult> + Sync + Send + 'static,
     ) -> anyhow::Result<()> {
-        let current = self.state.load(Ordering::Acquire);
-        if current == STATE_DISPOSED {
-            return Err(anyhow!("Engine is disposed"));
-        }
-        if current == STATE_RUNNING {
-            return Err(anyhow!("Engine is already initialized"));
-        }
-
-        // Transition to running state
-        if self
-            .state
-            .compare_exchange(
-                STATE_CREATED,
-                STATE_RUNNING,
-                Ordering::AcqRel,
-                Ordering::Acquire,
-            )
-            .is_err()
-        {
-            return Err(anyhow!("Failed to initialize engine - invalid state"));
-        }
+        self.begin_init()?;
 
         let bridge = Arc::new(bridge);
 
-        self.context
+        let init_result = self
+            .context
             .ctx
             .async_with(async |ctx| {
-                if let Some(attachment) = &self.context.global_attachment {
-                    if let Err(e) = attachment.attach(&ctx) {
-                        return Err(anyhow!("Failed to attach global context: {}", e));
-                    }
+                if let Some(attachment) = &self.context.global_attachment
+                    && let Err(e) = attachment.attach(&ctx)
+                {
+                    return Err(anyhow!("Failed to attach global context: {}", e));
                 }
                 if let Err(e) = register_fjs(ctx.clone(), bridge) {
                     return Err(anyhow!("Failed to register fjs bridge: {}", e));
                 }
                 Ok(())
             })
-            .await
+            .await;
+
+        if init_result.is_err() {
+            self.rollback_init();
+        }
+
+        init_result
     }
 
     /// Initializes the engine without a bridge callback.
@@ -201,39 +223,26 @@ impl JsEngine {
     /// await engine.initWithoutBridge();
     /// ```
     pub async fn init_without_bridge(&self) -> anyhow::Result<()> {
-        let current = self.state.load(Ordering::Acquire);
-        if current == STATE_DISPOSED {
-            return Err(anyhow!("Engine is disposed"));
-        }
-        if current == STATE_RUNNING {
-            return Err(anyhow!("Engine is already initialized"));
-        }
+        self.begin_init()?;
 
-        // Transition to running state
-        if self
-            .state
-            .compare_exchange(
-                STATE_CREATED,
-                STATE_RUNNING,
-                Ordering::AcqRel,
-                Ordering::Acquire,
-            )
-            .is_err()
-        {
-            return Err(anyhow!("Failed to initialize engine - invalid state"));
-        }
-
-        self.context
+        let init_result = self
+            .context
             .ctx
             .async_with(async |ctx| {
-                if let Some(attachment) = &self.context.global_attachment {
-                    if let Err(e) = attachment.attach(&ctx) {
-                        return Err(anyhow!("Failed to attach global context: {}", e));
-                    }
+                if let Some(attachment) = &self.context.global_attachment
+                    && let Err(e) = attachment.attach(&ctx)
+                {
+                    return Err(anyhow!("Failed to attach global context: {}", e));
                 }
                 Ok(())
             })
-            .await
+            .await;
+
+        if init_result.is_err() {
+            self.rollback_init();
+        }
+
+        init_result
     }
 
     /// Disposes the engine and releases resources.
@@ -248,6 +257,24 @@ impl JsEngine {
         if current == STATE_DISPOSED {
             return Err(anyhow!("Engine is already disposed"));
         }
+
+        if current == STATE_RUNNING {
+            let _ = self
+                .context
+                .ctx
+                .async_with(async |ctx| {
+                    let globals = ctx.globals();
+                    let _ = globals.remove("fjs");
+                    Ok::<(), anyhow::Error>(())
+                })
+                .await;
+
+            if self.context.ctx.runtime().is_job_pending().await {
+                self.context.ctx.runtime().idle().await;
+            }
+            self.context.ctx.runtime().run_gc().await;
+        }
+
         self.state.store(STATE_DISPOSED, Ordering::Release);
         Ok(())
     }
@@ -290,7 +317,7 @@ impl JsEngine {
         let mut options = options.unwrap_or_default();
         options.promise = Some(true);
 
-        let source_code = get_raw_source_code(source.clone())
+        let source_code = get_raw_source_code(source)
             .await
             .map_err(|e| anyhow!("Failed to get source code: {}", e))?;
 
@@ -310,6 +337,8 @@ impl JsEngine {
     ///
     /// The module will be available for import in subsequent evaluations.
     /// Use this when you need to register a module for later use.
+    /// Once a dynamic module has been loaded into this context, it cannot
+    /// be replaced without recreating the context.
     ///
     /// ## Parameters
     /// - `module`: The module to declare (name and source code)
@@ -334,15 +363,25 @@ impl JsEngine {
     pub async fn declare_new_module(&self, module: JsModule) -> anyhow::Result<()> {
         self.ensure_running()?;
 
-        let source_code = get_raw_source_code(module.source.clone())
+        let JsModule {
+            name: module_name,
+            source,
+        } = module;
+        let source_code = get_raw_source_code(source)
             .await
             .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
 
-        let module_name = module.name.clone();
         let result = self
             .context
             .ctx
             .async_with(async |ctx| {
+                if is_dynamic_module_loaded(&ctx, &module_name) {
+                    return JsResult::Err(JsError::module(
+                        Some(module_name),
+                        None,
+                        "Module has already been loaded in this context and cannot be redefined; create a new context to replace it",
+                    ));
+                }
                 if let Some(storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
                     storage.write().unwrap().insert(module_name, source_code);
                     JsResult::Ok(JsValue::None)
@@ -362,6 +401,9 @@ impl JsEngine {
     /// ## Parameters
     /// - `modules`: List of modules to declare
     ///
+    /// Loaded dynamic modules cannot be redefined; recreating the context is
+    /// required to replace them.
+    ///
     /// ## Throws
     /// - If the engine is not initialized
     /// - If any module declaration fails
@@ -376,10 +418,45 @@ impl JsEngine {
     pub async fn declare_new_modules(&self, modules: Vec<JsModule>) -> anyhow::Result<()> {
         self.ensure_running()?;
 
+        let mut resolved_modules = Vec::with_capacity(modules.len());
         for module in modules {
-            self.declare_new_module(module).await?;
+            let JsModule { name, source } = module;
+            let source_code = get_raw_source_code(source)
+                .await
+                .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
+            resolved_modules.push((name, source_code));
         }
-        Ok(())
+
+        let result = self
+            .context
+            .ctx
+            .async_with(async |ctx| {
+                let conflicts: Vec<_> = resolved_modules
+                    .iter()
+                    .filter(|(name, _)| is_dynamic_module_loaded(&ctx, name))
+                    .map(|(name, _)| name.clone())
+                    .collect();
+                if !conflicts.is_empty() {
+                    return JsResult::Err(JsError::module(
+                        Some(conflicts[0].clone()),
+                        None,
+                        format!(
+                            "Loaded dynamic modules cannot be redefined in this context: {}",
+                            conflicts.join(", ")
+                        ),
+                    ));
+                }
+                if let Some(storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
+                    let mut storage = storage.write().unwrap();
+                    storage.extend(resolved_modules);
+                    JsResult::Ok(JsValue::None)
+                } else {
+                    JsResult::Err(JsError::storage("Module storage not initialized"))
+                }
+            })
+            .await;
+
+        result.into_result().map(|_| ())
     }
 
     /// Evaluates a module (registers and executes it).
@@ -397,6 +474,7 @@ impl JsEngine {
     /// - If the engine is not initialized
     /// - If module storage is not available
     /// - If module execution fails
+    /// - If the module name has already been loaded in this context
     ///
     /// ## Example
     /// ```dart
@@ -411,21 +489,34 @@ impl JsEngine {
     pub async fn evaluate_module(&self, module: JsModule) -> anyhow::Result<JsValue> {
         self.ensure_running()?;
 
-        let source_code = get_raw_source_code(module.source.clone())
+        let JsModule {
+            name: module_name,
+            source,
+        } = module;
+        let source_code = get_raw_source_code(source)
             .await
             .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
 
-        let module_name = module.name.clone();
         let result = self
             .context
             .ctx
             .async_with(async |ctx| {
+                if is_dynamic_module_loaded(&ctx, &module_name) {
+                    return JsResult::Err(JsError::module(
+                        Some(module_name),
+                        None,
+                        "Module has already been loaded in this context and cannot be redefined; create a new context to replace it",
+                    ));
+                }
                 if let Some(storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
                     storage
                         .write()
                         .unwrap()
                         .insert(module_name.clone(), source_code.clone());
-                    let res = Module::evaluate(ctx.clone(), module_name, source_code);
+                    let res = Module::evaluate(ctx.clone(), module_name.clone(), source_code);
+                    if res.is_ok() {
+                        mark_dynamic_module_loaded(&ctx, &module_name);
+                    }
                     result_from_promise(&ctx, res).await
                 } else {
                     JsResult::Err(JsError::storage("Module storage not initialized"))
@@ -436,10 +527,11 @@ impl JsEngine {
         result.into_result()
     }
 
-    /// Clears all dynamically declared modules.
+    /// Clears dynamic modules that have not been loaded into the QuickJS module cache.
     ///
-    /// Removes all modules that were registered via `declareNewModule` or `declareNewModules`.
-    /// Built-in modules are not affected.
+    /// Dynamic modules become immutable for the lifetime of the context once they are loaded.
+    /// This method only removes still-pending module registrations. Built-in modules and already
+    /// loaded dynamic modules are not affected.
     ///
     /// ## Throws
     /// - If the engine is not initialized
@@ -447,9 +539,9 @@ impl JsEngine {
     ///
     /// ## Example
     /// ```dart
-    /// await engine.clearNewModules();
+    /// await engine.clearPendingModules();
     /// ```
-    pub async fn clear_new_modules(&self) -> anyhow::Result<()> {
+    pub async fn clear_pending_modules(&self) -> anyhow::Result<()> {
         self.ensure_running()?;
 
         let result = self
@@ -457,7 +549,12 @@ impl JsEngine {
             .ctx
             .async_with(async |ctx| {
                 if let Some(storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
-                    storage.write().unwrap().clear();
+                    let loaded: HashSet<_> =
+                        get_loaded_dynamic_module_names(&ctx).into_iter().collect();
+                    storage
+                        .write()
+                        .unwrap()
+                        .retain(|name, _| loaded.contains(name));
                     JsResult::Ok(JsValue::None)
                 } else {
                     JsResult::Err(JsError::storage("Module storage not initialized"))
@@ -491,12 +588,23 @@ impl JsEngine {
             .ctx
             .async_with(async |ctx| {
                 if let Some(storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
-                    Ok(storage.read().unwrap().keys().cloned().collect())
+                    let mut modules: Vec<_> = storage.read().unwrap().keys().cloned().collect();
+                    modules.sort();
+                    Ok(modules)
                 } else {
                     Err(anyhow!("Module storage not initialized"))
                 }
             })
             .await
+    }
+
+    /// Gets all modules available to this engine.
+    ///
+    /// Returns builtin modules, statically configured extra modules,
+    /// and dynamically declared modules in a sorted list.
+    pub async fn get_available_modules(&self) -> anyhow::Result<Vec<String>> {
+        self.ensure_running()?;
+        self.context.get_available_modules().await
     }
 
     /// Checks if a module is declared.
@@ -530,6 +638,19 @@ impl JsEngine {
                 }
             })
             .await
+    }
+
+    /// Checks if a module is available to the engine.
+    ///
+    /// This includes builtin modules, statically configured extra modules,
+    /// and dynamically declared modules.
+    pub async fn is_module_available(&self, module_name: String) -> anyhow::Result<bool> {
+        self.ensure_running()?;
+        Ok(self
+            .get_available_modules()
+            .await?
+            .iter()
+            .any(|name| name == &module_name))
     }
 
     /// Calls a function in a module.
@@ -578,9 +699,7 @@ impl JsEngine {
         let result = self
             .context
             .ctx
-            .async_with(async |ctx| {
-                call_module_method(&ctx, module, method, params).await
-            })
+            .async_with(async |ctx| call_module_method(&ctx, module, method, params).await)
             .await;
 
         result.into_result()
@@ -607,7 +726,7 @@ fn new_bridge_call<'js>(
     let ctx_for_catch = ctx.clone();
     rquickjs::Function::new(
         ctx.clone(),
-        move |args: rquickjs::function::Rest<rquickjs::Value<'js>>| -> rquickjs::Result<Promise> {
+        move |args: rquickjs::function::Rest<rquickjs::Value<'js>>| -> rquickjs::Result<Promise<'js>> {
             if args.0.len() > 1 {
                 return Err(rquickjs::Error::TooManyArgs {
                     expected: 1,
@@ -621,39 +740,24 @@ fn new_bridge_call<'js>(
                 });
             }
 
-            let arg = args.0.first().ok_or_else(|| rquickjs::Error::MissingArgs {
+            let arg = args.0.first().ok_or(rquickjs::Error::MissingArgs {
                 expected: 1,
                 given: 0,
             })?;
 
             let js_value = JsValue::from_js(&ctx, arg.clone())?;
             let bridge_ref = bridge.clone();
-            let (promise, resolve, reject) = ctx.promise()?;
-            let ctx_s = ctx.clone();
 
-            ctx.spawn(async move {
-                let res = bridge_ref(js_value).await;
-                match res {
-                    JsResult::Ok(value) => {
-                        let mut args = Args::new(ctx_s.clone(), 1);
-                        if let Err(e) = args.push_arg(value) {
-                            let mut reject_args = Args::new(ctx_s, 1);
-                            let _ = reject_args.push_arg(format!("Internal error: {}", e));
-                            let _ = reject.call_arg::<()>(reject_args);
-                            return;
-                        }
-                        let _ = resolve.call_arg::<()>(args);
-                    }
-                    JsResult::Err(err) => {
-                        let mut args = Args::new(ctx_s, 1);
-                        if args.push_arg(err.to_string()).is_err() {
-                            return;
-                        }
-                        let _ = reject.call_arg::<()>(args);
-                    }
+            Promise::wrap_future(&ctx, async move {
+                match bridge_ref(js_value).await {
+                    JsResult::Ok(value) => Ok::<JsValue, rquickjs::Error>(value),
+                    JsResult::Err(err) => Err(rquickjs::Error::new_from_js_message(
+                        "bridge",
+                        "JsValue",
+                        err.to_string(),
+                    )),
                 }
-            });
-            Ok(promise)
+            })
         },
     )
     .catch(&ctx_for_catch)

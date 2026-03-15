@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'source.dart';
 import 'value.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `result_from_promise`, `result_from_sync`
+// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `install_default_async_loaders`, `make_loader_stack`, `result_from_maybe_promise`, `result_from_promise`, `result_from_sync`, `result_from_value`, `unwrap_async_eval_value`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncContext>>
@@ -161,6 +161,12 @@ abstract class JsAsyncContext implements RustOpaqueInterface {
   /// ```
   static Future<JsAsyncContext> from({required JsAsyncRuntime runtime}) =>
       LibFjs.instance.api.crateApiRuntimeJsAsyncContextFrom(runtime: runtime);
+
+  /// Returns all modules currently available in this context.
+  ///
+  /// This includes builtin modules, statically configured extra modules,
+  /// and any dynamically declared modules attached to the context.
+  Future<List<String>> getAvailableModules();
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncRuntime>>
@@ -435,6 +441,12 @@ abstract class JsContext implements RustOpaqueInterface {
   /// ```
   static JsContext from({required JsRuntime runtime}) =>
       LibFjs.instance.api.crateApiRuntimeJsContextFrom(runtime: runtime);
+
+  /// Returns all modules currently available in this context.
+  ///
+  /// This includes builtin modules, statically configured extra modules,
+  /// and any dynamically declared modules attached to the context.
+  List<String> getAvailableModules();
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsRuntime>>

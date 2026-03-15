@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../app/mounted_state_mixin.dart';
 import '../services/fjs_service.dart';
 
 class PlaygroundScreen extends StatefulWidget {
@@ -11,14 +11,26 @@ class PlaygroundScreen extends StatefulWidget {
   State<PlaygroundScreen> createState() => _PlaygroundScreenState();
 }
 
-class _PlaygroundScreenState extends State<PlaygroundScreen> {
+class _PlaygroundScreenState extends State<PlaygroundScreen>
+    with MountedStateMixin<PlaygroundScreen> {
   final TextEditingController _codeController = TextEditingController();
   final TextEditingController _resultController = TextEditingController();
   bool _isExecuting = false;
   bool _copiedToClipboard = false;
 
   @override
+  void initState() {
+    super.initState();
+    _codeController.addListener(_handleCodeChanged);
+  }
+
+  void _handleCodeChanged() {
+    setStateIfMounted(() {});
+  }
+
+  @override
   void dispose() {
+    _codeController.removeListener(_handleCodeChanged);
     _codeController.dispose();
     _resultController.dispose();
     super.dispose();
@@ -35,23 +47,20 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
     try {
       final fjsService = Provider.of<FjsService>(context, listen: false);
 
-      dynamic result;
-      if (mode == JsExecutionMode.script) {
-        result = await fjsService.executeAsScript(_codeController.text);
-      } else {
-        result = await fjsService.executeAsModule(_codeController.text);
-      }
+      final result = mode == JsExecutionMode.script
+          ? await fjsService.executeAsScript(_codeController.text)
+          : await fjsService.executeAsModule(_codeController.text);
 
-      setState(() {
+      setStateIfMounted(() {
         _resultController.text =
-            JsonEncoder.withIndent('  ').convert(result.value);
+            fjsService.lastExecutionResult ?? result.value.toString();
       });
     } catch (e) {
-      setState(() {
+      setStateIfMounted(() {
         _resultController.text = 'Error: $e';
       });
     } finally {
-      setState(() {
+      setStateIfMounted(() {
         _isExecuting = false;
       });
     }
@@ -59,7 +68,10 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
 
   void _clearAll() {
     _codeController.clear();
-    _resultController.clear();
+    setStateIfMounted(() {
+      _resultController.clear();
+      _copiedToClipboard = false;
+    });
   }
 
   Future<void> _copyResultToClipboard() async {
@@ -68,7 +80,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
     try {
       await Clipboard.setData(ClipboardData(text: _resultController.text));
 
-      setState(() {
+      setStateIfMounted(() {
         _copiedToClipboard = true;
       });
 
@@ -433,27 +445,19 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
           ],
         ),
       ),
-      floatingActionButton: Consumer<FjsService>(
-        builder: (context, fjsService, _) {
-          return FloatingActionButton.extended(
-            onPressed: _isExecuting
-                ? null
-                : () {
-                    // Auto-detect mode based on code
-                    final hasImport = RegExp(
-                      r'^\s*import\s+.*\s+from\s+["\x27"]',
-                      multiLine: true,
-                    ).hasMatch(_codeController.text);
-
-                    _executeCode(hasImport
-                        ? JsExecutionMode.module
-                        : JsExecutionMode.script);
-                  },
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Auto Run'),
-            tooltip: 'Auto-detect and execute (Module mode for imports)',
-          );
-        },
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _isExecuting
+            ? null
+            : () {
+                final fjsService =
+                    Provider.of<FjsService>(context, listen: false);
+                _executeCode(
+                  fjsService.inferExecutionMode(_codeController.text),
+                );
+              },
+        icon: const Icon(Icons.play_arrow),
+        label: const Text('Auto Run'),
+        tooltip: 'Auto-detect and execute (Module mode for imports)',
       ),
     );
   }

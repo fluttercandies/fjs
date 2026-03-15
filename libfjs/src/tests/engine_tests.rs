@@ -5,9 +5,18 @@
 
 use crate::api::engine::JsEngine;
 use crate::api::error::JsResult;
+use crate::api::module::GlobalAttachment;
 use crate::api::runtime::{JsAsyncContext, JsAsyncRuntime};
 use crate::api::source::{JsBuiltinOptions, JsCode, JsModule};
 use crate::api::value::JsValue;
+
+fn failing_global_attachment(_ctx: &rquickjs::Ctx<'_>) -> rquickjs::Result<()> {
+    Err(rquickjs::Error::new_from_js_message(
+        "global attachment",
+        "context",
+        "forced failure for init rollback",
+    ))
+}
 
 // ============================================================================
 // Engine Lifecycle Tests
@@ -44,6 +53,34 @@ async fn test_engine_init_without_bridge() {
 }
 
 #[tokio::test]
+async fn test_engine_init_failure_rolls_back_state() {
+    let runtime = JsAsyncRuntime {
+        rt: rquickjs::AsyncRuntime::new().unwrap(),
+        global_attachment: Some(
+            GlobalAttachment::default().add_function(failing_global_attachment),
+        ),
+    };
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::new(&context).unwrap();
+
+    let first_error = engine.init_without_bridge().await.unwrap_err();
+    assert!(
+        first_error
+            .to_string()
+            .contains("Failed to attach global context")
+    );
+    assert!(!engine.running());
+
+    let second_error = engine.init_without_bridge().await.unwrap_err();
+    assert!(
+        second_error
+            .to_string()
+            .contains("Failed to attach global context")
+    );
+    assert!(!engine.running());
+}
+
+#[tokio::test]
 async fn test_engine_init_with_bridge() {
     let runtime = JsAsyncRuntime::new().unwrap();
     let context = JsAsyncContext::from(&runtime).await.unwrap();
@@ -60,6 +97,7 @@ async fn test_engine_init_with_bridge() {
 
     assert!(result.is_ok());
     assert!(engine.running());
+    engine.dispose().await.unwrap();
 }
 
 #[tokio::test]
@@ -160,6 +198,52 @@ async fn test_engine_eval_async() {
 }
 
 #[tokio::test]
+async fn test_engine_eval_does_not_implicitly_idle_runtime() {
+    let runtime = JsAsyncRuntime::with_options(Some(JsBuiltinOptions::essential()), None)
+        .await
+        .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::new(&context).unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    let result = engine
+        .eval(
+            JsCode::Code(
+                r#"
+                    setTimeout(() => {
+                        globalThis.__engine_timer_fired = true;
+                    }, 10);
+                    'scheduled'
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await;
+
+    assert!(matches!(result, Ok(JsValue::String(ref value)) if value == "scheduled"));
+    assert!(runtime.is_job_pending().await);
+
+    let before_idle = engine
+        .eval(
+            JsCode::Code("globalThis.__engine_timer_fired ?? false".to_string()),
+            None,
+        )
+        .await;
+    assert!(matches!(before_idle, Ok(JsValue::Boolean(false))));
+
+    runtime.idle().await;
+
+    let after_idle = engine
+        .eval(
+            JsCode::Code("globalThis.__engine_timer_fired".to_string()),
+            None,
+        )
+        .await;
+    assert!(matches!(after_idle, Ok(JsValue::Boolean(true))));
+}
+
+#[tokio::test]
 async fn test_engine_eval_before_init_fails() {
     let runtime = JsAsyncRuntime::new().unwrap();
     let context = JsAsyncContext::from(&runtime).await.unwrap();
@@ -251,7 +335,10 @@ async fn test_engine_declare_new_module() {
     let engine = JsEngine::new(&context).unwrap();
     engine.init_without_bridge().await.unwrap();
 
-    let module = JsModule::code("test-module".to_string(), "export const value = 42;".to_string());
+    let module = JsModule::code(
+        "test-module".to_string(),
+        "export const value = 42;".to_string(),
+    );
 
     let result = engine.declare_new_module(module).await;
     assert!(result.is_ok());
@@ -290,13 +377,84 @@ async fn test_engine_evaluate_module() {
 }
 
 #[tokio::test]
+async fn test_engine_dynamic_module_relative_import() {
+    let runtime = JsAsyncRuntime::new().unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::new(&context).unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .declare_new_modules(vec![
+            JsModule::code(
+                "pkg/dep.js".to_string(),
+                "export const value = 42;".to_string(),
+            ),
+            JsModule::code(
+                "pkg/main.js".to_string(),
+                "import { value } from './dep.js'; export default value;".to_string(),
+            ),
+        ])
+        .await
+        .unwrap();
+
+    let result = engine
+        .eval(
+            JsCode::Code(
+                "const { default: value } = await import('pkg/main.js'); value".to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert!(matches!(result, JsValue::Integer(42)));
+}
+
+#[tokio::test]
+async fn test_engine_dynamic_module_parent_relative_import() {
+    let runtime = JsAsyncRuntime::new().unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::new(&context).unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .declare_new_modules(vec![
+            JsModule::code(
+                "pkg/dep.js".to_string(),
+                "export const value = 7;".to_string(),
+            ),
+            JsModule::code(
+                "pkg/nested/main.js".to_string(),
+                "import { value } from '../dep.js'; export default value;".to_string(),
+            ),
+        ])
+        .await
+        .unwrap();
+
+    let result = engine
+        .eval(
+            JsCode::Code(
+                "const { default: value } = await import('pkg/nested/main.js'); value".to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert!(matches!(result, JsValue::Integer(7)));
+}
+
+#[tokio::test]
 async fn test_engine_is_module_declared() {
     let runtime = JsAsyncRuntime::new().unwrap();
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = JsEngine::new(&context).unwrap();
     engine.init_without_bridge().await.unwrap();
 
-    let module = JsModule::code("check-module".to_string(), "export const x = 1;".to_string());
+    let module = JsModule::code(
+        "check-module".to_string(),
+        "export const x = 1;".to_string(),
+    );
     engine.declare_new_module(module).await.unwrap();
 
     let exists = engine
@@ -327,27 +485,241 @@ async fn test_engine_get_declared_modules() {
 
     let declared = engine.get_declared_modules().await.unwrap();
     assert_eq!(declared.len(), 2);
+    assert_eq!(declared, vec!["mod-a".to_string(), "mod-b".to_string()]);
     assert!(declared.contains(&"mod-a".to_string()));
     assert!(declared.contains(&"mod-b".to_string()));
 }
 
 #[tokio::test]
-async fn test_engine_clear_new_modules() {
+async fn test_engine_get_available_modules() {
+    let runtime = JsAsyncRuntime::with_options(
+        Some(JsBuiltinOptions {
+            path: Some(true),
+            https: Some(true),
+            ..Default::default()
+        }),
+        Some(vec![JsModule::code(
+            "static-extra".to_string(),
+            "export const value = 1;".to_string(),
+        )]),
+    )
+    .await
+    .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::new(&context).unwrap();
+    engine.init_without_bridge().await.unwrap();
+    engine
+        .declare_new_module(JsModule::code(
+            "dynamic-extra".to_string(),
+            "export const value = 2;".to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let modules = engine.get_available_modules().await.unwrap();
+
+    assert!(modules.contains(&"dynamic-extra".to_string()));
+    assert!(modules.contains(&"https".to_string()));
+    assert!(modules.contains(&"path".to_string()));
+    assert!(modules.contains(&"static-extra".to_string()));
+}
+
+#[tokio::test]
+async fn test_engine_is_module_available() {
+    let runtime = JsAsyncRuntime::with_options(
+        Some(JsBuiltinOptions {
+            dgram: Some(true),
+            ..Default::default()
+        }),
+        None,
+    )
+    .await
+    .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::new(&context).unwrap();
+    engine.init_without_bridge().await.unwrap();
+    engine
+        .declare_new_module(JsModule::code(
+            "dynamic-extra".to_string(),
+            "export const value = 2;".to_string(),
+        ))
+        .await
+        .unwrap();
+
+    assert!(
+        engine
+            .is_module_available("dgram".to_string())
+            .await
+            .unwrap()
+    );
+    assert!(
+        engine
+            .is_module_available("dynamic-extra".to_string())
+            .await
+            .unwrap()
+    );
+    assert!(
+        !engine
+            .is_module_available("missing".to_string())
+            .await
+            .unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_engine_clear_pending_modules() {
     let runtime = JsAsyncRuntime::new().unwrap();
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = JsEngine::new(&context).unwrap();
     engine.init_without_bridge().await.unwrap();
 
-    let module = JsModule::code("clear-module".to_string(), "export const x = 1;".to_string());
+    let module = JsModule::code(
+        "clear-module".to_string(),
+        "export const x = 1;".to_string(),
+    );
     engine.declare_new_module(module).await.unwrap();
 
     let before = engine.get_declared_modules().await.unwrap();
     assert!(!before.is_empty());
 
-    engine.clear_new_modules().await.unwrap();
+    engine.clear_pending_modules().await.unwrap();
 
     let after = engine.get_declared_modules().await.unwrap();
     assert!(after.is_empty());
+
+    let result = engine
+        .eval(
+            JsCode::Code("await import('clear-module')".to_string()),
+            None,
+        )
+        .await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn test_engine_clear_pending_modules_keeps_loaded_modules() {
+    let runtime = JsAsyncRuntime::new().unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::new(&context).unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .declare_new_modules(vec![
+            JsModule::code(
+                "loaded-module".to_string(),
+                "export function value() { return 1; }".to_string(),
+            ),
+            JsModule::code(
+                "pending-module".to_string(),
+                "export const value = 2;".to_string(),
+            ),
+        ])
+        .await
+        .unwrap();
+
+    let result = engine
+        .call("loaded-module".to_string(), "value".to_string(), None)
+        .await
+        .unwrap();
+    assert!(matches!(result, JsValue::Integer(1)));
+
+    engine.clear_pending_modules().await.unwrap();
+
+    let declared = engine.get_declared_modules().await.unwrap();
+    assert_eq!(declared, vec!["loaded-module".to_string()]);
+
+    let pending_exists = engine
+        .is_module_declared("pending-module".to_string())
+        .await
+        .unwrap();
+    assert!(!pending_exists);
+
+    let loaded_available = engine
+        .is_module_available("loaded-module".to_string())
+        .await
+        .unwrap();
+    assert!(loaded_available);
+
+    let pending_import = engine
+        .eval(
+            JsCode::Code("await import('pending-module')".to_string()),
+            None,
+        )
+        .await;
+    assert!(pending_import.is_err());
+}
+
+#[tokio::test]
+async fn test_engine_redeclare_loaded_module_fails() {
+    let runtime = JsAsyncRuntime::new().unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::new(&context).unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .declare_new_module(JsModule::code(
+            "sticky-module".to_string(),
+            "export function value() { return 1; }".to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let first = engine
+        .call("sticky-module".to_string(), "value".to_string(), None)
+        .await
+        .unwrap();
+    assert!(matches!(first, JsValue::Integer(1)));
+
+    let redeclare = engine
+        .declare_new_module(JsModule::code(
+            "sticky-module".to_string(),
+            "export function value() { return 2; }".to_string(),
+        ))
+        .await;
+    assert!(redeclare.is_err());
+    assert!(
+        redeclare
+            .unwrap_err()
+            .to_string()
+            .contains("cannot be redefined")
+    );
+
+    let second = engine
+        .call("sticky-module".to_string(), "value".to_string(), None)
+        .await
+        .unwrap();
+    assert!(matches!(second, JsValue::Integer(1)));
+}
+
+#[tokio::test]
+async fn test_engine_evaluate_module_marks_module_as_loaded() {
+    let runtime = JsAsyncRuntime::new().unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::new(&context).unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    let result = engine
+        .evaluate_module(JsModule::code(
+            "evaluated-module".to_string(),
+            "export default 1;".to_string(),
+        ))
+        .await
+        .unwrap();
+    assert!(matches!(result, JsValue::None));
+
+    let redeclare = engine
+        .declare_new_module(JsModule::code(
+            "evaluated-module".to_string(),
+            "export default 2;".to_string(),
+        ))
+        .await;
+    assert!(redeclare.is_err());
+    assert!(
+        redeclare
+            .unwrap_err()
+            .to_string()
+            .contains("cannot be redefined")
+    );
 }
 
 #[tokio::test]
@@ -410,11 +782,7 @@ async fn test_engine_call_nonexistent_module() {
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
-        .call(
-            "nonexistent".to_string(),
-            "func".to_string(),
-            None,
-        )
+        .call("nonexistent".to_string(), "func".to_string(), None)
         .await;
 
     assert!(result.is_err());
@@ -434,11 +802,7 @@ async fn test_engine_call_nonexistent_function() {
     engine.declare_new_module(module).await.unwrap();
 
     let result = engine
-        .call(
-            "has-func".to_string(),
-            "notExists".to_string(),
-            None,
-        )
+        .call("has-func".to_string(), "notExists".to_string(), None)
         .await;
 
     assert!(result.is_err());
@@ -474,6 +838,7 @@ async fn test_engine_bridge_call() {
     assert!(result.is_ok());
     let value = result.unwrap();
     assert!(matches!(value, JsValue::Integer(42)));
+    engine.dispose().await.unwrap();
 }
 
 #[tokio::test]
@@ -502,6 +867,7 @@ async fn test_engine_bridge_call_with_object() {
     assert!(result.is_ok());
     let value = result.unwrap();
     assert!(value.is_object());
+    engine.dispose().await.unwrap();
 }
 
 // ============================================================================
@@ -548,7 +914,10 @@ async fn test_engine_with_buffer_builtin() {
 
     // Buffer should be available globally
     let result = engine
-        .eval(JsCode::Code("typeof Buffer !== 'undefined'".to_string()), None)
+        .eval(
+            JsCode::Code("typeof Buffer !== 'undefined'".to_string()),
+            None,
+        )
         .await;
     assert!(result.is_ok());
 }
@@ -596,7 +965,7 @@ async fn test_engine_with_path_builtin() {
         .eval(
             JsCode::Code(
                 r#"
-                import path from 'path';
+                const { default: path } = await import('path');
                 path.join('a', 'b', 'c')
             "#
                 .to_string(),
@@ -648,7 +1017,7 @@ async fn test_engine_with_events_builtin() {
         .eval(
             JsCode::Code(
                 r#"
-                import { EventEmitter } from 'events';
+                const { EventEmitter } = await import('events');
                 typeof EventEmitter === 'function'
             "#
                 .to_string(),
