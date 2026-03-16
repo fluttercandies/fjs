@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:fjs/fjs.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../app/mounted_state_mixin.dart';
 import '../widgets/widgets.dart';
 
 /// Screen to test JsError types and error handling
@@ -12,7 +15,9 @@ class ErrorApiScreen extends StatefulWidget {
   State<ErrorApiScreen> createState() => _ErrorApiScreenState();
 }
 
-class _ErrorApiScreenState extends State<ErrorApiScreen> {
+class _ErrorApiScreenState extends State<ErrorApiScreen>
+    with MountedStateMixin<ErrorApiScreen> {
+  // ignore: unused_field - retained to keep the opaque runtime alive
   JsAsyncRuntime? _runtime;
   JsAsyncContext? _context;
   JsEngine? _engine;
@@ -22,6 +27,11 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
 
   final Map<String, _TestResult> _testResults = {};
 
+  JsEngine get _engineOrThrow =>
+      _engine ?? (throw StateError('Engine not initialized'));
+  JsAsyncContext get _contextOrThrow =>
+      _context ?? (throw StateError('Context not initialized'));
+
   @override
   void initState() {
     super.initState();
@@ -29,19 +39,51 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
   }
 
   Future<void> _initializeEngine() async {
-    setState(() => _isLoading = true);
+    setStateIfMounted(() => _isLoading = true);
+    JsAsyncRuntime? runtime;
+    JsAsyncContext? context;
+    JsEngine? engine;
+
     try {
-      _runtime = await JsAsyncRuntime.withOptions(
+      runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      _context = await JsAsyncContext.from(runtime: _runtime!);
-      _engine = JsEngine(context: _context!);
-      await _engine!.initWithoutBridge();
-      setState(() => _isInitialized = true);
+      context = await JsAsyncContext.from(runtime: runtime);
+      engine = JsEngine(context: context);
+      await engine.initWithoutBridge();
+      if (!mounted) {
+        await engine.dispose();
+        return;
+      }
+
+      _runtime = runtime;
+      _context = context;
+      _engine = engine;
+      setStateIfMounted(() => _isInitialized = true);
     } catch (e) {
-      if (kDebugMode) print('Failed to initialize engine: $e');
+      _runtime = null;
+      _context = null;
+      _engine = null;
+      if (engine != null) {
+        await engine.dispose();
+      }
+      if (kDebugMode) {
+        debugPrint('Failed to initialize engine: $e');
+      }
+      setStateIfMounted(() => _isInitialized = false);
     } finally {
-      setState(() => _isLoading = false);
+      setStateIfMounted(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _disposeCurrentEngine() async {
+    final engine = _engine;
+    _runtime = null;
+    _context = null;
+    _engine = null;
+
+    if (engine != null) {
+      await engine.dispose();
     }
   }
 
@@ -51,14 +93,14 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
     });
     try {
       final result = await test();
-      setState(() {
+      setStateIfMounted(() {
         _testResults[testId] = _TestResult(
           isSuccess: true,
           result: result,
         );
       });
     } catch (e) {
-      setState(() {
+      setStateIfMounted(() {
         _testResults[testId] = _TestResult(
           isSuccess: false,
           error: e.toString(),
@@ -69,7 +111,11 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
 
   @override
   void dispose() {
-    _engine?.dispose();
+    final engine = _engine;
+    _engine = null;
+    if (engine != null) {
+      unawaited(engine.dispose());
+    }
     super.dispose();
   }
 
@@ -82,8 +128,8 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () async {
-              await _engine?.dispose();
-              setState(() {
+              await _disposeCurrentEngine();
+              setStateIfMounted(() {
                 _isInitialized = false;
                 _testResults.clear();
               });
@@ -347,9 +393,9 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           result: _testResults['runtime_reference']?.result,
           error: _testResults['runtime_reference']?.error,
           onRun: () => _runTest('runtime_reference', () async {
-            if (_engine == null) throw 'Engine not initialized';
             try {
-              await _engine!.eval(source: JsCode.code('undefinedVariable'));
+              await _engineOrThrow.eval(
+                  source: JsCode.code('undefinedVariable'));
               return {'error': 'Expected error was not thrown'};
             } catch (e) {
               return {
@@ -369,9 +415,8 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           result: _testResults['runtime_type']?.result,
           error: _testResults['runtime_type']?.error,
           onRun: () => _runTest('runtime_type', () async {
-            if (_engine == null) throw 'Engine not initialized';
             try {
-              await _engine!.eval(source: JsCode.code('null.foo()'));
+              await _engineOrThrow.eval(source: JsCode.code('null.foo()'));
               return {'error': 'Expected error was not thrown'};
             } catch (e) {
               return {
@@ -391,9 +436,8 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           result: _testResults['runtime_promise']?.result,
           error: _testResults['runtime_promise']?.error,
           onRun: () => _runTest('runtime_promise', () async {
-            if (_engine == null) throw 'Engine not initialized';
             try {
-              await _engine!.eval(source: JsCode.code('''
+              await _engineOrThrow.eval(source: JsCode.code('''
                 (async () => {
                   throw new Error("Intentional rejection");
                 })()
@@ -417,9 +461,8 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           result: _testResults['runtime_custom']?.result,
           error: _testResults['runtime_custom']?.error,
           onRun: () => _runTest('runtime_custom', () async {
-            if (_engine == null) throw 'Engine not initialized';
             try {
-              await _engine!.eval(source: JsCode.code('''
+              await _engineOrThrow.eval(source: JsCode.code('''
                 class CustomError extends Error {
                   constructor(message, code) {
                     super(message);
@@ -454,9 +497,9 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           result: _testResults['syntax_bracket']?.result,
           error: _testResults['syntax_bracket']?.error,
           onRun: () => _runTest('syntax_bracket', () async {
-            if (_engine == null) throw 'Engine not initialized';
             try {
-              await _engine!.eval(source: JsCode.code('function test( { }'));
+              await _engineOrThrow.eval(
+                  source: JsCode.code('function test( { }'));
               return {'error': 'Expected syntax error was not thrown'};
             } catch (e) {
               return {
@@ -476,9 +519,8 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           result: _testResults['syntax_token']?.result,
           error: _testResults['syntax_token']?.error,
           onRun: () => _runTest('syntax_token', () async {
-            if (_engine == null) throw 'Engine not initialized';
             try {
-              await _engine!.eval(source: JsCode.code('let x = @@@'));
+              await _engineOrThrow.eval(source: JsCode.code('let x = @@@'));
               return {'error': 'Expected syntax error was not thrown'};
             } catch (e) {
               return {
@@ -498,10 +540,9 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           result: _testResults['syntax_json']?.result,
           error: _testResults['syntax_json']?.error,
           onRun: () => _runTest('syntax_json', () async {
-            if (_engine == null) throw 'Engine not initialized';
             try {
-              await _engine!
-                  .eval(source: JsCode.code('JSON.parse("{invalid}")'));
+              await _engineOrThrow.eval(
+                  source: JsCode.code('JSON.parse("{invalid}")'));
               return {'error': 'Expected error was not thrown'};
             } catch (e) {
               return {
@@ -564,13 +605,12 @@ class _ErrorApiScreenState extends State<ErrorApiScreen> {
           result: _testResults['result_context']?.result,
           error: _testResults['result_context']?.error,
           onRun: () => _runTest('result_context', () async {
-            if (_context == null) throw 'Context not initialized';
-
             // Test successful eval
-            final successResult = await _context!.eval(code: '1 + 2 + 3');
+            final successResult = await _contextOrThrow.eval(code: '1 + 2 + 3');
 
             // Test error eval
-            final errorResult = await _context!.eval(code: 'undefinedVar');
+            final errorResult =
+                await _contextOrThrow.eval(code: 'undefinedVar');
 
             return {
               'success': {

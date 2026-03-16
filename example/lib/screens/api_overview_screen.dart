@@ -121,6 +121,7 @@ class ApiOverviewScreen extends StatelessWidget {
               _buildChip(context, 'JsValue', Icons.data_object),
               _buildChip(context, 'JsError', Icons.error_outline),
               _buildChip(context, 'JsModule', Icons.view_module),
+              _buildChip(context, 'Bytecode', Icons.memory),
             ],
           ),
         ],
@@ -144,7 +145,7 @@ class ApiOverviewScreen extends StatelessWidget {
         icon: Icons.memory,
         color: Colors.blue,
         route: '/api/engine',
-        features: ['eval()', 'modules', 'bridge'],
+        features: ['eval()', 'modules', 'bytecode'],
       ),
       _ApiCategory(
         title: 'JsRuntime',
@@ -172,11 +173,11 @@ class ApiOverviewScreen extends StatelessWidget {
       ),
       _ApiCategory(
         title: 'Source',
-        subtitle: 'Code, modules, and options',
+        subtitle: 'Code, modules, bytecode, and options',
         icon: Icons.code,
         color: Colors.purple,
         route: '/api/source',
-        features: ['JsCode', 'JsModule', 'options'],
+        features: ['JsCode', 'bytecode', 'options'],
       ),
     ];
 
@@ -313,7 +314,7 @@ class ApiOverviewScreen extends StatelessWidget {
 final runtime = await JsAsyncRuntime.withOptions(
   builtin: JsBuiltinOptions.all(),
 );
-final context = await JsAsyncContext.from(rt: runtime);
+final context = await JsAsyncContext.from(runtime: runtime);
 final engine = JsEngine(context: context);
 await engine.initWithoutBridge();
 
@@ -323,7 +324,7 @@ final result = await engine.eval(source: JsCode.code('Math.random() * 100'),
 print(result.value);
 
 // Declare modules
-await engine.declareNewModule(module: JsModule.fromCode(
+await engine.declareNewModule(module: JsModule.code(
     module: 'utils',
     code: 'export function add(a, b) { return a + b; }',
   ),

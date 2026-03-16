@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.1.0
+
+* **BREAKING**: Renamed `clearNewModules()` to `clearPendingModules()` to match its actual semantics; only not-yet-loaded dynamic modules can be cleared
+* **IMPROVEMENT**: Upgraded LLRT dependencies to revision `a2e1640`
+* **IMPROVEMENT**: Added more LLRT-backed runtime capabilities, including `dgram`, `https`, `intl`, and `temporal`
+* **IMPROVEMENT**: Added module inventory APIs to inspect all available modules, including builtins and additional configured modules
+* **IMPROVEMENT**: Clarified dynamic module lifecycle with `clearPendingModules()`, which only clears not-yet-loaded registrations
+* **FEATURE**: Added QuickJS bytecode APIs for ES modules, module bundles, and classic scripts, with compile, validate, declare, and evaluate workflows
+* **FIX**: Moved bytecode compile and validate onto generated FRB APIs outside `JsEngine`, with both sync and async variants
+* **FIX**: Made module bytecode compilation side-effect free and added eager bytecode validation before declaration/evaluation
+* **FIX**: Prevented redefinition of dynamically loaded modules inside the same context lifecycle
+* **FIX**: Corrected relative resolution for dynamically declared modules
+* **FIX**: Hardened `JsEngine` lifecycle with an explicit initializing state, so `running` only becomes true after successful initialization
+* **FIX**: Stabilized `dispose()` semantics to detach the bridge, drain pending runtime work, run GC, and leave ownership of the underlying context/runtime unchanged
+* **FIX**: Rejected duplicate module names in bulk `declareNewModules()` and `declareNewBytecodeModules()` requests instead of silently overriding entries
+* **FIX**: Hardened `JsValue` conversions for `Date`, `BigInt`, safe integers, and typed arrays
+* **FIX**: Removed implicit runtime draining from hot execution paths; pending jobs now advance only through explicit runtime APIs
+* **DOCS**: Updated README, README_zh, generated API docs, and example code to match the current production API and module semantics
+
 ## 2.0.1
 
 * **IMPROVEMENT**: Upgraded LLRT dependencies from revision 77edb18 to d375ad0

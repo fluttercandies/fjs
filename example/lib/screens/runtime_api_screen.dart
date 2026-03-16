@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:fjs/fjs.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../app/mounted_state_mixin.dart';
 import '../widgets/widgets.dart';
 
 /// Screen to test all JsRuntime APIs
@@ -12,8 +15,10 @@ class RuntimeApiScreen extends StatefulWidget {
   State<RuntimeApiScreen> createState() => _RuntimeApiScreenState();
 }
 
-class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
+class _RuntimeApiScreenState extends State<RuntimeApiScreen>
+    with MountedStateMixin<RuntimeApiScreen> {
   JsAsyncRuntime? _runtime;
+  // ignore: unused_field - retained to keep the opaque context alive
   JsAsyncContext? _context;
   JsEngine? _engine;
   bool _isInitialized = false;
@@ -22,6 +27,9 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
   // Test results
   final Map<String, _TestResult> _testResults = {};
 
+  JsAsyncRuntime get _runtimeOrThrow =>
+      _runtime ?? (throw StateError('Runtime not initialized'));
+
   @override
   void initState() {
     super.initState();
@@ -29,19 +37,51 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
   }
 
   Future<void> _initializeRuntime() async {
-    setState(() => _isLoading = true);
+    setStateIfMounted(() => _isLoading = true);
+    JsAsyncRuntime? runtime;
+    JsAsyncContext? context;
+    JsEngine? engine;
+
     try {
-      _runtime = await JsAsyncRuntime.withOptions(
+      runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      _context = await JsAsyncContext.from(runtime: _runtime!);
-      _engine = JsEngine(context: _context!);
-      await _engine!.initWithoutBridge();
-      setState(() => _isInitialized = true);
+      context = await JsAsyncContext.from(runtime: runtime);
+      engine = JsEngine(context: context);
+      await engine.initWithoutBridge();
+      if (!mounted) {
+        await engine.dispose();
+        return;
+      }
+
+      _runtime = runtime;
+      _context = context;
+      _engine = engine;
+      setStateIfMounted(() => _isInitialized = true);
     } catch (e) {
-      if (kDebugMode) print('Failed to initialize runtime: $e');
+      _runtime = null;
+      _context = null;
+      _engine = null;
+      if (engine != null) {
+        await engine.dispose();
+      }
+      if (kDebugMode) {
+        debugPrint('Failed to initialize runtime: $e');
+      }
+      setStateIfMounted(() => _isInitialized = false);
     } finally {
-      setState(() => _isLoading = false);
+      setStateIfMounted(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _disposeCurrentEngine() async {
+    final engine = _engine;
+    _runtime = null;
+    _context = null;
+    _engine = null;
+
+    if (engine != null) {
+      await engine.dispose();
     }
   }
 
@@ -51,14 +91,14 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
     });
     try {
       final result = await test();
-      setState(() {
+      setStateIfMounted(() {
         _testResults[testId] = _TestResult(
           isSuccess: true,
           result: result,
         );
       });
     } catch (e) {
-      setState(() {
+      setStateIfMounted(() {
         _testResults[testId] = _TestResult(
           isSuccess: false,
           error: e.toString(),
@@ -69,7 +109,11 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
 
   @override
   void dispose() {
-    _engine?.dispose();
+    final engine = _engine;
+    _engine = null;
+    if (engine != null) {
+      unawaited(engine.dispose());
+    }
     super.dispose();
   }
 
@@ -82,8 +126,8 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () async {
-              await _engine?.dispose();
-              setState(() {
+              await _disposeCurrentEngine();
+              setStateIfMounted(() {
                 _isInitialized = false;
                 _testResults.clear();
               });
@@ -270,8 +314,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           result: _testResults['memory_usage']?.result,
           error: _testResults['memory_usage']?.error,
           onRun: () => _runTest('memory_usage', () async {
-            if (_runtime == null) throw 'Runtime not initialized';
-            final usage = await _runtime!.memoryUsage();
+            final usage = await _runtimeOrThrow.memoryUsage();
             return {
               'summary': usage.summary(),
               'totalMemory': usage.totalMemory.toString(),
@@ -308,8 +351,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           result: _testResults['run_gc']?.result,
           error: _testResults['run_gc']?.error,
           onRun: () => _runTest('run_gc', () async {
-            if (_runtime == null) throw 'Runtime not initialized';
-            await _runtime!.runGc();
+            await _runtimeOrThrow.runGc();
             return 'Garbage collection completed';
           }),
         ),
@@ -322,9 +364,8 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           result: _testResults['set_memory_limit']?.result,
           error: _testResults['set_memory_limit']?.error,
           onRun: () => _runTest('set_memory_limit', () async {
-            if (_runtime == null) throw 'Runtime not initialized';
-            await _runtime!
-                .setMemoryLimit(limit: BigInt.from(100 * 1024 * 1024));
+            await _runtimeOrThrow.setMemoryLimit(
+                limit: BigInt.from(100 * 1024 * 1024));
             return 'Memory limit set to 100MB';
           }),
         ),
@@ -337,8 +378,9 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           result: _testResults['set_gc_threshold']?.result,
           error: _testResults['set_gc_threshold']?.error,
           onRun: () => _runTest('set_gc_threshold', () async {
-            if (_runtime == null) throw 'Runtime not initialized';
-            await _runtime!.setGcThreshold(threshold: BigInt.from(1024 * 1024));
+            await _runtimeOrThrow.setGcThreshold(
+              threshold: BigInt.from(1024 * 1024),
+            );
             return 'GC threshold set to 1MB';
           }),
         ),
@@ -358,8 +400,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           result: _testResults['is_job_pending']?.result,
           error: _testResults['is_job_pending']?.error,
           onRun: () => _runTest('is_job_pending', () async {
-            if (_runtime == null) throw 'Runtime not initialized';
-            final isPending = await _runtime!.isJobPending();
+            final isPending = await _runtimeOrThrow.isJobPending();
             return {'isJobPending': isPending};
           }),
         ),
@@ -372,8 +413,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           result: _testResults['execute_pending_job']?.result,
           error: _testResults['execute_pending_job']?.error,
           onRun: () => _runTest('execute_pending_job', () async {
-            if (_runtime == null) throw 'Runtime not initialized';
-            final executed = await _runtime!.executePendingJob();
+            final executed = await _runtimeOrThrow.executePendingJob();
             return {'jobExecuted': executed};
           }),
         ),
@@ -386,8 +426,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           result: _testResults['idle']?.result,
           error: _testResults['idle']?.error,
           onRun: () => _runTest('idle', () async {
-            if (_runtime == null) throw 'Runtime not initialized';
-            await _runtime!.idle();
+            await _runtimeOrThrow.idle();
             return 'Runtime set to idle state';
           }),
         ),
@@ -407,8 +446,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           result: _testResults['set_info']?.result,
           error: _testResults['set_info']?.error,
           onRun: () => _runTest('set_info', () async {
-            if (_runtime == null) throw 'Runtime not initialized';
-            await _runtime!.setInfo(info: 'FJS Example App Runtime');
+            await _runtimeOrThrow.setInfo(info: 'FJS Example App Runtime');
             return 'Runtime info set successfully';
           }),
         ),
@@ -421,8 +459,9 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen> {
           result: _testResults['set_max_stack_size']?.result,
           error: _testResults['set_max_stack_size']?.error,
           onRun: () => _runTest('set_max_stack_size', () async {
-            if (_runtime == null) throw 'Runtime not initialized';
-            await _runtime!.setMaxStackSize(limit: BigInt.from(256 * 1024));
+            await _runtimeOrThrow.setMaxStackSize(
+              limit: BigInt.from(256 * 1024),
+            );
             return 'Max stack size set to 256KB';
           }),
         ),

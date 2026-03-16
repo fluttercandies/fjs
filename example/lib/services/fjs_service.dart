@@ -15,11 +15,24 @@ enum JsExecutionMode {
 }
 
 class FjsService extends ChangeNotifier {
+  static const JsBuiltinOptions _builtinOptions = JsBuiltinOptions(
+    console: true,
+    fetch: true,
+    timers: true,
+    url: true,
+  );
+  static final RegExp _moduleSyntaxPattern = RegExp(
+    '^\\s*(?:export\\b|import\\s+(?:["\\\'])|import\\s+.+\\s+from\\b)',
+    multiLine: true,
+  );
+
   JsEngine? _engine;
-  JsAsyncRuntime? _runtime;
-  JsAsyncContext? _context;
+  _FjsSession? _sharedSession;
+  _FjsModuleAssets? _moduleAssets;
+  Completer<void>? _initializing;
   bool _isInitialized = false;
   bool _isExecuting = false;
+  bool _isDisposed = false;
   String? _lastError;
   String? _lastExecutionResult;
   JsExecutionMode _lastExecutionMode = JsExecutionMode.script;
@@ -34,46 +47,54 @@ class FjsService extends ChangeNotifier {
 
   JsExecutionMode get lastExecutionMode => _lastExecutionMode;
 
+  JsExecutionMode inferExecutionMode(String code) {
+    return _moduleSyntaxPattern.hasMatch(code)
+        ? JsExecutionMode.module
+        : JsExecutionMode.script;
+  }
+
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    _ensureNotDisposed();
+
+    if (_sharedSession != null) {
+      return;
+    }
+
+    final inFlight = _initializing;
+    if (inFlight != null) {
+      return inFlight.future;
+    }
+
+    final completer = Completer<void>();
+    _initializing = completer;
 
     try {
-      // Load custom modules (linkedom, which depends on canvas)
-      final linkedomBundle =
-          await rootBundle.load('assets/examples/linkedom.bundle.mjs');
-      final canvasBundle =
-          await rootBundle.load('assets/examples/canvas.bundle.mjs');
+      _moduleAssets ??= await _loadModuleAssets();
+      final session = await _createSession();
 
-      // Create runtime with builtin modules and custom modules
-      _runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions(
-          console: true,
-          fetch: true,
-          timers: true,
-          url: true,
-        ),
-        additional: [
-          JsModule(
-            name: 'canvas',
-            source: JsCode.bytes(canvasBundle.buffer.asUint8List()),
-          ),
-          JsModule(
-            name: 'linkedom',
-            source: JsCode.bytes(linkedomBundle.buffer.asUint8List()),
-          ),
-        ],
-      );
-      _context = await JsAsyncContext.from(runtime: _runtime!);
-      _engine = JsEngine(context: _context!);
+      if (_isDisposed) {
+        await session.dispose();
+        throw StateError('FjsService was disposed during initialization');
+      }
 
-      await _engine!.initWithoutBridge();
-
+      _sharedSession = session;
+      _engine = session.engine;
       _isInitialized = true;
-      notifyListeners();
-    } catch (e) {
+      _lastError = null;
+      _notifyListeners();
+      completer.complete();
+    } catch (e, stackTrace) {
+      _sharedSession = null;
+      _engine = null;
+      _isInitialized = false;
       _lastError = 'Failed to initialize FJS service: $e';
-      notifyListeners();
+      _notifyListeners();
+      completer.completeError(e, stackTrace);
       rethrow;
+    } finally {
+      if (identical(_initializing, completer)) {
+        _initializing = null;
+      }
     }
   }
 
@@ -83,7 +104,7 @@ class FjsService extends ChangeNotifier {
   ///
   /// Script mode uses eval() and does not support static import statements.
   /// If you need to use modules, use dynamic import() or executeAsModule().
-  Future<dynamic> executeAsScript(String code) async {
+  Future<JsValue> executeAsScript(String code) async {
     return _executeCode(code, JsExecutionMode.script);
   }
 
@@ -91,83 +112,81 @@ class FjsService extends ChangeNotifier {
   ///
   /// Module mode supports import/export statements.
   /// Code will be wrapped as a module and evaluated.
-  Future<dynamic> executeAsModule(String code) async {
+  Future<JsValue> executeAsModule(String code) async {
     return _executeCode(code, JsExecutionMode.module);
   }
 
   /// Internal execution method
-  Future<dynamic> _executeCode(String code, JsExecutionMode mode) async {
-    if (!_isInitialized) {
-      await initialize();
-    }
+  Future<JsValue> _executeCode(String code, JsExecutionMode mode) async {
+    _ensureNotDisposed();
 
     if (_isExecuting) {
-      throw Exception('Another execution is in progress');
+      throw StateError('Another execution is in progress');
     }
 
     if (code.trim().isEmpty) {
-      return '';
+      _lastError = null;
+      _lastExecutionResult = '';
+      _lastExecutionMode = mode;
+      _notifyListeners();
+      return const JsValue.string('');
     }
+
+    await initialize();
 
     _isExecuting = true;
     _lastError = null;
     _lastExecutionResult = null;
     _lastExecutionMode = mode;
-    notifyListeners();
+    _notifyListeners();
 
     try {
-      JsValue result;
+      final result = mode == JsExecutionMode.module
+          ? await _executeModuleIsolated(code)
+          : await _executeAsScript(code);
 
-      if (mode == JsExecutionMode.module) {
-        // Module mode: supports import/export
-        result = await _executeAsModule(code);
-      } else {
-        // Script mode: does not support import
-        result = await _executeAsScript(code);
-      }
-
-      _lastExecutionResult = JsonEncoder.withIndent('  ').convert(result.value);
+      _lastExecutionResult = _formatValue(result.value);
       return result;
     } catch (e) {
       _lastError = e.toString();
       rethrow;
     } finally {
       _isExecuting = false;
-      notifyListeners();
+      _notifyListeners();
     }
   }
 
   /// Execute in Script mode
   Future<JsValue> _executeAsScript(String code) async {
-    return await _engine!.eval(source: JsCode.code(code));
+    final engine = await _sharedEngine();
+    return engine.eval(source: JsCode.code(code));
   }
 
-  /// Execute in Module mode
-  Future<JsValue> _executeAsModule(String code) async {
-    // Generate unique module name
-    final moduleName = '_module_${DateTime.now().millisecondsSinceEpoch}';
+  /// Execute in Module mode using an isolated session so repeated executions
+  /// do not permanently pollute the shared module cache.
+  Future<JsValue> _executeModuleIsolated(String code) async {
+    final session = await _createSession();
 
-    if (kDebugMode) {
-      print('Executing Module mode:');
-      print('Module name: $moduleName');
-      print('Code:\n$code');
-    }
+    try {
+      // Generate unique module name
+      final moduleName = '_module_${DateTime.now().microsecondsSinceEpoch}';
 
-    // Evaluate module
-    await _engine!.evaluateModule(
-      module: JsModule.code(module: moduleName, code: code),
-    );
+      await session.engine.evaluateModule(
+        module: JsModule.code(module: moduleName, code: code),
+      );
 
-    // Import module and get result
-    // If module exported default, return default; otherwise return entire module object
-    final importCode = '''
+      // If the module exports default, return it. Otherwise return the namespace.
+      final importCode = '''
 (async () => {
   const module = await import('$moduleName');
   return module.default !== undefined ? module.default : module;
 })()
     ''';
 
-    return await _engine!.eval(source: JsCode.code(importCode));
+      return session.engine.eval(source: JsCode.code(importCode));
+    } finally {
+      await session.dispose();
+    }
   }
 
   // ========== Module Management ==========
@@ -184,7 +203,8 @@ class FjsService extends ChangeNotifier {
     }
 
     try {
-      await _engine!.declareNewModule(
+      final engine = await _sharedEngine();
+      await engine.declareNewModule(
         module: JsModule.code(module: moduleName, code: code),
       );
       return {
@@ -214,7 +234,8 @@ class FjsService extends ChangeNotifier {
     }
 
     try {
-      final result = await _engine!.evaluateModule(
+      final engine = await _sharedEngine();
+      final result = await engine.evaluateModule(
         module: JsModule.code(module: moduleName, code: code),
       );
       return {
@@ -248,7 +269,8 @@ class FjsService extends ChangeNotifier {
               ))
           .toList();
 
-      await _engine!.declareNewModules(modules: jsModules);
+      final engine = await _sharedEngine();
+      await engine.declareNewModules(modules: jsModules);
       return {
         'success': true,
         'count': modules.length,
@@ -264,23 +286,24 @@ class FjsService extends ChangeNotifier {
     }
   }
 
-  /// Clear all dynamically declared modules
-  Future<Map<String, dynamic>> clearModules() async {
+  /// Clear pending dynamic module registrations that have not been loaded yet
+  Future<Map<String, dynamic>> clearPendingModules() async {
     if (!_isInitialized) {
       await initialize();
     }
 
     try {
-      await _engine!.clearNewModules();
+      final engine = await _sharedEngine();
+      await engine.clearPendingModules();
       return {
         'success': true,
-        'action': 'cleared_all_modules',
+        'action': 'cleared_pending_modules',
       };
     } catch (e) {
       return {
         'success': false,
         'error': e.toString(),
-        'action': 'clear_modules',
+        'action': 'clear_pending_modules',
       };
     }
   }
@@ -292,7 +315,8 @@ class FjsService extends ChangeNotifier {
     }
 
     try {
-      final modules = await _engine!.getDeclaredModules();
+      final engine = await _sharedEngine();
+      final modules = await engine.getDeclaredModules();
       return {
         'success': true,
         'action': 'get_declared_modules',
@@ -317,8 +341,8 @@ class FjsService extends ChangeNotifier {
     }
 
     try {
-      final isDeclared =
-          await _engine!.isModuleDeclared(moduleName: moduleName);
+      final engine = await _sharedEngine();
+      final isDeclared = await engine.isModuleDeclared(moduleName: moduleName);
       return {
         'success': true,
         'action': 'is_module_declared',
@@ -437,14 +461,130 @@ class FjsService extends ChangeNotifier {
     ));
 
     // Test 8: Clear modules
-    results.add(await clearModules());
+    results.add(await clearPendingModules());
 
     return results;
   }
 
   @override
   void dispose() {
-    _engine?.dispose();
+    _isDisposed = true;
+    _isInitialized = false;
+    _isExecuting = false;
+
+    final session = _sharedSession;
+    _sharedSession = null;
+    _engine = null;
+    _initializing = null;
+
+    if (session != null) {
+      unawaited(session.dispose());
+    }
+
     super.dispose();
+  }
+
+  Future<_FjsModuleAssets> _loadModuleAssets() async {
+    final bundles = await Future.wait([
+      rootBundle.load('assets/examples/linkedom.bundle.mjs'),
+      rootBundle.load('assets/examples/canvas.bundle.mjs'),
+    ]);
+
+    return _FjsModuleAssets(
+      linkedomBundle: bundles[0].buffer.asUint8List(
+            bundles[0].offsetInBytes,
+            bundles[0].lengthInBytes,
+          ),
+      canvasBundle: bundles[1].buffer.asUint8List(
+            bundles[1].offsetInBytes,
+            bundles[1].lengthInBytes,
+          ),
+    );
+  }
+
+  Future<_FjsSession> _createSession() async {
+    final assets = _moduleAssets ??= await _loadModuleAssets();
+    final runtime = await JsAsyncRuntime.withOptions(
+      builtin: _builtinOptions,
+      additional: assets.additionalModules(),
+    );
+    final context = await JsAsyncContext.from(runtime: runtime);
+    final engine = JsEngine(context: context);
+    await engine.initWithoutBridge();
+    return _FjsSession(
+      runtime: runtime,
+      context: context,
+      engine: engine,
+    );
+  }
+
+  Future<JsEngine> _sharedEngine() async {
+    await initialize();
+    final engine = _engine;
+    if (engine == null) {
+      throw StateError('FJS engine is not initialized');
+    }
+    return engine;
+  }
+
+  void _ensureNotDisposed() {
+    if (_isDisposed) {
+      throw StateError('FjsService has been disposed');
+    }
+  }
+
+  void _notifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
+
+  String _formatValue(dynamic value) {
+    if (value == null || value is String) {
+      return value?.toString() ?? 'null';
+    }
+
+    try {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    } catch (_) {
+      return value.toString();
+    }
+  }
+}
+
+final class _FjsSession {
+  final JsAsyncRuntime runtime;
+  final JsAsyncContext context;
+  final JsEngine engine;
+
+  const _FjsSession({
+    required this.runtime,
+    required this.context,
+    required this.engine,
+  });
+
+  Future<void> dispose() => engine.dispose();
+}
+
+final class _FjsModuleAssets {
+  final Uint8List linkedomBundle;
+  final Uint8List canvasBundle;
+
+  const _FjsModuleAssets({
+    required this.linkedomBundle,
+    required this.canvasBundle,
+  });
+
+  List<JsModule> additionalModules() {
+    return [
+      JsModule(
+        name: 'canvas',
+        source: JsCode.bytes(canvasBundle),
+      ),
+      JsModule(
+        name: 'linkedom',
+        source: JsCode.bytes(linkedomBundle),
+      ),
+    ];
   }
 }

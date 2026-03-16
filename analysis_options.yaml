@@ -1,5 +1,9 @@
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    - lib/src/frb/**
+
 linter:
   rules:
     avoid_print: false  # Disabled to allow print statements
