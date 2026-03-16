@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:fjs/fjs.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../app/mounted_state_mixin.dart';
 import '../widgets/widgets.dart';
 
 /// Screen to test JsEngine APIs - the main high-level API
@@ -12,8 +15,11 @@ class EngineApiScreen extends StatefulWidget {
   State<EngineApiScreen> createState() => _EngineApiScreenState();
 }
 
-class _EngineApiScreenState extends State<EngineApiScreen> {
+class _EngineApiScreenState extends State<EngineApiScreen>
+    with MountedStateMixin<EngineApiScreen> {
+  // ignore: unused_field - retained to keep the opaque runtime/context alive
   JsAsyncRuntime? _runtime;
+  // ignore: unused_field - retained to keep the opaque runtime/context alive
   JsAsyncContext? _context;
   JsEngine? _engine;
   bool _isInitialized = false;
@@ -21,6 +27,9 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
 
   final Map<String, _TestResult> _testResults = {};
   final TextEditingController _codeController = TextEditingController();
+
+  JsEngine get _engineOrThrow =>
+      _engine ?? (throw StateError('Engine not initialized'));
 
   @override
   void initState() {
@@ -30,27 +39,59 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
   }
 
   Future<void> _initializeEngine() async {
-    setState(() => _isLoading = true);
+    setStateIfMounted(() => _isLoading = true);
+    JsAsyncRuntime? runtime;
+    JsAsyncContext? context;
+    JsEngine? engine;
+
     try {
-      _runtime = await JsAsyncRuntime.withOptions(
+      runtime = await JsAsyncRuntime.withOptions(
         builtin: JsBuiltinOptions.all(),
       );
-      _context = await JsAsyncContext.from(runtime: _runtime!);
-      _engine = JsEngine(context: _context!);
-      await _engine!.init(
+      context = await JsAsyncContext.from(runtime: runtime);
+      engine = JsEngine(context: context);
+      await engine.init(
         bridge: (value) async {
           if (kDebugMode) {
-            print('Bridge call received: ${value.value}');
+            debugPrint('Bridge call received: ${value.value}');
           }
           return JsResult.ok(
               JsValue.string('Response from Dart: ${value.value}'));
         },
       );
-      setState(() => _isInitialized = true);
+      if (!mounted) {
+        await engine.dispose();
+        return;
+      }
+
+      _runtime = runtime;
+      _context = context;
+      _engine = engine;
+      setStateIfMounted(() => _isInitialized = true);
     } catch (e) {
-      if (kDebugMode) print('Failed to initialize engine: $e');
+      _runtime = null;
+      _context = null;
+      _engine = null;
+      if (engine != null) {
+        await engine.dispose();
+      }
+      if (kDebugMode) {
+        debugPrint('Failed to initialize engine: $e');
+      }
+      setStateIfMounted(() => _isInitialized = false);
     } finally {
-      setState(() => _isLoading = false);
+      setStateIfMounted(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _disposeCurrentEngine() async {
+    final engine = _engine;
+    _runtime = null;
+    _context = null;
+    _engine = null;
+
+    if (engine != null) {
+      await engine.dispose();
     }
   }
 
@@ -60,14 +101,14 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
     });
     try {
       final result = await test();
-      setState(() {
+      setStateIfMounted(() {
         _testResults[testId] = _TestResult(
           isSuccess: true,
           result: result,
         );
       });
     } catch (e) {
-      setState(() {
+      setStateIfMounted(() {
         _testResults[testId] = _TestResult(
           isSuccess: false,
           error: e.toString(),
@@ -78,7 +119,11 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
 
   @override
   void dispose() {
-    _engine?.dispose();
+    final engine = _engine;
+    _engine = null;
+    if (engine != null) {
+      unawaited(engine.dispose());
+    }
     _codeController.dispose();
     super.dispose();
   }
@@ -92,8 +137,8 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () async {
-              await _engine?.dispose();
-              setState(() {
+              await _disposeCurrentEngine();
+              setStateIfMounted(() {
                 _isInitialized = false;
                 _testResults.clear();
               });
@@ -150,6 +195,8 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
   }
 
   Widget _buildStatusBar() {
+    final engine = _engine;
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -181,9 +228,9 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
                         : Colors.orange.shade700,
                   ),
                 ),
-                if (_engine != null)
+                if (engine != null)
                   Text(
-                    'running: ${_engine!.running}, disposed: ${_engine!.disposed}',
+                    'running: ${engine.running}, disposed: ${engine.disposed}',
                     style: TextStyle(
                       fontSize: 12,
                       color: _isInitialized
@@ -211,18 +258,6 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['running_state']?.result,
           error: _testResults['running_state']?.error,
           onRun: () => _runTest('running_state', () async {
-            return {'running': _engine?.running ?? false};
-          }),
-        ),
-        ApiTestCard(
-          title: 'engine.running',
-          subtitle: 'Check if engine is running',
-          icon: Icons.play_circle,
-          isSuccess: _testResults['running']?.isSuccess,
-          isLoading: _testResults['running']?.isLoading ?? false,
-          result: _testResults['running']?.result,
-          error: _testResults['running']?.error,
-          onRun: () => _runTest('running', () async {
             return {'running': _engine?.running ?? false};
           }),
         ),
@@ -263,8 +298,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['eval_code']?.result,
           error: _testResults['eval_code']?.error,
           onRun: () => _runTest('eval_code', () async {
-            if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.eval(
+            final result = await _engineOrThrow.eval(
               source: JsCode.code(_codeController.text),
             );
             return {
@@ -283,16 +317,14 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['eval_options']?.result,
           error: _testResults['eval_options']?.error,
           onRun: () => _runTest('eval_options', () async {
-            if (_engine == null) throw 'Engine not initialized';
-
             // Test with strict mode
-            final strictResult = await _engine!.eval(
+            final strictResult = await _engineOrThrow.eval(
               source: JsCode.code('"use strict"; let x = 10; x * 2'),
               options: JsEvalOptions(strict: true),
             );
 
             // Test with global scope
-            final globalResult = await _engine!.eval(
+            final globalResult = await _engineOrThrow.eval(
               source:
                   JsCode.code('globalThis.myGlobal = 42; globalThis.myGlobal'),
               options: JsEvalOptions(global: true),
@@ -322,8 +354,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['eval_promise']?.result,
           error: _testResults['eval_promise']?.error,
           onRun: () => _runTest('eval_promise', () async {
-            if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.eval(
+            final result = await _engineOrThrow.eval(
               source: JsCode.code('''
                 (async () => {
                   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -346,8 +377,6 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['eval_complex']?.result,
           error: _testResults['eval_complex']?.error,
           onRun: () => _runTest('eval_complex', () async {
-            if (_engine == null) throw 'Engine not initialized';
-
             final expressions = {
               'math': 'Math.sqrt(16) + Math.pow(2, 3)',
               'string': '"Hello".split("").reverse().join("")',
@@ -361,7 +390,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
             final results = <String, dynamic>{};
             for (final entry in expressions.entries) {
               final result =
-                  await _engine!.eval(source: JsCode.code(entry.value));
+                  await _engineOrThrow.eval(source: JsCode.code(entry.value));
               results[entry.key] = {
                 'expression': entry.value,
                 'result': result.value,
@@ -386,8 +415,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['declare_module']?.result,
           error: _testResults['declare_module']?.error,
           onRun: () => _runTest('declare_module', () async {
-            if (_engine == null) throw 'Engine not initialized';
-            await _engine!.declareNewModule(
+            await _engineOrThrow.declareNewModule(
               module: JsModule(
                 name: 'test-math',
                 source: JsCode.code('''
@@ -409,8 +437,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['declare_modules']?.result,
           error: _testResults['declare_modules']?.error,
           onRun: () => _runTest('declare_modules', () async {
-            if (_engine == null) throw 'Engine not initialized';
-            await _engine!.declareNewModules(
+            await _engineOrThrow.declareNewModules(
               modules: [
                 JsModule(
                   name: 'string-utils',
@@ -440,8 +467,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['get_modules']?.result,
           error: _testResults['get_modules']?.error,
           onRun: () => _runTest('get_modules', () async {
-            if (_engine == null) throw 'Engine not initialized';
-            final modules = await _engine!.getDeclaredModules();
+            final modules = await _engineOrThrow.getDeclaredModules();
             return {
               'modules': modules,
               'count': modules.length,
@@ -457,11 +483,10 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['is_module_declared']?.result,
           error: _testResults['is_module_declared']?.error,
           onRun: () => _runTest('is_module_declared', () async {
-            if (_engine == null) throw 'Engine not initialized';
             final exists =
-                await _engine!.isModuleDeclared(moduleName: 'test-math');
-            final notExists =
-                await _engine!.isModuleDeclared(moduleName: 'non-existent');
+                await _engineOrThrow.isModuleDeclared(moduleName: 'test-math');
+            final notExists = await _engineOrThrow.isModuleDeclared(
+                moduleName: 'non-existent');
             return {
               'test-math': exists,
               'non-existent': notExists,
@@ -477,8 +502,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['evaluate_module']?.result,
           error: _testResults['evaluate_module']?.error,
           onRun: () => _runTest('evaluate_module', () async {
-            if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.evaluateModule(
+            final result = await _engineOrThrow.evaluateModule(
               module: JsModule(
                 name: 'eval-test',
                 source: JsCode.code('''
@@ -495,6 +519,268 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           }),
         ),
         ApiTestCard(
+          title: 'JsBytecode.compile()',
+          subtitle:
+              'Compile a module to QuickJS bytecode without mutating engine state',
+          icon: Icons.memory,
+          isSuccess: _testResults['compile_bytecode']?.isSuccess,
+          isLoading: _testResults['compile_bytecode']?.isLoading ?? false,
+          result: _testResults['compile_bytecode']?.result,
+          error: _testResults['compile_bytecode']?.error,
+          onRun: () => _runTest('compile_bytecode', () async {
+            final moduleName =
+                'bytecode-preview-${DateTime.now().microsecondsSinceEpoch}.js';
+            final bytecode = await JsBytecode.compile(
+              module: JsModule.code(
+                module: moduleName,
+                code: 'export default "compiled";',
+              ),
+              options: JsModuleBytecodeOptions.defaults(),
+            );
+
+            final declared =
+                await _engineOrThrow.isModuleDeclared(moduleName: moduleName);
+            final importBlocked = await _engineOrThrow
+                .eval(
+                  source: JsCode.code("await import('$moduleName')"),
+                )
+                .then((_) => false)
+                .catchError((_) => true);
+
+            return {
+              'moduleName': moduleName,
+              'byteLength': bytecode.bytes.length,
+              'declaredAfterCompile': declared,
+              'importFailsUntilDeclared': importBlocked,
+            };
+          }),
+        ),
+        ApiTestCard(
+          title: 'declareNewBytecodeModule()',
+          subtitle:
+              'Compile bytecode, declare it, then import it in the same engine',
+          icon: Icons.inventory_2,
+          isSuccess: _testResults['declare_bytecode_module']?.isSuccess,
+          isLoading:
+              _testResults['declare_bytecode_module']?.isLoading ?? false,
+          result: _testResults['declare_bytecode_module']?.result,
+          error: _testResults['declare_bytecode_module']?.error,
+          onRun: () => _runTest('declare_bytecode_module', () async {
+            final moduleName =
+                'bytecode-module-${DateTime.now().microsecondsSinceEpoch}.js';
+            final bytecode = await JsBytecode.compile(
+              module: JsModule.code(
+                module: moduleName,
+                code: '''
+                  export function describe() {
+                    return {
+                      message: "Loaded from bytecode",
+                      sourceVisible: false,
+                    };
+                  }
+                ''',
+              ),
+            );
+
+            await _engineOrThrow.declareNewBytecodeModule(module: bytecode);
+            final result = await _engineOrThrow.eval(
+              source: JsCode.code('''
+                (async () => {
+                  const { describe } = await import('$moduleName');
+                  return describe();
+                })()
+              '''),
+            );
+
+            return {
+              'moduleName': moduleName,
+              'result': result.value,
+            };
+          }),
+        ),
+        ApiTestCard(
+          title: 'Bytecode Relative Imports',
+          subtitle: 'Declare multiple bytecode modules with relative imports',
+          icon: Icons.account_tree,
+          isSuccess: _testResults['bytecode_relative_imports']?.isSuccess,
+          isLoading:
+              _testResults['bytecode_relative_imports']?.isLoading ?? false,
+          result: _testResults['bytecode_relative_imports']?.result,
+          error: _testResults['bytecode_relative_imports']?.error,
+          onRun: () => _runTest('bytecode_relative_imports', () async {
+            final moduleId = DateTime.now().microsecondsSinceEpoch;
+            final depName = 'pkg/$moduleId/dep.js';
+            final mainName = 'pkg/$moduleId/main.js';
+
+            final dep = await JsBytecode.compile(
+              module: JsModule.code(
+                module: depName,
+                code: 'export const value = 42;',
+              ),
+            );
+            final main = await JsBytecode.compile(
+              module: JsModule.code(
+                module: mainName,
+                code:
+                    "import { value } from './dep.js'; export default value * 2;",
+              ),
+            );
+
+            await _engineOrThrow.declareNewBytecodeModules(
+              modules: [dep, main],
+            );
+            final result = await _engineOrThrow.eval(
+              source: JsCode.code('''
+                (async () => {
+                  const { default: value } = await import('$mainName');
+                  return value;
+                })()
+              '''),
+            );
+
+            return {
+              'mainModule': mainName,
+              'dependency': depName,
+              'result': result.value,
+            };
+          }),
+        ),
+        ApiTestCard(
+          title: 'declareNewBytecodeBundle()',
+          subtitle: 'Declare a compiled bytecode bundle, then import its entry',
+          icon: Icons.folder_zip,
+          isSuccess: _testResults['declare_bytecode_bundle']?.isSuccess,
+          isLoading:
+              _testResults['declare_bytecode_bundle']?.isLoading ?? false,
+          result: _testResults['declare_bytecode_bundle']?.result,
+          error: _testResults['declare_bytecode_bundle']?.error,
+          onRun: () => _runTest('declare_bytecode_bundle', () async {
+            final moduleId = DateTime.now().microsecondsSinceEpoch;
+            final entry = 'bundle/$moduleId/main.js';
+            final bundle = await JsBytecode.compileModuleBundle(
+              entry: entry,
+              modules: [
+                JsModule.code(
+                  module: 'bundle/$moduleId/dep.js',
+                  code: 'export const prefix = "bundle";',
+                ),
+                JsModule.code(
+                  module: entry,
+                  code:
+                      "import { prefix } from './dep.js'; export default `\${prefix}-declared`;",
+                ),
+              ],
+            );
+
+            await _engineOrThrow.declareNewBytecodeBundle(bundle: bundle);
+            final result = await _engineOrThrow.eval(
+              source: JsCode.code('''
+                (async () => {
+                  const { default: value } = await import('$entry');
+                  return value;
+                })()
+              '''),
+            );
+
+            return {
+              'entry': entry,
+              'moduleCount': bundle.modules.length,
+              'result': result.value,
+            };
+          }),
+        ),
+        ApiTestCard(
+          title: 'evaluateBytecodeBundle()',
+          subtitle:
+              'Evaluate a bundle entry, then import it from the module cache',
+          icon: Icons.playlist_play,
+          isSuccess: _testResults['evaluate_bytecode_bundle']?.isSuccess,
+          isLoading:
+              _testResults['evaluate_bytecode_bundle']?.isLoading ?? false,
+          result: _testResults['evaluate_bytecode_bundle']?.result,
+          error: _testResults['evaluate_bytecode_bundle']?.error,
+          onRun: () => _runTest('evaluate_bytecode_bundle', () async {
+            final moduleId = DateTime.now().microsecondsSinceEpoch;
+            final bundle = await JsBytecode.compileModuleBundle(
+              entry: 'bundle/$moduleId/main.js',
+              modules: [
+                JsModule.code(
+                  module: 'bundle/$moduleId/math.js',
+                  code: 'export const double = (value) => value * 2;',
+                ),
+                JsModule.code(
+                  module: 'bundle/$moduleId/main.js',
+                  code: '''
+                    import { double } from './math.js';
+                    export default {
+                      source: 'bundle',
+                      result: double(21),
+                    };
+                  ''',
+                ),
+              ],
+            );
+            final evaluation =
+                await _engineOrThrow.evaluateBytecodeBundle(bundle: bundle);
+            final imported = await _engineOrThrow.eval(
+              source: JsCode.code('''
+                (async () => {
+                  const { default: value } = await import('bundle/$moduleId/main.js');
+                  return value;
+                })()
+              '''),
+            );
+
+            return {
+              'entry': bundle.entry,
+              'evaluateResult': evaluation.value,
+              'imported': imported.value,
+            };
+          }),
+        ),
+        ApiTestCard(
+          title: 'evaluateScriptBytecode()',
+          subtitle: 'Run classic script bytecode, including top-level await',
+          icon: Icons.article,
+          isSuccess: _testResults['evaluate_script_bytecode']?.isSuccess,
+          isLoading:
+              _testResults['evaluate_script_bytecode']?.isLoading ?? false,
+          result: _testResults['evaluate_script_bytecode']?.result,
+          error: _testResults['evaluate_script_bytecode']?.error,
+          onRun: () => _runTest('evaluate_script_bytecode', () async {
+            final script = await JsBytecode.compileScript(
+              name: 'script-${DateTime.now().microsecondsSinceEpoch}.js',
+              source: const JsCode.code('''
+                await Promise.resolve();
+                globalThis.bytecodeScriptRuns = (globalThis.bytecodeScriptRuns ?? 0) + 1;
+                ({
+                  mode: 'classic-script',
+                  runs: globalThis.bytecodeScriptRuns,
+                })
+              '''),
+              options: const JsScriptBytecodeOptions(
+                promise: true,
+                strict: true,
+                stripSource: true,
+                stripDebug: true,
+                endianness: JsBytecodeEndianness.little,
+              ),
+            );
+
+            final result =
+                await _engineOrThrow.evaluateScriptBytecode(script: script);
+            final globalState = await _engineOrThrow.eval(
+              source: const JsCode.code('globalThis.bytecodeScriptRuns'),
+            );
+
+            return {
+              'name': script.name,
+              'result': result.value,
+              'globalRuns': globalState.value,
+            };
+          }),
+        ),
+        ApiTestCard(
           title: 'Use Declared Module',
           subtitle: 'Import and use a declared module',
           icon: Icons.integration_instructions,
@@ -503,10 +789,8 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['use_module']?.result,
           error: _testResults['use_module']?.error,
           onRun: () => _runTest('use_module', () async {
-            if (_engine == null) throw 'Engine not initialized';
-
             // First make sure module is declared
-            await _engine!.declareNewModule(
+            await _engineOrThrow.declareNewModule(
               module: JsModule(
                 name: 'calc-module',
                 source: JsCode.code('''
@@ -524,7 +808,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
             );
 
             // Then use it via dynamic import
-            final result = await _engine!.eval(
+            final result = await _engineOrThrow.eval(
               source: JsCode.code('''
                 (async () => {
                   const { calculate } = await import('calc-module');
@@ -541,19 +825,18 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           }),
         ),
         ApiTestCard(
-          title: 'clearNewModules()',
-          subtitle: 'Clear all declared modules',
+          title: 'clearPendingModules()',
+          subtitle: 'Clear only unloaded dynamic modules',
           icon: Icons.delete_sweep,
           isSuccess: _testResults['clear_modules']?.isSuccess,
           isLoading: _testResults['clear_modules']?.isLoading ?? false,
           result: _testResults['clear_modules']?.result,
           error: _testResults['clear_modules']?.error,
           onRun: () => _runTest('clear_modules', () async {
-            if (_engine == null) throw 'Engine not initialized';
-            await _engine!.clearNewModules();
-            final modules = await _engine!.getDeclaredModules();
+            await _engineOrThrow.clearPendingModules();
+            final modules = await _engineOrThrow.getDeclaredModules();
             return {
-              'status': 'All modules cleared',
+              'status': 'Pending modules cleared',
               'remainingModules': modules,
             };
           }),
@@ -574,8 +857,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['bridge_call']?.result,
           error: _testResults['bridge_call']?.error,
           onRun: () => _runTest('bridge_call', () async {
-            if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.eval(
+            final result = await _engineOrThrow.eval(
               source: JsCode.code('''
                 (async () => {
                   const response = await fjs.bridge_call("Hello from JavaScript!");
@@ -598,8 +880,7 @@ class _EngineApiScreenState extends State<EngineApiScreen> {
           result: _testResults['bridge_complex']?.result,
           error: _testResults['bridge_complex']?.error,
           onRun: () => _runTest('bridge_complex', () async {
-            if (_engine == null) throw 'Engine not initialized';
-            final result = await _engine!.eval(
+            final result = await _engineOrThrow.eval(
               source: JsCode.code('''
                 (async () => {
                   const data = {

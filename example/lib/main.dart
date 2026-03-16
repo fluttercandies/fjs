@@ -1,10 +1,10 @@
 import 'package:fjs/fjs.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import 'app/app.dart';
 import 'services/fjs_service.dart';
+import 'services/js_examples_service.dart';
 import 'services/storage_service.dart';
 
 void main() async {
@@ -20,14 +20,13 @@ void main() async {
     // Initialize storage first
     await storageService.initialize();
 
-    // Run the app with all services
+    final jsExamplesService = JsExamplesService();
+
     runApp(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider.value(value: storageService),
-          ChangeNotifierProvider.value(value: fjsService),
-        ],
-        child: const FjsExampleApp(),
+      FjsExampleApp(
+        storageService: storageService,
+        fjsService: fjsService,
+        jsExamplesService: jsExamplesService,
       ),
     );
   } catch (e, stackTrace) {

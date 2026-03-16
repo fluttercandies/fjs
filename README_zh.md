@@ -52,10 +52,10 @@ void main() async {
   );
 
   // 创建上下文
-  final context = await JsAsyncContext.from(runtime);
+  final context = await JsAsyncContext.from(runtime: runtime);
 
   // 创建引擎
-  final engine = JsEngine(context);
+  final engine = JsEngine(context: context);
   await engine.init(bridge: (jsValue) {
     return JsResult.ok(JsValue.string('来自 Dart 的问候'));
   });
@@ -71,6 +71,144 @@ void main() async {
 }
 ```
 
+## 🏗️ Runtime 与 Context API
+
+```dart
+// 创建一个异步 runtime，启用 web 风格 builtin，并额外挂一个 ES 模块。
+final runtime = await JsAsyncRuntime.withOptions(
+  builtin: JsBuiltinOptions.web(),
+  additional: [
+    JsModule.code(
+      module: 'app/math',
+      code: 'export function add(a, b) { return a + b; }',
+    ),
+  ],
+);
+
+// 设置运行时级别的诊断信息与安全限制。
+await runtime.setInfo(info: 'main-runtime');
+await runtime.setMemoryLimit(limit: BigInt.from(64 * 1024 * 1024));
+await runtime.setGcThreshold(threshold: BigInt.from(8 * 1024 * 1024));
+await runtime.setMaxStackSize(limit: BigInt.from(512 * 1024));
+
+// 基于该 runtime 创建 context。
+final context = await JsAsyncContext.from(runtime: runtime);
+
+// 执行简单表达式，并读取结构化的 JsResult。
+final evalResult = await context.eval(code: '21 + 21');
+print(evalResult.ok.value); // 42
+
+// 显式启用 top-level await / Promise 支持。
+final asyncResult = await context.evalWithOptions(
+  code: 'await Promise.resolve(40 + 2)',
+  options: JsEvalOptions.withPromise(),
+);
+print(asyncResult.ok.value); // 42
+
+// 从文件加载并执行代码。
+final fileResult = await context.evalFile(path: '/absolute/path/to/script.js');
+final strictFileResult = await context.evalFileWithOptions(
+  path: '/absolute/path/to/script.js',
+  options: JsEvalOptions.defaults(),
+);
+
+// 调用运行时中已经可见模块导出的函数。
+final functionResult = await context.evalFunction(
+  module: 'app/math',
+  method: 'add',
+  params: [JsValue.integer(2), JsValue.integer(3)],
+);
+print(functionResult.ok.value); // 5
+
+// 查看当前 context 能 import 的模块列表。
+final availableModules = await context.getAvailableModules();
+print(availableModules);
+
+// 在需要显式调度时，推进或彻底 drain runtime 中的异步工作。
+if (await runtime.isJobPending()) {
+  await runtime.executePendingJob();
+}
+await runtime.idle();
+```
+
+底层 context API 返回的是 `JsResult`，适合你需要结构化成功/失败结果，而不是直接依赖异常的场景。
+
+### 同步 Runtime 与 Context
+
+```dart
+// 如果不需要异步 JavaScript 执行，可以使用同步 runtime。
+final runtime = await JsRuntime.withOptions(
+  builtin: JsBuiltinOptions.essential(),
+);
+final context = JsContext.from(runtime: runtime);
+
+// 同步 context 直接返回 JsResult。
+final result = context.eval(code: '6 * 7');
+print(result.ok.value); // 42
+
+// 通过 eval 选项控制严格模式等行为。
+final strictResult = context.evalWithOptions(
+  code: '"use strict"; 8 * 8',
+  options: JsEvalOptions.defaults(),
+);
+print(strictResult.ok.value); // 64
+
+// 文件执行同样返回 JsResult。
+final fileResult = context.evalFile(path: '/absolute/path/to/script.js');
+final fileWithOptions = context.evalFileWithOptions(
+  path: '/absolute/path/to/script.js',
+  options: JsEvalOptions.defaults(),
+);
+
+// 查看当前 context 可见的模块。
+final modules = context.getAvailableModules();
+print(modules);
+
+// 同步模式下手动推进 QuickJS job 队列。
+while (runtime.isJobPending()) {
+  runtime.executePendingJob();
+}
+
+// 配置 runtime 限制并查看内存统计。
+runtime.setMemoryLimit(limit: BigInt.from(32 * 1024 * 1024));
+runtime.setGcThreshold(threshold: BigInt.from(4 * 1024 * 1024));
+runtime.setMaxStackSize(limit: BigInt.from(256 * 1024));
+runtime.setInfo(info: 'sync-runtime');
+print(runtime.memoryUsage().summary());
+runtime.runGc();
+```
+
+## 🧱 Source 输入与 Eval 选项
+
+```dart
+import 'dart:convert';
+import 'dart:typed_data';
+
+// 源码既可以来自字符串，也可以来自文件路径或 UTF-8 字节。
+final inlineCode = JsCode.code('1 + 1');
+final fileCode = JsCode.path('/absolute/path/to/script.js');
+final bytesCode = JsCode.bytes(Uint8List.fromList(utf8.encode('2 + 2')));
+
+// 模块同样支持这三种输入形式。
+final inlineModule = JsModule.code(
+  module: 'feature/inline',
+  code: 'export const enabled = true;',
+);
+final fileModule = JsModule.path(
+  module: 'feature/file',
+  path: '/absolute/path/to/feature.js',
+);
+final bytesModule = JsModule.bytes(
+  module: 'feature/bytes',
+  bytes: utf8.encode('export const answer = 42;'),
+);
+
+// Eval 选项用于控制全局脚本、异步执行或模块执行语义。
+final defaultEval = JsEvalOptions.defaults();
+final asyncEval = JsEvalOptions.withPromise();
+final moduleEval = JsEvalOptions.module();
+```
+
 ## 📦 ES6 模块
 
 ```dart
@@ -84,15 +222,223 @@ await engine.declareNewModule(
 
 // 使用模块
 await engine.eval(source: JsCode.code('''
-  import { add, multiply } from 'math';
+  const { add, multiply } = await import('math');
   console.log(add(2, 3));        // 5
   console.log(multiply(4, 5));   // 20
 '''));
+
+// 也可以不用自己写 import 包装，直接调用导出的函数。
+final sum = await engine.call(
+  module: 'math',
+  method: 'add',
+  params: [JsValue.integer(2), JsValue.integer(3)],
+);
+print(sum.value); // 5
+
+// 一次性批量注册多个模块。
+await engine.declareNewModules(modules: [
+  JsModule.code(
+    module: 'numbers/double',
+    code: 'export const double = (value) => value * 2;',
+  ),
+  JsModule.code(
+    module: 'numbers/triple',
+    code: 'export const triple = (value) => value * 3;',
+  ),
+]);
+
+// 立即执行一个模块，并把它留在当前 context 的 cache 中。
+await engine.evaluateModule(
+  module: JsModule.code(
+    module: 'startup',
+    code: 'globalThis.started = true; export default "ready";',
+  ),
+);
+
+// 查看当前 engine 上声明过的动态模块。
+final declaredModules = await engine.getDeclaredModules();
+final hasMath = await engine.isModuleDeclared(moduleName: 'math');
+print(declaredModules);
+print(hasMath); // true
 ```
+
+动态模块只有在尚未加载进当前 context 时才能清除。模块一旦被 `import()` 或 `evaluateModule()` 载入，就需要重建 context 才能替换。
+
+## 📚 模块清单查询
+
+```dart
+final modules = await engine.getAvailableModules();
+print(modules);
+
+final hasConsole = await engine.isModuleAvailable(moduleName: 'console');
+final hasXml = await engine.isModuleAvailable(moduleName: 'llrt:xml');
+print('console: $hasConsole, llrt:xml: $hasXml');
+```
+
+## 🔄 Engine 生命周期说明
+
+- `JsEngine` 只是包装一个已有的 `JsAsyncContext`；释放 engine 不会释放底层 context 或 runtime
+- `dispose()` 会先移除 `fjs` bridge、推进待处理的 runtime 工作，再执行 GC，之后 engine 不能再使用
+- `clearPendingModules()` 只会清掉还没有被当前 context 真正加载过的动态模块
+- `declareNewModules()` 和 `declareNewBytecodeModules()` 会拒绝同一批请求里的重复模块名
+
+## 📦 模块字节码
+
+```dart
+// 把一个 ES 模块编译成 QuickJS bytecode，不会影响当前 engine。
+final bytecode = await JsBytecode.compile(
+  module: JsModule.code(
+    module: 'plugin/main.js',
+    code: 'export function run() { return "ready"; }',
+  ),
+  options: JsModuleBytecodeOptions.defaults(),
+);
+
+// 在声明前先校验 bytecode 结构是否合法。
+await JsBytecode.validate(module: bytecode);
+
+// 把预编译模块注册到 engine。
+await engine.declareNewBytecodeModule(module: bytecode);
+
+// 之后就可以像普通 ES 模块一样 import 和执行。
+final result = await engine.eval(source: JsCode.code('''
+  const { run } = await import('plugin/main.js');
+  run();
+'''));
+
+// 如果 bytecode 来自磁盘或网络，可以用原始 bytes 重新恢复。
+final restored = JsModuleBytecode(
+  name: bytecode.name,
+  bytes: bytecode.bytes,
+);
+JsBytecode.validateSync(module: restored);
+```
+
+`JsBytecode.compile()` 会在隔离的 QuickJS context 里执行，因此编译不会把模块声明或缓存进当前 engine。`JsBytecode.validate()` 只做结构校验和内嵌模块名校验，不会执行模块。另有 `compileSync()` / `validateSync()` 供同步调用场景使用，但主 isolate 上更建议使用异步版本。
+
+QuickJS 字节码和嵌入的引擎版本强绑定，只应加载可信输入。升级 QuickJS 后需要重新编译字节码。
+
+### 字节码 Bundle
+
+```dart
+// 把整个模块图编译成一个可分发的 bundle。
+final bundle = await JsBytecode.compileModuleBundle(
+  entry: 'plugins/main.js',
+  modules: [
+    JsModule.code(
+      module: 'plugins/deps/math.js',
+      code: 'export const double = (value) => value * 2;',
+    ),
+    JsModule.code(
+      module: 'plugins/main.js',
+      code: '''
+        import { double } from './deps/math.js';
+        export default { ready: true, answer: double(21) };
+      ''',
+    ),
+  ],
+);
+
+// 在加载前先校验 bundle 结构。
+await JsBytecode.validateBundle(bundle: bundle);
+
+// 执行入口模块，并把相关模块放进 cache。
+await engine.evaluateBytecodeBundle(bundle: bundle);
+
+// 如果要读取导出值，再 import 一次入口模块。
+final result = await engine.eval(source: JsCode.code('''
+  const { default: plugin } = await import('plugins/main.js');
+  plugin
+'''));
+print(result.value); // { ready: true, answer: 42 }
+```
+
+当插件以模块图而不是单文件形式分发时，bundle 更适合这类场景。编译后的 bundle 会保留相对导入关系；如果你只想先注册、不立刻执行入口，也可以使用 `declareNewBytecodeBundle()`。`validateBundle()` 只做结构校验：检查 entry 是否存在、模块名是否重复，以及每个 payload 是否能被当前内嵌的 QuickJS 读取。`evaluateBytecodeBundle()` 会执行入口并把模块放进 cache；如果你要读取导出值，需要像普通模块一样再 `import()` 一次入口模块。
+
+### Classic Script 字节码
+
+```dart
+// 把普通 script 源码编译成非模块 bytecode。
+final script = await JsBytecode.compileScript(
+  name: 'startup.js',
+  source: JsCode.code('''
+    await Promise.resolve();
+    globalThis.launchCount = (globalThis.launchCount ?? 0) + 1;
+    ({ mode: 'script', launchCount: globalThis.launchCount })
+  '''),
+  options: const JsScriptBytecodeOptions(
+    promise: true,
+    strict: true,
+    stripSource: true,
+    stripDebug: true,
+    endianness: JsBytecodeEndianness.little,
+  ),
+);
+
+// 执行前先做结构校验。
+await JsBytecode.validateScript(script: script);
+
+// 执行 script bytecode，并读取 completion value。
+final result = await engine.evaluateScriptBytecode(script: script);
+print(result.value); // { mode: 'script', launchCount: 1 }
+```
+
+script 字节码是 ES module 字节码的非模块版本。`validateScript()` 只能做结构校验：它会确认这些 bytes 在当前内嵌的 QuickJS 下能被读取成“可执行的非模块字节码”。QuickJS 不会暴露一个可在加载时再次验证的内嵌脚本名，因此这里的 `name` 主要用于编译时元数据和错误栈里的文件名。
+
+## 🧾 值、结果与错误
+
+```dart
+import 'dart:typed_data';
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+
+// 常见 Dart 值可以自动转换成结构化的 JsValue。
+final payload = JsValue.from({
+  'enabled': true,
+  'count': 3,
+  'tags': ['a', 'b'],
+  'buffer': Uint8List.fromList([1, 2, 3]),
+});
+print(payload.typeName()); // Object
+print(payload.value); // Dart Map<String, dynamic>
+
+// 如果你需要完全控制类型，也可以手动构造 JsValue 树。
+final typed = JsValue.object({
+  'big': JsValue.bigint('9007199254740993'),
+  'createdAt': JsValue.date(DateTime.now().millisecondsSinceEpoch),
+});
+print(typed.value);
+
+// 底层 context API 返回 JsResult，而不是直接抛异常。
+final result = await context.eval(code: '40 + 2');
+if (result.isOk) {
+  print(result.ok.value); // 42
+} else {
+  print('${result.err.code()}: ${result.err}');
+}
+
+// JsError 适合做结构化错误处理和重试判断。
+const syntaxError = JsError.syntax(
+  message: 'Unexpected token',
+  line: 1,
+  column: 10,
+);
+print(syntaxError.code());
+print(syntaxError.isRecoverable());
+
+// 高层执行 API 失败时仍然会抛 AnyhowException。
+try {
+  await engine.eval(source: JsCode.code('invalid.code()'));
+} on AnyhowException catch (e) {
+  print('执行失败: ${e.message}');
+}
+```
+
+`JsError` 主要出现在 `JsResult.err(...)`、bridge 返回值和底层 context 结果里。`eval()`、`call()` 这类公开执行 API 当前抛出的 Rust 侧失败会表现为 `AnyhowException`。
 
 ## 🌉 桥接通信
 
 ```dart
+// bridge 接收一个 JsValue，并把 JsResult 返回给 JavaScript。
 await engine.init(bridge: (jsValue) async {
   final data = jsValue.value;
 
@@ -104,7 +450,7 @@ await engine.init(bridge: (jsValue) async {
   return JsResult.ok(JsValue.none());
 });
 
-// JavaScript 端
+// JavaScript 端通过注入的 fjs 对象回调 Dart。
 await engine.eval(source: JsCode.code('''
   const user = await fjs.bridge_call({ action: 'fetchUser', id: 123 });
   console.log(user);
@@ -114,19 +460,89 @@ await engine.eval(source: JsCode.code('''
 ## 🧠 内存管理
 
 ```dart
-// 设置限制
-await runtime.setMemoryLimit(50 * 1024 * 1024); // 50MB
-await runtime.setGcThreshold(10 * 1024 * 1024);  // 10MB
+// 设置运行时安全限制。
+await runtime.setMemoryLimit(limit: BigInt.from(50 * 1024 * 1024)); // 50MB
+await runtime.setGcThreshold(threshold: BigInt.from(10 * 1024 * 1024)); // 10MB
+await runtime.setMaxStackSize(limit: BigInt.from(512 * 1024)); // 512KB
 
-// 监控使用
+// 查看当前内存使用情况。
 final usage = await runtime.memoryUsage();
 print(usage.summary());
 
-// 强制 GC
+// 在需要立即回收时手动触发 GC。
 await runtime.runGc();
 ```
 
 ## 📚 核心 API
+
+### JsAsyncRuntime 与 JsAsyncContext
+
+```dart
+abstract class JsAsyncRuntime {
+  factory JsAsyncRuntime();
+  static Future<JsAsyncRuntime> withOptions({
+    JsBuiltinOptions? builtin,
+    List<JsModule>? additional,
+  });
+
+  Future<bool> isJobPending();
+  Future<bool> executePendingJob();
+  Future<void> idle();
+  Future<MemoryUsage> memoryUsage();
+  Future<void> setMemoryLimit({required BigInt limit});
+  Future<void> setGcThreshold({required BigInt threshold});
+  Future<void> setMaxStackSize({required BigInt limit});
+  Future<void> setInfo({required String info});
+  Future<void> runGc();
+}
+
+abstract class JsAsyncContext {
+  static Future<JsAsyncContext> from({required JsAsyncRuntime runtime});
+
+  Future<JsResult> eval({required String code});
+  Future<JsResult> evalWithOptions({required String code, required JsEvalOptions options});
+  Future<JsResult> evalFile({required String path});
+  Future<JsResult> evalFileWithOptions({required String path, required JsEvalOptions options});
+  Future<JsResult> evalFunction({
+    required String module,
+    required String method,
+    List<JsValue>? params,
+  });
+
+  Future<List<String>> getAvailableModules();
+}
+```
+
+### JsRuntime 与 JsContext
+
+```dart
+abstract class JsRuntime {
+  factory JsRuntime();
+  static Future<JsRuntime> withOptions({
+    JsBuiltinOptions? builtin,
+    List<JsModule>? additional,
+  });
+
+  bool isJobPending();
+  bool executePendingJob();
+  MemoryUsage memoryUsage();
+  void setMemoryLimit({required BigInt limit});
+  void setGcThreshold({required BigInt threshold});
+  void setMaxStackSize({required BigInt limit});
+  void setInfo({required String info});
+  void runGc();
+}
+
+abstract class JsContext {
+  static JsContext from({required JsRuntime runtime});
+
+  JsResult eval({required String code});
+  JsResult evalWithOptions({required String code, required JsEvalOptions options});
+  JsResult evalFile({required String path});
+  JsResult evalFileWithOptions({required String path, required JsEvalOptions options});
+  List<String> getAvailableModules();
+}
+```
 
 ### JsEngine
 
@@ -140,16 +556,37 @@ class JsEngine {
   Future<JsValue> call({required String module, required String method, List<JsValue>? params});
 
   Future<void> declareNewModule({required JsModule module});
-  Future<void> declareNewModules({required List<JsModule> modules});
-  Future<void> clearNewModules();
+  Future<void> declareNewModules({required List<JsModule> modules}); // 同一批请求中不允许重复模块名
+  Future<void> declareNewBytecodeBundle({required JsModuleBytecodeBundle bundle});
+  Future<void> declareNewBytecodeModule({required JsModuleBytecode module});
+  Future<void> declareNewBytecodeModules({required List<JsModuleBytecode> modules}); // 同一批请求中不允许重复模块名
+  Future<void> clearPendingModules();
+  Future<List<String>> getAvailableModules();
   Future<bool> isModuleDeclared({required String moduleName});
+  Future<bool> isModuleAvailable({required String moduleName});
   Future<List<String>> getDeclaredModules();
+  Future<JsValue> evaluateBytecodeBundle({required JsModuleBytecodeBundle bundle});
   Future<JsValue> evaluateModule({required JsModule module});
+  Future<JsValue> evaluateBytecodeModule({required JsModuleBytecode module});
+  Future<JsValue> evaluateScriptBytecode({required JsScriptBytecode script});
 
-  Future<void> dispose();
+  Future<void> dispose(); // 会推进待处理的 runtime 工作，然后执行 GC
   bool get running;
   bool get disposed;
-  JsAsyncContext get context;
+  JsAsyncContext get context; // engine 不拥有这个 context
+}
+```
+
+### MemoryUsage
+
+```dart
+abstract class MemoryUsage {
+  int get totalMemory;
+  int get totalAllocations;
+  int get mallocSize;
+  int get objCount;
+  int get strCount;
+  String summary();
 }
 ```
 
@@ -158,35 +595,162 @@ class JsEngine {
 ```dart
 sealed class JsValue {
   const factory JsValue.none();
-  const factory JsValue.bool(bool value);
+  const factory JsValue.boolean(bool value);
   const factory JsValue.integer(PlatformInt64 value);
   const factory JsValue.float(double value);
+  const factory JsValue.bigint(String value);
   const factory JsValue.string(String value);
+  const factory JsValue.bytes(Uint8List value);
   const factory JsValue.array(List<JsValue> value);
   const factory JsValue.object(Map<String, JsValue> value);
+  const factory JsValue.date(PlatformInt64 value);
+  const factory JsValue.symbol(String value);
+  const factory JsValue.function(String value);
 
   static JsValue from(Object? any);
+  String typeName();
   dynamic get value;
 }
 ```
 
-### JsCode & JsModule
+### JsBuiltinOptions 与 JsEvalOptions
+
+```dart
+sealed class JsBuiltinOptions {
+  const factory JsBuiltinOptions({
+    bool? console,
+    bool? fetch,
+    bool? timers,
+    bool? crypto,
+    bool? fs,
+    bool? url,
+    bool? process,
+    bool? path,
+    bool? util,
+    bool? intl,
+    bool? temporal,
+    // ... 其他 builtin 开关
+  });
+
+  static JsBuiltinOptions none();
+  static JsBuiltinOptions essential();
+  static JsBuiltinOptions web();
+  static JsBuiltinOptions node();
+  static JsBuiltinOptions all();
+}
+
+sealed class JsEvalOptions {
+  factory JsEvalOptions({
+    bool? global,
+    bool? strict,
+    bool? backtraceBarrier,
+    bool? promise,
+  });
+
+  static JsEvalOptions defaults();
+  static JsEvalOptions withPromise();
+  static JsEvalOptions module();
+}
+```
+
+### JsCode、JsModule 与 Bytecode
 
 ```dart
 sealed class JsCode {
   const factory JsCode.code(String value);    // 内联代码
   const factory JsCode.path(String value);    // 文件路径
-  const factory JsCode.bytes(Uint8List value); // 原始字节
+  const factory JsCode.bytes(Uint8List value); // UTF-8 源码字节
 }
 
 sealed class JsModule {
   static JsModule code({required String module, required String code});
   static JsModule path({required String module, required String path});
-  static JsModule bytes({required String module, required List<int> bytes});
+  static JsModule bytes({required String module, required List<int> bytes}); // UTF-8 源码字节
+}
+
+sealed class JsModuleBytecode {
+  factory JsModuleBytecode({required String name, required List<int> bytes});
+}
+
+sealed class JsModuleBytecodeBundle {
+  factory JsModuleBytecodeBundle({
+    String? entry,
+    required List<JsModuleBytecode> modules,
+  });
+}
+
+sealed class JsScriptBytecode {
+  factory JsScriptBytecode({required String name, required List<int> bytes});
+}
+
+class JsBytecode {
+  static JsModuleBytecode compileSync({
+    required JsModule module,
+    JsModuleBytecodeOptions? options,
+  });
+
+  static Future<JsModuleBytecode> compile({
+    required JsModule module,
+    JsModuleBytecodeOptions? options,
+  });
+
+  static JsModuleBytecodeBundle compileModuleBundleSync({
+    required List<JsModule> modules,
+    String? entry,
+    JsModuleBytecodeOptions? options,
+  });
+
+  static Future<JsModuleBytecodeBundle> compileModuleBundle({
+    required List<JsModule> modules,
+    String? entry,
+    JsModuleBytecodeOptions? options,
+  });
+
+  static JsScriptBytecode compileScriptSync({
+    required String name,
+    required JsCode source,
+    JsScriptBytecodeOptions? options,
+  });
+
+  static Future<JsScriptBytecode> compileScript({
+    required String name,
+    required JsCode source,
+    JsScriptBytecodeOptions? options,
+  });
+
+  static void validateSync({required JsModuleBytecode module});
+  static Future<void> validate({required JsModuleBytecode module});
+  static void validateBundleSync({required JsModuleBytecodeBundle bundle});
+  static Future<void> validateBundle({required JsModuleBytecodeBundle bundle});
+  static void validateScriptSync({required JsScriptBytecode script});
+  static Future<void> validateScript({required JsScriptBytecode script});
+}
+
+sealed class JsModuleBytecodeOptions {
+  const factory JsModuleBytecodeOptions({
+    JsBytecodeEndianness? endianness,
+    bool? stripSource,
+    bool? stripDebug,
+  });
+
+  static JsModuleBytecodeOptions defaults();
+}
+
+sealed class JsScriptBytecodeOptions {
+  const factory JsScriptBytecodeOptions({
+    JsBytecodeEndianness? endianness,
+    bool? stripSource,
+    bool? stripDebug,
+    bool? strict,
+    bool? backtraceBarrier,
+    bool? promise,
+  });
+
+  static JsScriptBytecodeOptions defaults();
 }
 ```
 
-### JsResult
+### JsResult 与 JsError
 
 ```dart
 sealed class JsResult {
@@ -198,38 +762,77 @@ sealed class JsResult {
   JsValue get ok;
   JsError get err;
 }
+
+sealed class JsError {
+  const factory JsError.promise(String message);
+  const factory JsError.module({String? module, String? method, required String message});
+  const factory JsError.context(String message);
+  const factory JsError.storage(String message);
+  const factory JsError.io({String? path, required String message});
+  const factory JsError.runtime(String message);
+  const factory JsError.generic(String message);
+  const factory JsError.engine(String message);
+  const factory JsError.bridge(String message);
+  const factory JsError.conversion({
+    required String from,
+    required String to,
+    required String message,
+  });
+  const factory JsError.timeout({
+    required String operation,
+    required BigInt timeoutMs,
+  });
+  const factory JsError.memoryLimit({
+    required BigInt current,
+    required BigInt limit,
+  });
+  const factory JsError.stackOverflow(String message);
+  const factory JsError.syntax({int? line, int? column, required String message});
+  const factory JsError.reference(String message);
+  const factory JsError.type(String message);
+  const factory JsError.cancelled(String message);
+
+  String code();
+  bool isRecoverable();
+}
 ```
 
-## 🧩 内置模块
+## 🧩 内置运行时能力
 
-| 模块 | 描述 |
+有些 builtin 选项会暴露可 `import` 的模块，有些则会直接在运行时注入全局对象。
+
+| 选项 | 描述 |
 |------|------|
-| `console` | 控制台日志（`console.log`、`console.error` 等） |
-| `timers` | 定时器函数（`setTimeout`、`setInterval`、`setImmediate`） |
-| `buffer` | Buffer 二进制数据处理 |
-| `util` | 工具函数 |
-| `json` | JSON 解析与序列化 |
-| `fetch` | HTTP 客户端（Fetch API） |
-| `url` | URL 解析与格式化 |
-| `crypto` | 加密函数（哈希、HMAC、随机字节） |
-| `events` | EventEmitter 实现 |
-| `streamWeb` | Web Streams API |
-| `navigator` | Navigator 信息（Web 兼容） |
-| `exceptions` | 错误处理工具 |
-| `fs` | 文件系统操作（Node.js 兼容） |
-| `path` | 路径处理（POSIX/Windows） |
-| `process` | 进程信息与环境变量 |
-| `os` | 操作系统工具 |
-| `net` | 网络 TCP/UDP 套接字 |
-| `dns` | DNS 解析 |
-| `childProcess` | 子进程派生 |
+| `abort` | `AbortController` 及相关全局对象 |
+| `assert` | 断言辅助 |
 | `asyncHooks` | 异步生命周期追踪 |
+| `buffer` | Buffer 二进制数据处理 |
+| `childProcess` | 子进程派生 |
+| `console` | 控制台日志（`console.log`、`console.error` 等） |
+| `crypto` | 加密能力和 Web Crypto 全局对象 |
+| `dgram` | UDP 套接字 |
+| `dns` | DNS 解析 |
+| `events` | `EventEmitter` 支持 |
+| `exceptions` | 全局异常辅助 |
+| `fetch` | Fetch API 全局对象 |
+| `fs` | 文件系统操作 |
+| `https` | HTTPS 客户端模块 |
+| `intl` | 轻量 `Intl.DateTimeFormat` 时区支持 |
+| `navigator` | Navigator 全局对象 |
+| `net` | TCP 套接字 |
+| `os` | 操作系统工具（`iOS` 不提供） |
+| `path` | 路径处理（POSIX/Windows） |
 | `perfHooks` | 性能测量 API |
-| `tty` | 终端工具 |
+| `process` | 进程信息与环境变量 |
+| `streamWeb` | Web Streams API |
 | `stringDecoder` | Buffer 字符串解码 |
+| `temporal` | `Temporal` 全局对象 |
+| `timers` | 定时器函数（`setTimeout`、`setInterval`、`setImmediate`） |
+| `tty` | 终端工具 |
+| `url` | URL 解析与格式化 |
+| `util` | 工具函数 |
 | `zlib` | 压缩/解压（gzip、deflate） |
-| `assert` | 断言测试 |
-| `abort` | AbortController 支持 |
+| `json` | JSON 静态方法兼容辅助 |
 
 ### 快速预设
 
@@ -237,10 +840,10 @@ sealed class JsResult {
 // 基础模块：console、timers、buffer、util、json
 JsBuiltinOptions.essential()
 
-// Web 环境：console、timers、fetch、url、crypto、streamWeb、navigator、exceptions、json
+// Web 环境：console、timers、fetch、url、crypto、streamWeb、navigator、exceptions、intl、json
 JsBuiltinOptions.web()
 
-// Node.js 环境：除 OS 特定模块外的大部分模块
+// Node.js 环境：大部分 Node 兼容模块，包含 https 和 intl
 JsBuiltinOptions.node()
 
 // 全部模块
@@ -255,21 +858,11 @@ JsBuiltinOptions(
 )
 ```
 
-## ⚠️ 错误处理
-
-```dart
-try {
-  final result = await engine.eval(source: JsCode.code('invalid.code()'));
-} on JsError catch (e) {
-  print('错误: ${e.code()} - ${e}');
-}
-```
-
 ## ⚡ 性能建议
 
 1. **复用引擎** - 创建一次，多次使用
 2. **设置内存限制** - 配置适当的限制
-3. **使用字节** - 二进制数据优先使用 `JsCode.bytes()`
+3. **使用源码字节** - 当 JavaScript 源码本来就是 UTF-8 字节时，优先使用 `JsCode.bytes()` / `JsModule.bytes()`
 4. **批量操作** - 将相关操作分组执行
 
 ## 📄 许可证

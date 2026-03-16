@@ -4,6 +4,14 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fjs/fjs.dart';
 
+Matcher throwsAnyhowException() => throwsA(
+      predicate<Object?>(
+        (error) =>
+            error != null && error.toString().startsWith('AnyhowException('),
+        'AnyhowException',
+      ),
+    );
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async => await LibFjs.init());
@@ -198,6 +206,103 @@ void main() {
         source: const JsCode.code('export const y = 2;'),
       );
       expect(custom.name, 'custom');
+    });
+  });
+
+  group('JsModuleBytecode Tests', () {
+    test('Create bytecode container and options', () {
+      final bytecode = JsModuleBytecode(
+        name: 'plugin/main.js',
+        bytes: [1, 2, 3, 4],
+      );
+      const options = JsModuleBytecodeOptions(
+        endianness: JsBytecodeEndianness.little,
+        stripSource: true,
+        stripDebug: true,
+      );
+
+      expect(bytecode.name, 'plugin/main.js');
+      expect(bytecode.bytes, [1, 2, 3, 4]);
+      expect(options.endianness, JsBytecodeEndianness.little);
+      expect(options.stripSource, true);
+      expect(options.stripDebug, true);
+    });
+
+    test('Compile and validate bytecode without an engine', () async {
+      final moduleName =
+          'bytecode-global-${DateTime.now().microsecondsSinceEpoch}.js';
+      final bytecode = await JsBytecode.compile(
+        module: JsModule.code(
+          module: moduleName,
+          code: 'export default "ok";',
+        ),
+      );
+
+      expect(bytecode.name, moduleName);
+      expect(bytecode.bytes, isNotEmpty);
+      await JsBytecode.validate(module: bytecode);
+    });
+
+    test('Compile and validate bytecode synchronously', () {
+      final moduleName =
+          'bytecode-sync-${DateTime.now().microsecondsSinceEpoch}.js';
+      final bytecode = JsBytecode.compileSync(
+        module: JsModule.code(
+          module: moduleName,
+          code: 'export default "sync";',
+        ),
+      );
+
+      expect(bytecode.name, moduleName);
+      expect(bytecode.bytes, isNotEmpty);
+      expect(() => JsBytecode.validateSync(module: bytecode), returnsNormally);
+    });
+
+    test('Compile and validate a bytecode bundle', () async {
+      final moduleId = DateTime.now().microsecondsSinceEpoch;
+      final entry = 'bundle/$moduleId/main.js';
+      final bundle = await JsBytecode.compileModuleBundle(
+        entry: entry,
+        modules: [
+          JsModule.code(
+            module: 'bundle/$moduleId/dep.js',
+            code: 'export const value = 21;',
+          ),
+          JsModule.code(
+            module: entry,
+            code: "import { value } from './dep.js'; export default value * 2;",
+          ),
+        ],
+      );
+
+      expect(bundle.entry, entry);
+      expect(bundle.modules, hasLength(2));
+      await JsBytecode.validateBundle(bundle: bundle);
+      expect(
+          () => JsBytecode.validateBundleSync(bundle: bundle), returnsNormally);
+    });
+
+    test('Compile and validate classic script bytecode', () async {
+      final script = await JsBytecode.compileScript(
+        name: 'script-${DateTime.now().microsecondsSinceEpoch}.js',
+        source: const JsCode.code('globalThis.bytecodeScript = "ready";'),
+      );
+
+      expect(script.name, startsWith('script-'));
+      expect(script.bytes, isNotEmpty);
+      await JsBytecode.validateScript(script: script);
+    });
+
+    test('Compile and validate classic script bytecode synchronously', () {
+      final script = JsBytecode.compileScriptSync(
+        name: 'script-sync-${DateTime.now().microsecondsSinceEpoch}.js',
+        source: const JsCode.code('globalThis.bytecodeScriptSync = true;'),
+      );
+
+      expect(script.name, startsWith('script-sync-'));
+      expect(script.bytes, isNotEmpty);
+      expect(
+          () => JsBytecode.validateScriptSync(script: script), returnsNormally);
     });
   });
 
@@ -492,10 +597,6 @@ void main() {
       final result = await context.eval(
         code: 'new Promise((resolve) => { resolve(42); })',
       );
-      print('DEBUG JsAsyncContext Promise: result.isOk = ${result.isOk}');
-      print('DEBUG JsAsyncContext Promise: result.ok = ${result.ok}');
-      print(
-          'DEBUG JsAsyncContext Promise: result.ok.value = ${result.ok.value}');
       expect(result.isOk, true);
       expect(result.ok.value, equals(42));
     });
@@ -598,7 +699,165 @@ void main() {
       expect(modules, containsAll(['string-utils', 'array-utils']));
     });
 
-    test('Clear modules', () async {
+    test('Bytecode compilation is side-effect free until declared', () async {
+      await engine.initWithoutBridge();
+
+      final moduleName =
+          'bytecode-preview-${DateTime.now().microsecondsSinceEpoch}.js';
+      final bytecode = await JsBytecode.compile(
+        module: JsModule.code(
+          module: moduleName,
+          code: 'export default 123;',
+        ),
+      );
+
+      expect(bytecode.name, moduleName);
+      expect(bytecode.bytes, isNotEmpty);
+      expect(await engine.isModuleDeclared(moduleName: moduleName), isFalse);
+      expect(
+        () => engine.eval(source: JsCode.code("await import('$moduleName')")),
+        throwsAnyhowException(),
+      );
+    });
+
+    test('Bytecode declaration and relative imports work', () async {
+      await engine.initWithoutBridge();
+
+      final moduleId = DateTime.now().microsecondsSinceEpoch;
+      final depName = 'pkg/$moduleId/dep.js';
+      final mainName = 'pkg/$moduleId/main.js';
+
+      final dep = await JsBytecode.compile(
+        module: JsModule.code(
+          module: depName,
+          code: 'export const value = 21;',
+        ),
+      );
+      final main = await JsBytecode.compile(
+        module: JsModule.code(
+          module: mainName,
+          code: "import { value } from './dep.js'; export default value * 2;",
+        ),
+      );
+
+      await engine.declareNewBytecodeModules(modules: [dep, main]);
+
+      final result = await engine.eval(
+        source: JsCode.code('''
+          (async () => {
+            const { default: value } = await import('$mainName');
+            return value;
+          })()
+        '''),
+      );
+
+      expect(result.value, 42);
+    });
+
+    test('Bytecode bundle declaration works', () async {
+      await engine.initWithoutBridge();
+
+      final moduleId = DateTime.now().microsecondsSinceEpoch;
+      final entry = 'bundle/$moduleId/main.js';
+      final bundle = await JsBytecode.compileModuleBundle(
+        entry: entry,
+        modules: [
+          JsModule.code(
+            module: 'bundle/$moduleId/dep.js',
+            code: 'export const label = "declared";',
+          ),
+          JsModule.code(
+            module: entry,
+            code:
+                "import { label } from './dep.js'; export default `\${label}-bundle`;",
+          ),
+        ],
+      );
+
+      await engine.declareNewBytecodeBundle(bundle: bundle);
+      final result = await engine.eval(
+        source: JsCode.code('''
+          (async () => {
+            const { default: value } = await import('$entry');
+            return value;
+          })()
+        '''),
+      );
+
+      expect(result.value, 'declared-bundle');
+    });
+
+    test('Bytecode bundle evaluation works', () async {
+      await engine.initWithoutBridge();
+
+      final moduleId = DateTime.now().microsecondsSinceEpoch;
+      final bundle = await JsBytecode.compileModuleBundle(
+        entry: 'bundle/$moduleId/main.js',
+        modules: [
+          JsModule.code(
+            module: 'bundle/$moduleId/math.js',
+            code: 'export const add = (a, b) => a + b;',
+          ),
+          JsModule.code(
+            module: 'bundle/$moduleId/main.js',
+            code: '''
+              import { add } from './math.js';
+              export default {
+                kind: 'bundle',
+                value: add(20, 22),
+              };
+            ''',
+          ),
+        ],
+      );
+
+      final result = await engine.evaluateBytecodeBundle(bundle: bundle);
+      expect(result.value, isNull);
+      final imported = await engine.eval(
+        source: JsCode.code('''
+          (async () => {
+            const { default: value } = await import('bundle/$moduleId/main.js');
+            return value;
+          })()
+        '''),
+      );
+      expect((imported.value as Map)['kind'], 'bundle');
+      expect((imported.value as Map)['value'], 42);
+    });
+
+    test('Classic script bytecode evaluation works', () async {
+      await engine.initWithoutBridge();
+
+      final script = await JsBytecode.compileScript(
+        name: 'script-${DateTime.now().microsecondsSinceEpoch}.js',
+        source: const JsCode.code('''
+          await Promise.resolve();
+          globalThis.scriptRuns = (globalThis.scriptRuns ?? 0) + 1;
+          ({
+            kind: 'script',
+            runs: globalThis.scriptRuns,
+          })
+        '''),
+        options: const JsScriptBytecodeOptions(
+          promise: true,
+          strict: true,
+          stripSource: true,
+          stripDebug: true,
+          endianness: JsBytecodeEndianness.little,
+        ),
+      );
+
+      final result = await engine.evaluateScriptBytecode(script: script);
+      expect((result.value as Map)['kind'], 'script');
+      expect((result.value as Map)['runs'], 1);
+      expect(
+        (await engine.eval(source: const JsCode.code('globalThis.scriptRuns')))
+            .value,
+        1,
+      );
+    });
+
+    test('Clear pending modules', () async {
       await engine.initWithoutBridge();
 
       await engine.declareNewModule(
@@ -608,7 +867,7 @@ void main() {
 
       expect(await engine.isModuleDeclared(moduleName: 'temp-module'), true);
 
-      await engine.clearNewModules();
+      await engine.clearPendingModules();
 
       expect(await engine.isModuleDeclared(moduleName: 'temp-module'), false);
     });
@@ -659,9 +918,6 @@ void main() {
         options: JsEvalOptions.withPromise(),
       );
 
-      print('DEBUG: receivedData = $receivedData');
-      print('DEBUG: result = $result');
-      print('DEBUG: result.runtimeType = ${result.runtimeType}');
       expect(receivedData, isA<Map>());
       expect((receivedData as Map)['name'], equals('test'));
       // The bridge_call returns the value passed back from Dart
@@ -673,7 +929,7 @@ void main() {
 
       expect(
         () => engine.eval(source: const JsCode.code('function {')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
@@ -683,7 +939,7 @@ void main() {
       expect(
         () => engine.eval(
             source: const JsCode.code('undefinedVariable.property')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
@@ -700,7 +956,7 @@ void main() {
 
       expect(
         () => engine.initWithoutBridge(),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
@@ -710,14 +966,14 @@ void main() {
 
       expect(
         () => engine.eval(source: const JsCode.code('1 + 1')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
     test('Use without initialization should throw', () async {
       expect(
         () => engine.eval(source: const JsCode.code('1 + 1')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
@@ -797,8 +1053,6 @@ void main() {
         '''),
         options: JsEvalOptions.withPromise(),
       );
-      print('DEBUG Promise: result = $result');
-      print('DEBUG Promise: result.runtimeType = ${result.runtimeType}');
       expect(result.value, equals(42));
     });
 
@@ -978,8 +1232,6 @@ void main() {
           })
         '''),
       );
-      print('DEBUG URL: result = $result');
-      print('DEBUG URL: result.value = ${result.value}');
       expect(result.isObject(), true);
       final obj = result.value as Map;
       expect(obj['protocol'], equals('https:'));
@@ -1517,28 +1769,28 @@ void main() {
     test('TypeError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('null.property')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
     test('ReferenceError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('nonExistentVariable')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
     test('SyntaxError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('function {')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
 
     test('RangeError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('new Array(-1)')),
-        throwsA(isA<JsError>()),
+        throwsAnyhowException(),
       );
     });
   });
