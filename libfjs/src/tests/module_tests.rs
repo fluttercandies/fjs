@@ -254,7 +254,7 @@ fn test_builtin_options_none_to_module_builder() {
 // ============================================================================
 
 use super::test_utils::test_with;
-use crate::api::module::{DynamicModuleLoader, DynamicModuleResolver};
+use crate::api::module::{DynamicModuleEntry, DynamicModuleLoader, DynamicModuleResolver};
 use rquickjs::loader::{Loader, Resolver};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -272,11 +272,11 @@ fn test_dynamic_module_resolver_not_found() {
 fn test_dynamic_module_resolver_found() {
     test_with(|ctx| {
         // Store module in userdata
-        let modules = Arc::new(RwLock::new(HashMap::<String, Vec<u8>>::new()));
-        modules
-            .write()
-            .unwrap()
-            .insert("test-module".to_string(), b"export const x = 1;".to_vec());
+        let modules = Arc::new(RwLock::new(HashMap::<String, DynamicModuleEntry>::new()));
+        modules.write().unwrap().insert(
+            "test-module".to_string(),
+            DynamicModuleEntry::Source(b"export const x = 1;".to_vec()),
+        );
         let _ = ctx.store_userdata(modules);
 
         let mut resolver = DynamicModuleResolver::default();
@@ -299,11 +299,11 @@ fn test_dynamic_module_loader_not_found() {
 fn test_dynamic_module_loader_found() {
     test_with(|ctx| {
         // Store module in userdata
-        let modules = Arc::new(RwLock::new(HashMap::<String, Vec<u8>>::new()));
-        modules
-            .write()
-            .unwrap()
-            .insert("test-module".to_string(), b"export const x = 1;".to_vec());
+        let modules = Arc::new(RwLock::new(HashMap::<String, DynamicModuleEntry>::new()));
+        modules.write().unwrap().insert(
+            "test-module".to_string(),
+            DynamicModuleEntry::Source(b"export const x = 1;".to_vec()),
+        );
         let _ = ctx.store_userdata(modules);
 
         let mut loader = DynamicModuleLoader::default();

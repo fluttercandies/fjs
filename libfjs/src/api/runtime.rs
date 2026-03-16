@@ -5,14 +5,15 @@
 
 use crate::api::error::{JsError, JsResult};
 use crate::api::module::{
-    DynamicModuleLoader, DynamicModuleResolver, GlobalAttachment, ModuleBuilder,
+    DynamicModuleEntry, DynamicModuleLoader, DynamicModuleResolver, DynamicModuleStorage,
+    GlobalAttachment, LoadedDynamicModules, ModuleBuilder, get_available_module_names,
 };
-use crate::api::source::{get_raw_source_code, JsBuiltinOptions, JsEvalOptions, JsModule};
-use crate::api::value::JsValue;
+use crate::api::source::{JsBuiltinOptions, JsEvalOptions, JsModule, get_raw_source_code};
+use crate::api::value::{JsValue, install_value_intrinsics};
 use flutter_rust_bridge::frb;
 use rquickjs::loader::{BuiltinLoader, BuiltinResolver, FileResolver, NativeLoader, ScriptLoader};
+use rquickjs::promise::MaybePromise;
 use rquickjs::{CatchResultExt, FromJs, Module, Promise};
-use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 /// Memory usage statistics for the JavaScript runtime.
@@ -129,6 +130,59 @@ impl MemoryUsage {
     }
 }
 
+type RuntimeResolverStack = (
+    crate::api::module::ModuleResolver,
+    BuiltinResolver,
+    BuiltinResolver,
+    DynamicModuleResolver,
+    FileResolver,
+);
+
+type RuntimeLoaderStack = (
+    rquickjs::loader::ModuleLoader,
+    BuiltinLoader,
+    BuiltinLoader,
+    DynamicModuleLoader,
+    NativeLoader,
+    ScriptLoader,
+);
+
+fn make_loader_stack(
+    module_resolver: crate::api::module::ModuleResolver,
+    module_loader: rquickjs::loader::ModuleLoader,
+    additional_resolver: BuiltinResolver,
+    additional_loader: BuiltinLoader,
+) -> (RuntimeResolverStack, RuntimeLoaderStack) {
+    let resolver = (
+        module_resolver,
+        additional_resolver,
+        BuiltinResolver::default(),
+        DynamicModuleResolver::default(),
+        FileResolver::default(),
+    );
+    let loader = (
+        module_loader,
+        additional_loader,
+        BuiltinLoader::default(),
+        DynamicModuleLoader::default(),
+        NativeLoader::default(),
+        ScriptLoader::default(),
+    );
+    (resolver, loader)
+}
+
+fn install_default_async_loaders(runtime: &rquickjs::AsyncRuntime) -> anyhow::Result<()> {
+    let (module_resolver, module_loader, _) = ModuleBuilder::new().build();
+    let (resolver, loader) = make_loader_stack(
+        module_resolver,
+        module_loader,
+        BuiltinResolver::default(),
+        BuiltinLoader::default(),
+    );
+    futures::executor::block_on(runtime.set_loader(resolver, loader));
+    Ok(())
+}
+
 /// A synchronous JavaScript runtime.
 ///
 /// `JsRuntime` provides a synchronous execution environment for JavaScript code.
@@ -168,6 +222,14 @@ impl JsRuntime {
     #[frb(sync)]
     pub fn new() -> anyhow::Result<Self> {
         let runtime = rquickjs::Runtime::new()?;
+        let (module_resolver, module_loader, _) = ModuleBuilder::new().build();
+        let (resolver, loader) = make_loader_stack(
+            module_resolver,
+            module_loader,
+            BuiltinResolver::default(),
+            BuiltinLoader::default(),
+        );
+        runtime.set_loader(resolver, loader);
         Ok(Self {
             rt: runtime,
             global_attachment: None,
@@ -193,7 +255,7 @@ impl JsRuntime {
     /// final runtime = await JsRuntime.withOptions(
     ///   builtin: JsBuiltinOptions.all(),
     ///   additional: [
-    ///     JsModule.fromCode(module: 'my-utils', code: 'export const foo = "bar";'),
+    ///     JsModule.code(module: 'my-utils', code: 'export const foo = "bar";'),
     ///   ],
     /// );
     /// ```
@@ -210,23 +272,11 @@ impl JsRuntime {
             global_attachment,
         ) = Self::build_loaders(builtin, additional).await?;
 
-        let dynamic_resolver = DynamicModuleResolver::default();
-        let dynamic_loader = DynamicModuleLoader::default();
-
-        let resolver = (
+        let (resolver, loader) = make_loader_stack(
             module_resolver,
-            additional_resolver,
-            BuiltinResolver::default(),
-            dynamic_resolver,
-            FileResolver::default(),
-        );
-        let loader = (
             module_loader,
+            additional_resolver,
             additional_loader,
-            BuiltinLoader::default(),
-            dynamic_loader,
-            NativeLoader::default(),
-            ScriptLoader::default(),
         );
         runtime.set_loader(resolver, loader);
 
@@ -246,7 +296,7 @@ impl JsRuntime {
         BuiltinLoader,
         GlobalAttachment,
     )> {
-        let (module_resolver, module_loader, global_attachment) =
+        let (module_resolver, module_loader, mut global_attachment) =
             if let Some(builtin_options) = builtin {
                 builtin_options.to_module_builder().build()
             } else {
@@ -261,6 +311,7 @@ impl JsRuntime {
                 let code = get_raw_source_code(module.source).await?;
                 additional_resolver = additional_resolver.with_module(&module.name);
                 additional_loader = additional_loader.with_module(&module.name, code);
+                global_attachment = global_attachment.add_name(module.name);
             }
         }
 
@@ -353,31 +404,48 @@ impl JsRuntime {
         MemoryUsage(self.rt.memory_usage())
     }
 
-    /// Checks if there are pending jobs.
+    /// Checks whether the QuickJS job queue is non-empty.
     ///
-    /// Jobs are asynchronous tasks that need to be executed, such as
-    /// promise callbacks or timer callbacks.
+    /// In the synchronous runtime this only reflects QuickJS jobs, such as
+    /// pending Promise reaction callbacks created by already-resolved promises.
+    /// It does not wait for external async work.
     ///
     /// ## Returns
     ///
-    /// `true` if there are pending jobs, `false` otherwise
+    /// `true` if at least one QuickJS job is queued, `false` otherwise
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// if (runtime.isJobPending()) {
+    ///   runtime.executePendingJob();
+    /// }
+    /// ```
     #[frb(sync)]
     pub fn is_job_pending(&self) -> bool {
         self.rt.is_job_pending()
     }
 
-    /// Executes a pending job.
+    /// Executes one pending QuickJS job.
     ///
-    /// Runs one pending job if any are available. This method should be
-    /// called repeatedly to process all pending asynchronous work.
+    /// This is a low-level pump for synchronous runtimes. It is mainly useful
+    /// when you want explicit control over when Promise callbacks are drained.
     ///
     /// ## Returns
     ///
-    /// `true` if a job was executed, `false` if no jobs were pending
+    /// `true` if one job was executed, `false` if the queue was empty
     ///
     /// ## Throws
     ///
-    /// If job execution fails
+    /// If the job throws while running
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// while (runtime.isJobPending()) {
+    ///   runtime.executePendingJob();
+    /// }
+    /// ```
     #[frb(sync)]
     pub fn execute_pending_job(&self) -> anyhow::Result<bool> {
         self.rt
@@ -469,6 +537,7 @@ impl JsContext {
     #[frb(sync)]
     pub fn from(runtime: &JsRuntime) -> anyhow::Result<Self> {
         let context = rquickjs::Context::full(&runtime.rt)?;
+        context.with(|ctx| install_value_intrinsics(&ctx))?;
         Ok(Self {
             ctx: context,
             global_attachment: runtime.global_attachment.clone(),
@@ -520,9 +589,7 @@ impl JsContext {
     #[frb(sync)]
     pub fn eval_with_options(&self, code: String, options: JsEvalOptions) -> JsResult {
         if options.promise.unwrap_or(false) {
-            return JsResult::Err(JsError::promise(
-                "Promise not supported in sync context",
-            ));
+            return JsResult::Err(JsError::promise("Promise not supported in sync context"));
         }
         self.ctx.with(|ctx| {
             if let Some(attachment) = &self.global_attachment {
@@ -588,9 +655,7 @@ impl JsContext {
     #[frb(sync)]
     pub fn eval_file_with_options(&self, path: String, options: JsEvalOptions) -> JsResult {
         if options.promise.unwrap_or(false) {
-            return JsResult::Err(JsError::promise(
-                "Promise not supported in sync context",
-            ));
+            return JsResult::Err(JsError::promise("Promise not supported in sync context"));
         }
         self.ctx.with(|ctx| {
             if let Some(attachment) = &self.global_attachment {
@@ -603,6 +668,22 @@ impl JsContext {
             }
             let res = ctx.eval_file_with_options(path, options.into());
             result_from_sync(&ctx, res)
+        })
+    }
+
+    /// Returns all modules currently available in this context.
+    ///
+    /// This includes builtin modules, statically configured extra modules,
+    /// and any dynamically declared modules attached to the context.
+    #[frb(sync)]
+    pub fn get_available_modules(&self) -> anyhow::Result<Vec<String>> {
+        self.ctx.with(|ctx| {
+            if let Some(attachment) = &self.global_attachment {
+                attachment
+                    .attach(&ctx)
+                    .map_err(|e| anyhow::anyhow!("Failed to attach global context: {e}"))?;
+            }
+            Ok(get_available_module_names(&ctx))
         })
     }
 }
@@ -643,6 +724,7 @@ impl JsAsyncRuntime {
     #[frb(sync)]
     pub fn new() -> anyhow::Result<Self> {
         let runtime = rquickjs::AsyncRuntime::new()?;
+        install_default_async_loaders(&runtime)?;
         Ok(Self {
             rt: runtime,
             global_attachment: None,
@@ -668,7 +750,7 @@ impl JsAsyncRuntime {
     /// final runtime = await JsAsyncRuntime.withOptions(
     ///   builtin: JsBuiltinOptions.all(),
     ///   additional: [
-    ///     JsModule.fromCode(module: 'my-utils', code: 'export const foo = "bar";'),
+    ///     JsModule.code(module: 'my-utils', code: 'export const foo = "bar";'),
     ///   ],
     /// );
     /// ```
@@ -685,23 +767,11 @@ impl JsAsyncRuntime {
             global_attachment,
         ) = JsRuntime::build_loaders(builtin, additional).await?;
 
-        let dynamic_resolver = DynamicModuleResolver::default();
-        let dynamic_loader = DynamicModuleLoader::default();
-
-        let resolver = (
+        let (resolver, loader) = make_loader_stack(
             module_resolver,
-            additional_resolver,
-            BuiltinResolver::default(),
-            dynamic_resolver,
-            FileResolver::default(),
-        );
-        let loader = (
             module_loader,
+            additional_resolver,
             additional_loader,
-            BuiltinLoader::default(),
-            dynamic_loader,
-            NativeLoader::default(),
-            ScriptLoader::default(),
         );
         runtime.set_loader(resolver, loader).await;
 
@@ -786,30 +856,53 @@ impl JsAsyncRuntime {
         MemoryUsage(self.rt.memory_usage().await)
     }
 
-    /// Checks if there are pending jobs.
+    /// Checks whether the async runtime still has work to do.
     ///
-    /// Jobs are asynchronous tasks that need to be executed, such as
-    /// promise callbacks or timer callbacks.
+    /// This reports both queued QuickJS jobs and background futures managed by
+    /// the runtime scheduler, such as timers or other spawned async work.
     ///
     /// ## Returns
     ///
-    /// `true` if there are pending jobs, `false` otherwise
+    /// `true` if the runtime still has queued jobs or scheduled async work,
+    /// `false` otherwise
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// if (await runtime.isJobPending()) {
+    ///   await runtime.executePendingJob();
+    /// }
+    /// ```
     pub async fn is_job_pending(&self) -> bool {
         self.rt.is_job_pending().await
     }
 
-    /// Executes a pending job.
+    /// Advances the async runtime by one scheduler step.
     ///
-    /// Runs one pending job if any are available. This method should be
-    /// called repeatedly to process all pending asynchronous work.
+    /// This may execute one queued QuickJS job or make progress on background
+    /// runtime futures. A `false` return value only means this call did not make
+    /// progress; it does not guarantee the runtime is fully drained. Use
+    /// `idle()` when you explicitly want to run the runtime until quiescent.
     ///
     /// ## Returns
     ///
-    /// `true` if a job was executed, `false` if no jobs were pending
+    /// `true` if this call executed a job or advanced pending async work,
+    /// `false` if nothing progressed during this step
     ///
     /// ## Throws
     ///
-    /// If job execution fails
+    /// If a scheduled job throws while running
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// while (await runtime.isJobPending()) {
+    ///   final progressed = await runtime.executePendingJob();
+    ///   if (!progressed) {
+    ///     break;
+    ///   }
+    /// }
+    /// ```
     pub async fn execute_pending_job(&self) -> anyhow::Result<bool> {
         self.rt
             .execute_pending_job()
@@ -817,10 +910,20 @@ impl JsAsyncRuntime {
             .map_err(|e| anyhow::anyhow!(e))
     }
 
-    /// Puts the runtime into idle state.
+    /// Runs the async runtime until no queued jobs or spawned futures remain.
     ///
-    /// Signals that the runtime is idle and may be used for background
-    /// processing or resource cleanup.
+    /// This is a full drain operation. It may execute timers, promise callbacks,
+    /// and other background work unrelated to the call site, so it should be used
+    /// deliberately for teardown, tests, or explicit "drain everything" flows.
+    ///
+    /// QuickJS job errors raised during this drain are handled by the underlying
+    /// runtime and are not surfaced through this method.
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// await runtime.idle();
+    /// ```
     pub async fn idle(&self) {
         self.rt.idle().await;
     }
@@ -890,13 +993,26 @@ impl JsAsyncContext {
     /// ```
     pub async fn from(runtime: &JsAsyncRuntime) -> anyhow::Result<Self> {
         let context = rquickjs::AsyncContext::full(&runtime.rt).await?;
-        let dynamic_modules = Arc::new(RwLock::new(HashMap::<String, Vec<u8>>::new()));
+        let dynamic_modules: DynamicModuleStorage =
+            Arc::new(RwLock::new(std::collections::HashMap::<
+                String,
+                DynamicModuleEntry,
+            >::new()));
+        let loaded_dynamic_modules = LoadedDynamicModules::default();
 
-        context.async_with(async |ctx| {
-            ctx.store_userdata(dynamic_modules.clone())
-                .map_err(|e| anyhow::anyhow!("Failed to store dynamic modules: {:?}", e))
-        })
-        .await?;
+        context
+            .async_with(async |ctx| {
+                ctx.store_userdata(dynamic_modules.clone())
+                    .map_err(|e| anyhow::anyhow!("Failed to store dynamic modules: {:?}", e))?;
+                ctx.store_userdata(loaded_dynamic_modules).map_err(|e| {
+                    anyhow::anyhow!("Failed to store loaded dynamic modules: {:?}", e)
+                })?;
+                Ok::<(), anyhow::Error>(())
+            })
+            .await?;
+        context
+            .async_with(async |ctx| install_value_intrinsics(&ctx))
+            .await?;
 
         Ok(Self {
             ctx: context,
@@ -924,7 +1040,8 @@ impl JsAsyncContext {
     /// print(result.value); // 42
     /// ```
     pub async fn eval(&self, code: String) -> JsResult {
-        self.eval_with_options(code, JsEvalOptions::with_promise()).await
+        self.eval_with_options(code, JsEvalOptions::with_promise())
+            .await
     }
 
     /// Evaluates JavaScript code with options.
@@ -946,18 +1063,19 @@ impl JsAsyncContext {
     /// - If code evaluation fails
     /// - If global attachment fails
     pub async fn eval_with_options(&self, code: String, options: JsEvalOptions) -> JsResult {
-        self.ctx.async_with(async |ctx| {
-            if let Some(attachment) = &self.global_attachment {
-                if let Err(e) = attachment.clone().attach(&ctx) {
+        self.ctx
+            .async_with(async |ctx| {
+                if let Some(attachment) = &self.global_attachment
+                    && let Err(e) = attachment.attach(&ctx)
+                {
                     return JsResult::Err(JsError::context(e.to_string()));
                 }
-            }
-            let mut options = options;
-            options.promise = Some(true);
-            let res = ctx.eval_with_options(code, options.into());
-            result_from_promise(&ctx, res).await
-        })
-        .await
+                let mut options = options;
+                options.promise = Some(true);
+                let res = ctx.eval_with_options(code, options.into());
+                result_from_promise(&ctx, res).await
+            })
+            .await
     }
 
     /// Evaluates JavaScript code from a file.
@@ -984,7 +1102,8 @@ impl JsAsyncContext {
     /// final result = await context.evalFile(path: '/path/to/script.js');
     /// ```
     pub async fn eval_file(&self, path: String) -> JsResult {
-        self.eval_file_with_options(path, JsEvalOptions::with_promise()).await
+        self.eval_file_with_options(path, JsEvalOptions::with_promise())
+            .await
     }
 
     /// Evaluates JavaScript code from a file with options.
@@ -1006,18 +1125,19 @@ impl JsAsyncContext {
     /// - If file cannot be read
     /// - If code evaluation fails
     pub async fn eval_file_with_options(&self, path: String, options: JsEvalOptions) -> JsResult {
-        self.ctx.async_with(async |ctx| {
-            if let Some(attachment) = &self.global_attachment {
-                if let Err(e) = attachment.clone().attach(&ctx) {
+        self.ctx
+            .async_with(async |ctx| {
+                if let Some(attachment) = &self.global_attachment
+                    && let Err(e) = attachment.attach(&ctx)
+                {
                     return JsResult::Err(JsError::context(e.to_string()));
                 }
-            }
-            let mut options = options;
-            options.promise = Some(true);
-            let res = ctx.eval_file_with_options(path, options.into());
-            result_from_promise(&ctx, res).await
-        })
-        .await
+                let mut options = options;
+                options.promise = Some(true);
+                let res = ctx.eval_file_with_options(path, options.into());
+                result_from_promise(&ctx, res).await
+            })
+            .await
     }
 
     /// Evaluates a function from a module.
@@ -1057,18 +1177,36 @@ impl JsAsyncContext {
         params: Option<Vec<JsValue>>,
     ) -> JsResult {
         let params = params.unwrap_or_default();
-        self.ctx.async_with(async |ctx| {
-            if let Some(attachment) = &self.global_attachment {
-                if let Err(e) = attachment.attach(&ctx) {
+        self.ctx
+            .async_with(async |ctx| {
+                if let Some(attachment) = &self.global_attachment
+                    && let Err(e) = attachment.attach(&ctx)
+                {
                     return JsResult::Err(JsError::context(format!(
                         "Failed to attach global context: {}",
                         e
                     )));
                 }
-            }
-            call_module_method(&ctx, module, method, params).await
-        })
-        .await
+                call_module_method(&ctx, module, method, params).await
+            })
+            .await
+    }
+
+    /// Returns all modules currently available in this context.
+    ///
+    /// This includes builtin modules, statically configured extra modules,
+    /// and any dynamically declared modules attached to the context.
+    pub async fn get_available_modules(&self) -> anyhow::Result<Vec<String>> {
+        self.ctx
+            .async_with(async |ctx| {
+                if let Some(attachment) = &self.global_attachment {
+                    attachment
+                        .attach(&ctx)
+                        .map_err(|e| anyhow::anyhow!("Failed to attach global context: {e}"))?;
+                }
+                Ok(get_available_module_names(&ctx))
+            })
+            .await
     }
 }
 
@@ -1086,7 +1224,7 @@ pub(crate) async fn call_module_method<'js>(
                 Some(module),
                 None,
                 format!("Failed to import: {}", e),
-            ))
+            ));
         }
     };
 
@@ -1097,7 +1235,7 @@ pub(crate) async fn call_module_method<'js>(
                 Some(module),
                 None,
                 format!("Failed to import: {}", e),
-            ))
+            ));
         }
     };
 
@@ -1108,7 +1246,7 @@ pub(crate) async fn call_module_method<'js>(
                 Some(module),
                 None,
                 "Module is not an object",
-            ))
+            ));
         }
     };
 
@@ -1121,7 +1259,7 @@ pub(crate) async fn call_module_method<'js>(
                     Some(module),
                     Some(method),
                     "Method is not a function",
-                ))
+                ));
             }
         },
         Ok(_) => {
@@ -1129,19 +1267,19 @@ pub(crate) async fn call_module_method<'js>(
                 Some(module),
                 Some(method),
                 "Method is not a function",
-            ))
+            ));
         }
         Err(e) => {
             return JsResult::Err(JsError::module(
                 Some(module),
                 Some(method),
                 format!("Failed to get method: {}", e),
-            ))
+            ));
         }
     };
 
-    let res = func.call((rquickjs::function::Rest(params),));
-    result_from_promise(ctx, res).await
+    let res = func.call::<_, MaybePromise>((rquickjs::function::Rest(params),));
+    result_from_maybe_promise(ctx, res).await
 }
 
 /// Helper function to convert sync result.
@@ -1166,49 +1304,104 @@ pub(crate) async fn result_from_promise<'js>(
     res: rquickjs::Result<Promise<'js>>,
 ) -> JsResult {
     match res.catch(ctx) {
-        Ok(promise) => {
-            let mut value = match promise.into_future::<rquickjs::Value>().await.catch(ctx) {
-                Ok(v) => v,
-                Err(e) => return JsResult::Err(JsError::runtime(e.to_string())),
-            };
-
-            // JS_EVAL_FLAG_ASYNC wraps result in {value: xxx}
-            // Detect wrapper: object with exactly one property named "value"
-            if let Some(obj) = value.as_object() {
-                if let Ok(keys) = obj.keys::<String>().collect::<Result<Vec<_>, _>>() {
-                    if keys.len() == 1 && keys[0] == "value" {
-                        // This is the QuickJS wrapper, extract the inner value
-                        if let Ok(inner) = obj.get::<_, rquickjs::Value>("value") {
-                            value = inner;
-                        }
-                    }
-                }
-            }
-
-            // Handle nested promises
-            while value.is_promise() {
-                value = match value.as_promise().unwrap().clone().into_future::<rquickjs::Value>().await.catch(ctx) {
-                    Ok(v) => v,
-                    Err(e) => return JsResult::Err(JsError::runtime(e.to_string())),
-                };
-                // Unwrap wrapper again if needed
-                if let Some(obj) = value.as_object() {
-                    if let Ok(keys) = obj.keys::<String>().collect::<Result<Vec<_>, _>>() {
-                        if keys.len() == 1 && keys[0] == "value" {
-                            if let Ok(inner) = obj.get::<_, rquickjs::Value>("value") {
-                                value = inner;
-                            }
-                        }
-                    }
-                }
-            }
-
-            match JsValue::from_js(ctx, value).catch(ctx) {
-                Ok(v) => JsResult::Ok(v),
-                Err(e) => JsResult::Err(JsError::runtime(e.to_string())),
-            }
-        }
+        Ok(promise) => match promise.into_future::<rquickjs::Value>().await.catch(ctx) {
+            Ok(value) => result_from_value(ctx, value).await,
+            Err(e) => JsResult::Err(JsError::runtime(e.to_string())),
+        },
         Err(e) => JsResult::Err(JsError::runtime(e.to_string())),
     }
 }
 
+pub(crate) async fn result_from_maybe_promise<'js>(
+    ctx: &rquickjs::Ctx<'js>,
+    res: rquickjs::Result<MaybePromise<'js>>,
+) -> JsResult {
+    match res.catch(ctx) {
+        Ok(value) => match value.into_future::<rquickjs::Value>().await.catch(ctx) {
+            Ok(value) => result_from_value(ctx, value).await,
+            Err(e) => JsResult::Err(JsError::runtime(e.to_string())),
+        },
+        Err(e) => JsResult::Err(JsError::runtime(e.to_string())),
+    }
+}
+
+fn unwrap_async_eval_value<'js>(value: &mut rquickjs::Value<'js>) -> rquickjs::Result<()> {
+    let Some(obj) = value.as_object() else {
+        return Ok(());
+    };
+
+    let mut keys = obj.keys::<String>();
+    let first_key = keys.next().transpose()?;
+    let second_key = keys.next().transpose()?;
+
+    if matches!(first_key.as_deref(), Some("value")) && second_key.is_none() {
+        *value = obj.get("value")?;
+    }
+
+    Ok(())
+}
+
+async fn result_from_value<'js>(
+    ctx: &rquickjs::Ctx<'js>,
+    mut value: rquickjs::Value<'js>,
+) -> JsResult {
+    if let Err(e) = unwrap_async_eval_value(&mut value) {
+        return JsResult::Err(JsError::runtime(e.to_string()));
+    }
+
+    while let Some(promise) = value.as_promise().cloned() {
+        value = match promise.into_future::<rquickjs::Value>().await.catch(ctx) {
+            Ok(v) => v,
+            Err(e) => return JsResult::Err(JsError::runtime(e.to_string())),
+        };
+        if let Err(e) = unwrap_async_eval_value(&mut value) {
+            return JsResult::Err(JsError::runtime(e.to_string()));
+        }
+    }
+
+    while ctx.execute_pending_job() {}
+
+    match JsValue::from_js(ctx, value).catch(ctx) {
+        Ok(v) => JsResult::Ok(v),
+        Err(e) => JsResult::Err(JsError::runtime(e.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unwrap_async_eval_value;
+    use crate::api::value::JsValue;
+    use rquickjs::{Context, FromJs, Runtime};
+
+    #[test]
+    fn test_unwrap_async_eval_value_wrapper_object() {
+        let runtime = Runtime::new().unwrap();
+        let context = Context::full(&runtime).unwrap();
+
+        context.with(|ctx| {
+            let mut value: rquickjs::Value = ctx.eval("({ value: 42 })").unwrap();
+            unwrap_async_eval_value(&mut value).unwrap();
+            let js_value = JsValue::from_js(&ctx, value).unwrap();
+            assert!(matches!(js_value, JsValue::Integer(42)));
+        });
+    }
+
+    #[test]
+    fn test_unwrap_async_eval_value_preserves_multi_key_object() {
+        let runtime = Runtime::new().unwrap();
+        let context = Context::full(&runtime).unwrap();
+
+        context.with(|ctx| {
+            let mut value: rquickjs::Value = ctx.eval("({ value: 42, extra: true })").unwrap();
+            unwrap_async_eval_value(&mut value).unwrap();
+            let js_value = JsValue::from_js(&ctx, value).unwrap();
+
+            assert!(matches!(
+                js_value,
+                JsValue::Object(ref obj)
+                    if matches!(obj.get("value"), Some(JsValue::Integer(42)))
+                        && matches!(obj.get("extra"), Some(JsValue::Boolean(true)))
+            ));
+        });
+    }
+}

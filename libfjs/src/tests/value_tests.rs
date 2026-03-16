@@ -7,6 +7,7 @@ use super::test_utils::test_with;
 use crate::api::value::JsValue;
 use rquickjs::{FromJs, IntoJs};
 use std::collections::HashMap;
+use std::f64::consts::PI;
 
 // ============================================================================
 // Primitive Type Tests
@@ -78,7 +79,7 @@ fn test_jsvalue_integer_min() {
 
 #[test]
 fn test_jsvalue_float_positive() {
-    let v = JsValue::Float(3.14159);
+    let v = JsValue::Float(PI);
     assert!(v.is_number());
     assert!(v.is_primitive());
     assert_eq!(v.type_name(), "number");
@@ -86,7 +87,7 @@ fn test_jsvalue_float_positive() {
 
 #[test]
 fn test_jsvalue_float_negative() {
-    let v = JsValue::Float(-3.14159);
+    let v = JsValue::Float(-PI);
     assert!(v.is_number());
 }
 
@@ -290,8 +291,8 @@ fn test_from_i64() {
 
 #[test]
 fn test_from_f64() {
-    let v: JsValue = 3.14f64.into();
-    assert!(matches!(v, JsValue::Float(f) if (f - 3.14).abs() < f64::EPSILON));
+    let v: JsValue = PI.into();
+    assert!(matches!(v, JsValue::Float(f) if (f - PI).abs() < f64::EPSILON));
 }
 
 #[test]
@@ -393,7 +394,7 @@ fn test_js_roundtrip_integer() {
 #[test]
 fn test_js_roundtrip_float() {
     test_with(|ctx| {
-        for val in [0.0f64, 3.14159, -3.14159] {
+        for val in [0.0f64, PI, -PI] {
             let original = JsValue::Float(val);
             let js_val = original.clone().into_js(&ctx).unwrap();
             let recovered = JsValue::from_js(&ctx, js_val).unwrap();
@@ -403,6 +404,16 @@ fn test_js_roundtrip_float() {
                 _ => panic!("Unexpected type: {:?}", recovered),
             }
         }
+    });
+}
+
+#[test]
+fn test_js_roundtrip_integer_rejects_unsafe_range() {
+    test_with(|ctx| {
+        let err = JsValue::Integer(9_007_199_254_740_992)
+            .into_js(&ctx)
+            .unwrap_err();
+        assert!(err.to_string().contains("safe integer range"));
     });
 }
 
@@ -467,6 +478,26 @@ fn test_js_roundtrip_date() {
     });
 }
 
+#[test]
+fn test_js_roundtrip_bigint_large_positive() {
+    test_with(|ctx| {
+        let original = JsValue::Bigint("123456789012345678901234567890".to_string());
+        let js_val = original.clone().into_js(&ctx).unwrap();
+        let recovered = JsValue::from_js(&ctx, js_val).unwrap();
+        assert_eq!(original, recovered);
+    });
+}
+
+#[test]
+fn test_js_roundtrip_bigint_large_negative() {
+    test_with(|ctx| {
+        let original = JsValue::Bigint("-123456789012345678901234567890".to_string());
+        let js_val = original.clone().into_js(&ctx).unwrap();
+        let recovered = JsValue::from_js(&ctx, js_val).unwrap();
+        assert_eq!(original, recovered);
+    });
+}
+
 // ============================================================================
 // FromJs Tests (JavaScript to Rust)
 // ============================================================================
@@ -514,9 +545,9 @@ fn test_from_js_integer() {
 #[test]
 fn test_from_js_float() {
     test_with(|ctx| {
-        let val: rquickjs::Value = ctx.eval("3.14").unwrap();
+        let val: rquickjs::Value = ctx.eval("2.5").unwrap();
         let js_val = JsValue::from_js(&ctx, val).unwrap();
-        assert!(matches!(js_val, JsValue::Float(f) if (f - 3.14).abs() < f64::EPSILON));
+        assert!(matches!(js_val, JsValue::Float(f) if (f - 2.5).abs() < f64::EPSILON));
     });
 }
 
@@ -563,12 +594,74 @@ fn test_from_js_bigint() {
 }
 
 #[test]
+fn test_from_js_bigint_preserves_large_value() {
+    test_with(|ctx| {
+        let val: rquickjs::Value = ctx
+            .eval("BigInt('123456789012345678901234567890')")
+            .unwrap();
+        let js_val = JsValue::from_js(&ctx, val).unwrap();
+        assert!(matches!(
+            js_val,
+            JsValue::Bigint(s) if s == "123456789012345678901234567890"
+        ));
+    });
+}
+
+#[test]
 fn test_from_js_date() {
     test_with(|ctx| {
         let val: rquickjs::Value = ctx.eval("new Date(1609459200000)").unwrap();
         let js_val = JsValue::from_js(&ctx, val).unwrap();
         assert!(js_val.is_date());
         assert!(matches!(js_val, JsValue::Date(1609459200000)));
+    });
+}
+
+#[test]
+fn test_from_js_date_uses_intrinsic_date_semantics() {
+    test_with(|ctx| {
+        let val: rquickjs::Value = ctx
+            .eval(
+                r#"
+                const date = new Date(1609459200000);
+                date.getTime = () => 1;
+                date
+            "#,
+            )
+            .unwrap();
+        let js_val = JsValue::from_js(&ctx, val).unwrap();
+        assert!(matches!(js_val, JsValue::Date(1609459200000)));
+    });
+}
+
+#[test]
+fn test_from_js_date_like_object_is_not_treated_as_date() {
+    test_with(|ctx| {
+        let val: rquickjs::Value = ctx
+            .eval(
+                r#"
+                ({
+                    constructor: { name: 'Date' },
+                    getTime() { return 1609459200000; },
+                    kind: 'spoofed'
+                })
+            "#,
+            )
+            .unwrap();
+        let js_val = JsValue::from_js(&ctx, val).unwrap();
+        assert!(matches!(
+            js_val,
+            JsValue::Object(obj) if matches!(obj.get("kind"), Some(JsValue::String(kind)) if kind == "spoofed")
+        ));
+    });
+}
+
+#[test]
+fn test_from_js_invalid_date_returns_error() {
+    test_with(|ctx| {
+        let val: rquickjs::Value = ctx.eval("new Date('invalid')").unwrap();
+        let err = JsValue::from_js(&ctx, val).unwrap_err();
+        assert!(err.to_string().contains("Invalid Date"));
     });
 }
 
@@ -581,6 +674,24 @@ fn test_from_js_arraybuffer() {
         if let JsValue::Bytes(bytes) = js_val {
             assert_eq!(bytes, vec![1, 2, 3, 4]);
         }
+    });
+}
+
+#[test]
+fn test_from_js_typed_array() {
+    test_with(|ctx| {
+        let val: rquickjs::Value = ctx.eval("new Uint8Array([1, 2, 3, 4])").unwrap();
+        let js_val = JsValue::from_js(&ctx, val).unwrap();
+        assert!(matches!(js_val, JsValue::Bytes(bytes) if bytes == vec![1, 2, 3, 4]));
+    });
+}
+
+#[test]
+fn test_from_js_uint8_clamped_array() {
+    test_with(|ctx| {
+        let val: rquickjs::Value = ctx.eval("new Uint8ClampedArray([255, 256, -1])").unwrap();
+        let js_val = JsValue::from_js(&ctx, val).unwrap();
+        assert!(matches!(js_val, JsValue::Bytes(bytes) if bytes == vec![255, 255, 0]));
     });
 }
 

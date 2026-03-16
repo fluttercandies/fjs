@@ -1,6 +1,6 @@
 [package]
 name = "fjs"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2024"
 
 [lib]
@@ -9,41 +9,42 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 anyhow = "1"
 flutter_rust_bridge = "=2.11.1"
+futures = "0.3"
 rquickjs = { git = "https://github.com/DelSkayn/rquickjs.git", version = "0.11.0", features = ["full-async", "bindgen", "loader", "dyn-load", "parallel", "macro", "futures"] }
 tokio = { version = "1", features = ["full"] }
 
-llrt_abort = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_assert = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_async_hooks = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_buffer = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_child_process = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_console = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_crypto = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_dns = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_events = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_exceptions = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_fetch = { git = "https://github.com/awslabs/llrt", rev = "d375ad0", default-features = false, features = ["compression-rust", "http1", "http2", "webpki-roots"] }
-llrt_fs = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_navigator = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_net = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_path = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_process = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_perf_hooks = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_stream_web = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_string_decoder = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_timers = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_tty = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_url = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_util = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_zlib = { git = "https://github.com/awslabs/llrt", rev = "d375ad0", default-features = false, features = ["compression-rust"] }
-llrt_utils = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
-llrt_json = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
+llrt_abort = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_assert = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_async_hooks = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_buffer = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_child_process = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_console = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_crypto = { git = "https://github.com/awslabs/llrt", rev = "a2e1640", default-features = false, features = ["crypto-ring"] }
+llrt_dgram = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_dns = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_events = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_exceptions = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_fetch = { git = "https://github.com/awslabs/llrt", rev = "a2e1640", default-features = false, features = ["compression-rust", "http1", "http2", "webpki-roots"] }
+llrt_fs = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_http = { git = "https://github.com/awslabs/llrt", rev = "a2e1640", default-features = false, features = ["tls-ring", "http1", "http2", "webpki-roots"] }
+llrt_navigator = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_net = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_path = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_process = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_perf_hooks = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_stream_web = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_string_decoder = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_temporal = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_timers = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_tty = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_url = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_util = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_zlib = { git = "https://github.com/awslabs/llrt", rev = "a2e1640", default-features = false, features = ["compression-rust"] }
+llrt_utils = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_json = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
+llrt_intl = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
 
-llrt_compression = { git = "https://github.com/awslabs/llrt", rev = "d375ad0", default-features = false, features = ["brotli-c", "flate2-rust", "zstd-c"] }
-der = { version = "0.8.0-rc.10" }
-cipher = "=0.5.0-rc.2"
-pkcs1 = "=0.8.0-rc.4"
-rand_core = "=0.10.0-rc-2"
+llrt_compression = { git = "https://github.com/awslabs/llrt", rev = "a2e1640", default-features = false, features = ["brotli-c", "flate2-rust", "zstd-c"] }
 flate2 = { version = "1.1.8", default-features = false, features = ["zlib-rs"] }
 bindgen = "0.72.1"
 
@@ -52,7 +53,7 @@ default = []
 
 # Platform-specific dependencies
 [target.'cfg(not(target_os = "ios"))'.dependencies]
-llrt_os = { git = "https://github.com/awslabs/llrt", rev = "d375ad0" }
+llrt_os = { git = "https://github.com/awslabs/llrt", rev = "a2e1640" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

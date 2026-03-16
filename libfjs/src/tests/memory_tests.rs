@@ -567,7 +567,9 @@ fn test_runtime_set_info() {
 #[tokio::test]
 async fn test_runtime_set_info_async() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let result = runtime.set_info("Test Async Runtime v1.0".to_string()).await;
+    let result = runtime
+        .set_info("Test Async Runtime v1.0".to_string())
+        .await;
     assert!(result.is_ok());
 }
 

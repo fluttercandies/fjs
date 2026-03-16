@@ -22,6 +22,7 @@
 //! - **Builders**: Configure runtime module systems
 
 use crate::api::source::JsBuiltinOptions;
+use crate::bytecode_support::load_module_bytecode_checked;
 use flutter_rust_bridge::frb;
 use llrt_utils::module::ModuleInfo;
 use rquickjs::loader::{ImportAttributes, Loader, ModuleLoader, Resolver};
@@ -31,6 +32,22 @@ use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
 
+/// Dynamic module data stored on a context.
+#[frb(ignore)]
+#[derive(Debug, Clone)]
+pub enum DynamicModuleEntry {
+    Source(Vec<u8>),
+    Bytecode(Vec<u8>),
+}
+
+unsafe impl<'js> JsLifetime<'js> for DynamicModuleEntry {
+    type Changed<'to> = DynamicModuleEntry;
+}
+
+/// Shared storage for dynamically declared modules.
+#[frb(ignore)]
+pub type DynamicModuleStorage = Arc<RwLock<HashMap<String, DynamicModuleEntry>>>;
+
 /// A resolver for dynamically loaded JavaScript modules.
 ///
 /// This resolver handles the resolution of module names that have been
@@ -39,6 +56,78 @@ use std::sync::{Arc, RwLock};
 #[derive(Debug, Default)]
 #[frb(ignore)]
 pub struct DynamicModuleResolver {}
+
+/// Tracks dynamic modules that have already been loaded into the QuickJS module cache.
+///
+/// Once a module name enters this set, it cannot be replaced or unloaded without
+/// recreating the context.
+#[frb(ignore)]
+#[derive(Debug, Default)]
+pub struct LoadedDynamicModules {
+    names: RwLock<HashSet<String>>,
+}
+
+unsafe impl<'js> JsLifetime<'js> for LoadedDynamicModules {
+    type Changed<'to> = LoadedDynamicModules;
+}
+
+impl LoadedDynamicModules {
+    fn insert(&self, name: impl Into<String>) {
+        self.names.write().unwrap().insert(name.into());
+    }
+
+    fn contains(&self, name: &str) -> bool {
+        self.names.read().unwrap().contains(name)
+    }
+
+    fn snapshot(&self) -> Vec<String> {
+        let mut names: Vec<_> = self.names.read().unwrap().iter().cloned().collect();
+        names.sort();
+        names
+    }
+}
+
+pub(crate) fn mark_dynamic_module_loaded(ctx: &Ctx<'_>, name: &str) {
+    if let Some(loaded_modules) = ctx.userdata::<LoadedDynamicModules>() {
+        loaded_modules.insert(name.to_string());
+    }
+}
+
+pub(crate) fn is_dynamic_module_loaded(ctx: &Ctx<'_>, name: &str) -> bool {
+    ctx.userdata::<LoadedDynamicModules>()
+        .is_some_and(|loaded_modules| loaded_modules.contains(name))
+}
+
+pub(crate) fn get_loaded_dynamic_module_names(ctx: &Ctx<'_>) -> Vec<String> {
+    ctx.userdata::<LoadedDynamicModules>()
+        .map_or_else(Vec::new, |loaded_modules| loaded_modules.snapshot())
+}
+
+fn normalize_dynamic_module_name(base: &str, name: &str) -> Option<String> {
+    if !name.starts_with('.') {
+        return None;
+    }
+
+    let mut segments: Vec<&str> = base
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect();
+    if !segments.is_empty() {
+        segments.pop();
+    }
+
+    for segment in name.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                segments.pop();
+            }
+            value => segments.push(value),
+        }
+    }
+
+    Some(segments.join("/"))
+}
 
 impl Resolver for DynamicModuleResolver {
     /// Resolves a dynamic module name.
@@ -56,10 +145,15 @@ impl Resolver for DynamicModuleResolver {
     ///
     /// Returns the resolved module name if found in storage.
     fn resolve<'js>(&mut self, ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
-        if let Some(modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
+        if let Some(modules_storage) = ctx.userdata::<DynamicModuleStorage>() {
             let modules = modules_storage.read().unwrap();
             if modules.contains_key(name) {
                 return Ok(name.to_string());
+            }
+            if let Some(normalized) = normalize_dynamic_module_name(base, name)
+                && modules.contains_key(&normalized)
+            {
+                return Ok(normalized);
             }
         }
         // Not found in dynamic storage, let other resolvers try
@@ -97,10 +191,30 @@ impl Loader for DynamicModuleLoader {
         name: &str,
         _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
-        if let Some(modules_storage) = ctx.userdata::<Arc<RwLock<HashMap<String, Vec<u8>>>>>() {
-            let modules = modules_storage.read().unwrap();
-            if let Some(source) = modules.get(name) {
-                return Module::declare(ctx.clone(), name, source.clone());
+        if let Some(modules_storage) = ctx.userdata::<DynamicModuleStorage>() {
+            let entry = modules_storage.read().unwrap().get(name).cloned();
+            if let Some(entry) = entry {
+                let module = match entry {
+                    DynamicModuleEntry::Source(source) => {
+                        Module::declare(ctx.clone(), name, source)?
+                    }
+                    DynamicModuleEntry::Bytecode(bytecode) => {
+                        let module = load_module_bytecode_checked(ctx.clone(), name, &bytecode)?;
+                        let embedded_name: String = module.name()?;
+                        if embedded_name != name {
+                            return Err(rquickjs::Error::new_loading_message(
+                                name,
+                                format!(
+                                    "Bytecode module name mismatch: expected '{}', found '{}'",
+                                    name, embedded_name
+                                ),
+                            ));
+                        }
+                        module
+                    }
+                };
+                mark_dynamic_module_loaded(ctx, name);
+                return Ok(module);
             }
         }
         Err(rquickjs::Error::new_loading(name))
@@ -154,6 +268,22 @@ impl ModuleNames<'_> {
     pub fn get_list(&self) -> HashSet<String> {
         self.list.clone()
     }
+}
+
+pub(crate) fn get_available_module_names(ctx: &Ctx<'_>) -> Vec<String> {
+    let mut names = HashSet::new();
+
+    if let Some(module_names) = ctx.userdata::<ModuleNames>() {
+        names.extend(module_names.list.iter().cloned());
+    }
+
+    if let Some(modules_storage) = ctx.userdata::<DynamicModuleStorage>() {
+        names.extend(modules_storage.read().unwrap().keys().cloned());
+    }
+
+    let mut names: Vec<_> = names.into_iter().collect();
+    names.sort();
+    names
 }
 
 /// Manages global object attachments for JavaScript contexts.
@@ -256,15 +386,15 @@ impl GlobalAttachment {
             return Ok(());
         }
 
-        // Mark this context as initialized
-        let _ = ctx.store_userdata(GlobalAttachmentInitialized {});
-
         if !self.inner.names.is_empty() {
             let _ = ctx.store_userdata(ModuleNames::new(self.inner.names.clone()));
         }
         for init in &self.inner.functions {
             init(ctx)?;
         }
+
+        // Only mark the context initialized after all setup completed successfully.
+        let _ = ctx.store_userdata(GlobalAttachmentInitialized {});
         Ok(())
     }
 }
@@ -408,6 +538,12 @@ impl ModuleBuilder {
     }
 }
 
+impl Default for ModuleBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JsBuiltinOptions {
     /// Converts builtin options to a module builder.
     #[frb(ignore)]
@@ -443,6 +579,9 @@ impl JsBuiltinOptions {
                 .with_global(llrt_crypto::init)
                 .with_module(llrt_crypto::CryptoModule);
         }
+        if self.dgram.unwrap_or(false) {
+            builder = builder.with_module(llrt_dgram::DgramModule);
+        }
         if self.dns.unwrap_or(false) {
             builder = builder.with_module(llrt_dns::DnsModule);
         }
@@ -461,6 +600,12 @@ impl JsBuiltinOptions {
             builder = builder
                 .with_module(llrt_fs::FsPromisesModule)
                 .with_module(llrt_fs::FsModule);
+        }
+        if self.https.unwrap_or(false) {
+            builder = builder.with_module(llrt_http::HttpsModule);
+        }
+        if self.intl.unwrap_or(false) {
+            builder = builder.with_global(llrt_intl::init);
         }
         if self.navigator.unwrap_or(false) {
             builder = builder.with_global(llrt_navigator::init);
@@ -492,6 +637,9 @@ impl JsBuiltinOptions {
         }
         if self.string_decoder.unwrap_or(false) {
             builder = builder.with_module(llrt_string_decoder::StringDecoderModule);
+        }
+        if self.temporal.unwrap_or(false) {
+            builder = builder.with_global(llrt_temporal::init);
         }
         if self.timers.unwrap_or(false) {
             builder = builder
