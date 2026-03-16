@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'source.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `cmp`, `cmp`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `hash`, `hash`, `partial_cmp`, `partial_cmp`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `cmp`, `cmp`, `cmp`, `cmp`, `cmp`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `hash`, `hash`, `hash`, `hash`, `hash`, `partial_cmp`, `partial_cmp`, `partial_cmp`, `partial_cmp`, `partial_cmp`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `as_path`, `bytes`, `code`, `get_raw_source_code_sync`, `get_raw_source_code`, `path`
 
 /// Options for configuring builtin Node.js modules.
@@ -30,9 +30,9 @@ part 'source.freezed.dart';
 ///
 /// // Custom configuration
 /// final opts4 = JsBuiltinOptions(
-///   console: Some(true),
-///   timers: Some(true),
-///   // ... other options
+///   console: true,
+///   timers: true,
+///   fetch: true,
 /// );
 /// ```
 @freezed
@@ -46,11 +46,14 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
     bool? childProcess,
     bool? console,
     bool? crypto,
+    bool? dgram,
     bool? dns,
     bool? events,
     bool? exceptions,
     bool? fetch,
     bool? fs,
+    bool? https,
+    bool? intl,
     bool? navigator,
     bool? net,
     bool? os,
@@ -59,6 +62,7 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
     bool? process,
     bool? streamWeb,
     bool? stringDecoder,
+    bool? temporal,
     bool? timers,
     bool? tty,
     bool? url,
@@ -69,7 +73,7 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
 
   /// Creates builtin options with all modules enabled.
   ///
-  /// This enables every available Node.js-compatible builtin module,
+  /// This enables every available builtin module,
   /// providing maximum compatibility at the cost of larger binary size.
   ///
   /// ## Returns
@@ -145,7 +149,7 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
   /// Creates builtin options for web-like environment.
   ///
   /// Enables modules typically available in web browsers:
-  /// console, timers, fetch, url, crypto, stream_web, navigator, exceptions, json.
+  /// console, timers, fetch, url, crypto, streamWeb, navigator, exceptions, intl, json.
   ///
   /// ## Returns
   ///
@@ -159,6 +163,25 @@ sealed class JsBuiltinOptions with _$JsBuiltinOptions {
   /// ```
   static JsBuiltinOptions web() =>
       LibFjs.instance.api.crateApiSourceJsBuiltinOptionsWeb();
+}
+
+/// Byte order to use when writing QuickJS module bytecode.
+///
+/// Use a fixed endianness when bytecode must be shared between devices.
+/// `little` is the safest default for modern mobile and desktop targets.
+enum JsBytecodeEndianness {
+  /// Use the current device's native endianness.
+  native,
+
+  /// Always emit little-endian bytecode.
+  little,
+
+  /// Always emit big-endian bytecode.
+  big,
+  ;
+
+  static Future<JsBytecodeEndianness> default_() =>
+      LibFjs.instance.api.crateApiSourceJsBytecodeEndiannessDefault();
 }
 
 @freezed
@@ -175,7 +198,7 @@ sealed class JsCode with _$JsCode {
     String field0,
   ) = JsCode_Path;
 
-  /// Raw bytes containing JavaScript code (UTF-8 encoded)
+  /// Raw UTF-8 bytes containing JavaScript source code
   const factory JsCode.bytes(
     Uint8List field0,
   ) = JsCode_Bytes;
@@ -247,7 +270,7 @@ sealed class JsEvalOptions with _$JsEvalOptions {
   /// Default settings:
   /// - global: true
   /// - strict: true
-  /// - backtrace_barrier: false
+  /// - backtraceBarrier: false
   /// - promise: false
   ///
   /// ## Returns
@@ -317,6 +340,9 @@ sealed class JsEvalOptions with _$JsEvalOptions {
 /// This struct defines a module with a name and source code,
 /// which can be loaded and executed in the JavaScript runtime.
 ///
+/// `JsModule::bytes()` stores UTF-8 source bytes. Pre-compiled QuickJS bytecode
+/// uses `JsModuleBytecode`.
+///
 /// ## Example
 ///
 /// ```dart
@@ -346,12 +372,36 @@ sealed class JsModule with _$JsModule {
     required JsCode source,
   }) = _JsModule;
 
-  /// Creates a module from raw bytes.
+  /// Creates a module from raw UTF-8 source bytes.
+  ///
+  /// The bytes are still JavaScript source text, not QuickJS bytecode.
+  /// Use `JsModuleBytecode` for precompiled modules.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final module = JsModule.bytes(
+  ///   module: 'embedded/config',
+  ///   bytes: utf8.encode('export const env = "prod";'),
+  /// );
+  /// ```
   static JsModule bytes({required String module, required List<int> bytes}) =>
       LibFjs.instance.api
           .crateApiSourceJsModuleBytes(module: module, bytes: bytes);
 
-  /// Creates a module from inline code.
+  /// Creates a module from inline source text.
+  ///
+  /// This is the most convenient constructor when module code is already
+  /// available in memory.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final module = JsModule.code(
+  ///   module: 'feature/flags',
+  ///   code: 'export const enabled = true;',
+  /// );
+  /// ```
   static JsModule code({required String module, required String code}) =>
       LibFjs.instance.api
           .crateApiSourceJsModuleCode(module: module, code: code);
@@ -366,11 +416,217 @@ sealed class JsModule with _$JsModule {
   /// ## Returns
   ///
   /// A new `JsModule` instance
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final module = JsModule(
+  ///   name: 'math',
+  ///   source: JsCode.code('export const add = (a, b) => a + b;'),
+  /// );
+  /// ```
   factory JsModule({required String name, required JsCode source}) =>
       LibFjs.instance.api.crateApiSourceJsModuleNew(name: name, source: source);
 
   /// Creates a module from a file path.
+  ///
+  /// Use this when the module source should be loaded lazily from disk.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final module = JsModule.path(
+  ///   module: 'plugins/logger',
+  ///   path: '/absolute/path/to/logger.js',
+  /// );
+  /// ```
   static JsModule path({required String module, required String path}) =>
       LibFjs.instance.api
           .crateApiSourceJsModulePath(module: module, path: path);
+}
+
+/// Serialized QuickJS bytecode for a single ES module.
+///
+/// The `name` must match the module name embedded in the bytecode when it is declared
+/// or evaluated. Bytecode must be treated as trusted input and recompiled whenever the
+/// embedded QuickJS engine version changes.
+@freezed
+sealed class JsModuleBytecode with _$JsModuleBytecode {
+  const JsModuleBytecode._();
+  const factory JsModuleBytecode.raw({
+    required String name,
+    required Uint8List bytes,
+  }) = _JsModuleBytecode;
+
+  /// Creates a new module bytecode container.
+  ///
+  /// Use this when loading previously persisted bytecode bytes back into FJS.
+  /// The `name` must match the module name embedded in the bytecode payload.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final compiled = await JsBytecode.compile(
+  ///   module: JsModule.code(
+  ///     module: 'plugins/auth',
+  ///     code: 'export const ready = true;',
+  ///   ),
+  /// );
+  ///
+  /// final restored = JsModuleBytecode(
+  ///   name: compiled.name,
+  ///   bytes: compiled.bytes,
+  /// );
+  /// ```
+  factory JsModuleBytecode({required String name, required List<int> bytes}) =>
+      LibFjs.instance.api
+          .crateApiSourceJsModuleBytecodeNew(name: name, bytes: bytes);
+}
+
+/// A collection of precompiled ES modules, optionally with a designated entry module.
+///
+/// Bundles are useful when a feature ships as a module graph rather than a single module.
+@freezed
+sealed class JsModuleBytecodeBundle with _$JsModuleBytecodeBundle {
+  const JsModuleBytecodeBundle._();
+  const factory JsModuleBytecodeBundle.raw({
+    String? entry,
+    required List<JsModuleBytecode> modules,
+  }) = _JsModuleBytecodeBundle;
+
+  /// Creates a new bundle of bytecode modules.
+  ///
+  /// Set `entry` when the bundle will later be executed with
+  /// `engine.evaluateBytecodeBundle(...)`. Leave it `null` when the bundle is
+  /// only used for declaration.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final bundle = JsModuleBytecodeBundle(
+  ///   entry: 'feature/index',
+  ///   modules: [
+  ///     featureIndexBytecode,
+  ///     sharedUtilBytecode,
+  ///   ],
+  /// );
+  /// ```
+  factory JsModuleBytecodeBundle(
+          {String? entry, required List<JsModuleBytecode> modules}) =>
+      LibFjs.instance.api.crateApiSourceJsModuleBytecodeBundleNew(
+          entry: entry, modules: modules);
+}
+
+/// Options used when compiling an ES module into QuickJS bytecode.
+///
+/// QuickJS bytecode is version-specific and must only be loaded from trusted sources.
+/// It is useful for distributing pre-compiled modules, but it is not a security boundary.
+@freezed
+sealed class JsModuleBytecodeOptions with _$JsModuleBytecodeOptions {
+  const JsModuleBytecodeOptions._();
+  const factory JsModuleBytecodeOptions({
+    JsBytecodeEndianness? endianness,
+    bool? stripSource,
+    bool? stripDebug,
+  }) = _JsModuleBytecodeOptions;
+  static Future<JsModuleBytecodeOptions> default_() =>
+      LibFjs.instance.api.crateApiSourceJsModuleBytecodeOptionsDefault();
+
+  /// Creates bytecode options suitable for distribution.
+  ///
+  /// Defaults:
+  /// - little-endian output
+  /// - `stripSource: true`
+  /// - `stripDebug: true`
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final options = JsModuleBytecodeOptions.defaults();
+  /// final bytecode = await JsBytecode.compile(
+  ///   module: JsModule.code(
+  ///     module: 'feature/main',
+  ///     code: 'export default 42;',
+  ///   ),
+  ///   options: options,
+  /// );
+  /// ```
+  static JsModuleBytecodeOptions defaults() =>
+      LibFjs.instance.api.crateApiSourceJsModuleBytecodeOptionsDefaults();
+}
+
+/// Serialized QuickJS bytecode for a classic global script.
+///
+/// Unlike module bytecode, the `name` acts as compile-time metadata and source filename.
+/// QuickJS does not expose an embedded script name that can be verified on load, so
+/// validation is structural only.
+@freezed
+sealed class JsScriptBytecode with _$JsScriptBytecode {
+  const JsScriptBytecode._();
+  const factory JsScriptBytecode.raw({
+    required String name,
+    required Uint8List bytes,
+  }) = _JsScriptBytecode;
+
+  /// Creates a new script bytecode container.
+  ///
+  /// Use this when restoring previously persisted classic-script bytecode.
+  /// Unlike module bytecode, the `name` is descriptive metadata and is not
+  /// verified against the payload on load.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final restored = JsScriptBytecode(
+  ///   name: 'bootstrap.js',
+  ///   bytes: storedBytes,
+  /// );
+  /// ```
+  factory JsScriptBytecode({required String name, required List<int> bytes}) =>
+      LibFjs.instance.api
+          .crateApiSourceJsScriptBytecodeNew(name: name, bytes: bytes);
+}
+
+/// Options used when compiling non-module JavaScript into QuickJS bytecode.
+///
+/// This is intended for classic global/script evaluation, including optional top-level await.
+@freezed
+sealed class JsScriptBytecodeOptions with _$JsScriptBytecodeOptions {
+  const JsScriptBytecodeOptions._();
+  const factory JsScriptBytecodeOptions({
+    JsBytecodeEndianness? endianness,
+    bool? stripSource,
+    bool? stripDebug,
+    bool? strict,
+    bool? backtraceBarrier,
+    bool? promise,
+  }) = _JsScriptBytecodeOptions;
+  static Future<JsScriptBytecodeOptions> default_() =>
+      LibFjs.instance.api.crateApiSourceJsScriptBytecodeOptionsDefault();
+
+  /// Creates script bytecode options suitable for distribution.
+  ///
+  /// Defaults:
+  /// - little-endian output
+  /// - `stripSource: true`
+  /// - `stripDebug: true`
+  /// - `strict: true`
+  /// - `backtraceBarrier: false`
+  /// - `promise: false`
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// final options = JsScriptBytecodeOptions.defaults().copyWith(
+  ///   promise: true,
+  /// );
+  ///
+  /// final script = await JsBytecode.compileScript(
+  ///   name: 'bootstrap.js',
+  ///   source: JsCode.code('await Promise.resolve("ready")'),
+  ///   options: options,
+  /// );
+  /// ```
+  static JsScriptBytecodeOptions defaults() =>
+      LibFjs.instance.api.crateApiSourceJsScriptBytecodeOptionsDefaults();
 }

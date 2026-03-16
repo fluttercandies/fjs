@@ -10,7 +10,7 @@ import 'runtime.dart';
 import 'source.dart';
 import 'value.dart';
 
-// These functions are ignored because they are not marked as `pub`: `ensure_running`, `new_bridge_call`, `register_fjs`
+// These functions are ignored because they are not marked as `pub`: `begin_dispose`, `begin_init`, `ensure_running`, `finish_init`, `first_duplicate_name`, `new_bridge_call`, `register_fjs`, `rollback_init`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngine>>
 abstract class JsEngine implements RustOpaqueInterface {
@@ -51,10 +51,11 @@ abstract class JsEngine implements RustOpaqueInterface {
   Future<JsValue> call(
       {required String module, required String method, List<JsValue>? params});
 
-  /// Clears all dynamically declared modules.
+  /// Clears dynamic modules that have not been loaded into the QuickJS module cache.
   ///
-  /// Removes all modules that were registered via `declareNewModule` or `declareNewModules`.
-  /// Built-in modules are not affected.
+  /// Dynamic modules become immutable for the lifetime of the context once they are loaded.
+  /// This method only removes still-pending module registrations. Built-in modules and already
+  /// loaded dynamic modules are not affected.
   ///
   /// ## Throws
   /// - If the engine is not initialized
@@ -62,20 +63,73 @@ abstract class JsEngine implements RustOpaqueInterface {
   ///
   /// ## Example
   /// ```dart
-  /// await engine.clearNewModules();
+  /// await engine.clearPendingModules();
   /// ```
-  Future<void> clearNewModules();
+  Future<void> clearPendingModules();
 
   /// Returns the underlying async context.
   ///
-  /// This can be used to access lower-level context operations
-  /// if needed.
+  /// This can be used to access lower-level context operations if needed.
+  /// The engine does not own the context; disposing the engine does not
+  /// dispose the returned context or its runtime.
   JsAsyncContext get context;
+
+  /// Declares a bundle of bytecode-backed modules without executing them.
+  ///
+  /// The optional bundle entry is ignored during declaration. Use
+  /// `evaluateBytecodeBundle(...)` when the entry module should also be
+  /// executed.
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.declareNewBytecodeBundle(bundle: pluginBundle);
+  /// ```
+  Future<void> declareNewBytecodeBundle(
+      {required JsModuleBytecodeBundle bundle});
+
+  /// Declares a new bytecode-backed module without executing it.
+  ///
+  /// The bytecode must have been compiled for the same QuickJS version embedded by FJS and
+  /// should only come from trusted sources.
+  ///
+  /// After declaration, the module can be imported by later evaluations or
+  /// `call()` invocations. Once a dynamic module has been loaded in this
+  /// context it cannot be replaced without creating a new context.
+  ///
+  /// ## Example
+  /// ```dart
+  /// final bytecode = await JsBytecode.compile(
+  ///   module: JsModule.code(
+  ///     module: 'feature/config',
+  ///     code: 'export const version = "2.1.0";',
+  ///   ),
+  /// );
+  ///
+  /// await engine.declareNewBytecodeModule(module: bytecode);
+  /// ```
+  Future<void> declareNewBytecodeModule({required JsModuleBytecode module});
+
+  /// Declares multiple bytecode-backed modules without executing them.
+  ///
+  /// This is the bytecode counterpart to `declareNewModules(...)` and is useful
+  /// when a feature depends on several precompiled modules.
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.declareNewBytecodeModules(modules: [
+  ///   coreBytecode,
+  ///   helpersBytecode,
+  /// ]);
+  /// ```
+  Future<void> declareNewBytecodeModules(
+      {required List<JsModuleBytecode> modules});
 
   /// Declares a new module without executing it.
   ///
   /// The module will be available for import in subsequent evaluations.
   /// Use this when you need to register a module for later use.
+  /// Once a dynamic module has been loaded into this context, it cannot
+  /// be replaced without recreating the context.
   ///
   /// ## Parameters
   /// - `module`: The module to declare (name and source code)
@@ -86,7 +140,7 @@ abstract class JsEngine implements RustOpaqueInterface {
   ///
   /// ## Example
   /// ```dart
-  /// await engine.declareNewModule(module: JsModule.fromCode(
+  /// await engine.declareNewModule(module: JsModule.code(
   ///   module: 'math-utils',
   ///   code: 'export function add(a, b) { return a + b; }',
   /// ));
@@ -106,6 +160,9 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// ## Parameters
   /// - `modules`: List of modules to declare
   ///
+  /// Loaded dynamic modules cannot be redefined; recreating the context is
+  /// required to replace them.
+  ///
   /// ## Throws
   /// - If the engine is not initialized
   /// - If any module declaration fails
@@ -113,20 +170,31 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// ## Example
   /// ```dart
   /// await engine.declareNewModules(modules: [
-  ///   JsModule.fromCode(module: 'utils', code: 'export const VERSION = "1.0"'),
-  ///   JsModule.fromCode(module: 'helpers', code: 'export function log(x) { console.log(x); }'),
+  ///   JsModule.code(module: 'utils', code: 'export const VERSION = "1.0"'),
+  ///   JsModule.code(module: 'helpers', code: 'export function log(x) { console.log(x); }'),
   /// ]);
   /// ```
   Future<void> declareNewModules({required List<JsModule> modules});
 
   /// Disposes the engine and releases resources.
   ///
-  /// After disposal, the engine cannot be used anymore.
-  /// Any pending operations will fail.
+  /// After disposal, the engine wrapper cannot be used anymore.
+  /// This detaches the `fjs` bridge object, drains pending runtime work,
+  /// and triggers a garbage collection pass, but it does not dispose the
+  /// underlying runtime or context.
+  ///
+  /// Pending timers, Promise callbacks, and other runtime tasks may run during
+  /// this drain step. Errors raised by those drained jobs are handled by the
+  /// underlying runtime and are not surfaced through this method.
   ///
   /// ## Throws
   /// - If the engine is already disposed
-  @override
+  /// - If initialization is still in progress
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.dispose();
+  /// ```
   Future<void> dispose();
 
   /// Returns whether the engine has been disposed.
@@ -164,33 +232,121 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// ```
   Future<JsValue> eval({required JsCode source, JsEvalOptions? options});
 
+  /// Declares a bytecode bundle and evaluates its entry module.
+  ///
+  /// The bundle entry must be present in `bundle.modules`. The return value is the module
+  /// evaluation completion value, so import the entry afterwards if you need exported data.
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.evaluateBytecodeBundle(bundle: pluginBundle);
+  ///
+  /// final result = await engine.eval(source: JsCode.code('''
+  ///   const { default: plugin } = await import('plugins/main');
+  ///   plugin.name
+  /// '''));
+  /// ```
+  Future<JsValue> evaluateBytecodeBundle(
+      {required JsModuleBytecodeBundle bundle});
+
+  /// Evaluates a bytecode-backed module (registers and executes it).
+  ///
+  /// The bytecode must have been compiled for the same embedded QuickJS version and should
+  /// only be loaded from trusted sources. As with source modules, the completion value is
+  /// usually `undefined`; import the module afterwards to read its exports.
+  ///
+  /// ## Example
+  /// ```dart
+  /// final bytecode = await JsBytecode.compile(
+  ///   module: JsModule.code(
+  ///     module: 'feature/init',
+  ///     code: 'export default { ready: true };',
+  ///   ),
+  /// );
+  ///
+  /// await engine.evaluateBytecodeModule(module: bytecode);
+  ///
+  /// final result = await engine.eval(source: JsCode.code('''
+  ///   const { default: init } = await import('feature/init');
+  ///   init.ready
+  /// '''));
+  /// ```
+  Future<JsValue> evaluateBytecodeModule({required JsModuleBytecode module});
+
   /// Evaluates a module (registers and executes it).
   ///
   /// Unlike `declareNewModule`, this method also executes the module's
-  /// top-level code and returns its default export or last expression value.
+  /// top-level code and registers it in the current context.
+  ///
+  /// QuickJS module evaluation usually completes with `undefined`. Import the module
+  /// afterwards if you need its exports.
   ///
   /// ## Parameters
   /// - `module`: The module to evaluate (name and source code)
   ///
   /// ## Returns
-  /// The result of module evaluation
+  /// The completion value of module evaluation, which is usually `undefined`
   ///
   /// ## Throws
   /// - If the engine is not initialized
   /// - If module storage is not available
   /// - If module execution fails
+  /// - If the module name has already been loaded in this context
   ///
   /// ## Example
   /// ```dart
-  /// final result = await engine.evaluateModule(module: JsModule.fromCode(
+  /// await engine.evaluateModule(module: JsModule.code(
   ///   module: 'init',
   ///   code: '''
   ///     console.log("Module initializing...");
   ///     export default { version: "1.0" };
   ///   ''',
   /// ));
+  ///
+  /// final loaded = await engine.eval(source: JsCode.code('''
+  ///   const { default: info } = await import('init');
+  ///   info.version
+  /// '''));
   /// ```
   Future<JsValue> evaluateModule({required JsModule module});
+
+  /// Evaluates classic script bytecode in the current global context.
+  ///
+  /// This is the non-module counterpart to `evaluateBytecodeModule()`.
+  ///
+  /// Script bytecode may mutate global state and returns the script completion value,
+  /// or the resolved value when compiled with top-level await support.
+  ///
+  /// ## Example
+  /// ```dart
+  /// final script = await JsBytecode.compileScript(
+  ///   name: 'bootstrap.js',
+  ///   source: JsCode.code('globalThis.appVersion = "2.1.0";'),
+  /// );
+  ///
+  /// await engine.evaluateScriptBytecode(script: script);
+  /// final version = await engine.eval(source: JsCode.code('globalThis.appVersion'));
+  /// ```
+  Future<JsValue> evaluateScriptBytecode({required JsScriptBytecode script});
+
+  /// Gets all modules available to this engine.
+  ///
+  /// Returns builtin modules, statically configured extra modules,
+  /// and dynamically declared modules in a sorted list.
+  ///
+  /// ## Returns
+  /// A sorted list of module specifiers that can currently be imported
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If collecting module names fails
+  ///
+  /// ## Example
+  /// ```dart
+  /// final modules = await engine.getAvailableModules();
+  /// print(modules);
+  /// ```
+  Future<List<String>> getAvailableModules();
 
   /// Gets all declared module names.
   ///
@@ -222,6 +378,7 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// ## Throws
   /// - If the engine is already disposed
   /// - If the engine is already initialized
+  /// - If initialization is already in progress
   ///
   /// ## Example
   /// ```dart
@@ -240,12 +397,35 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// ## Throws
   /// - If the engine is already disposed
   /// - If the engine is already initialized
+  /// - If initialization is already in progress
   ///
   /// ## Example
   /// ```dart
   /// await engine.initWithoutBridge();
   /// ```
   Future<void> initWithoutBridge();
+
+  /// Checks if a module is available to the engine.
+  ///
+  /// This includes builtin modules, statically configured extra modules,
+  /// and dynamically declared modules.
+  ///
+  /// ## Parameters
+  /// - `moduleName`: The module name to check
+  ///
+  /// ## Returns
+  /// `true` if the module can currently be imported, `false` otherwise
+  ///
+  /// ## Throws
+  /// - If the engine is not initialized
+  /// - If collecting module names fails
+  ///
+  /// ## Example
+  /// ```dart
+  /// final available = await engine.isModuleAvailable(moduleName: 'path');
+  /// print(available);
+  /// ```
+  Future<bool> isModuleAvailable({required String moduleName});
 
   /// Checks if a module is declared.
   ///

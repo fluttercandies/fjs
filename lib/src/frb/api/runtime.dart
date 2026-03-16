@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'source.dart';
 import 'value.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `result_from_promise`, `result_from_sync`
+// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `install_default_async_loaders`, `make_loader_stack`, `result_from_maybe_promise`, `result_from_promise`, `result_from_sync`, `result_from_value`, `unwrap_async_eval_value`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncContext>>
@@ -161,38 +161,77 @@ abstract class JsAsyncContext implements RustOpaqueInterface {
   /// ```
   static Future<JsAsyncContext> from({required JsAsyncRuntime runtime}) =>
       LibFjs.instance.api.crateApiRuntimeJsAsyncContextFrom(runtime: runtime);
+
+  /// Returns all modules currently available in this context.
+  ///
+  /// This includes builtin modules, statically configured extra modules,
+  /// and any dynamically declared modules attached to the context.
+  Future<List<String>> getAvailableModules();
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncRuntime>>
 abstract class JsAsyncRuntime implements RustOpaqueInterface {
-  /// Executes a pending job.
+  /// Advances the async runtime by one scheduler step.
   ///
-  /// Runs one pending job if any are available. This method should be
-  /// called repeatedly to process all pending asynchronous work.
+  /// This may execute one queued QuickJS job or make progress on background
+  /// runtime futures. A `false` return value only means this call did not make
+  /// progress; it does not guarantee the runtime is fully drained. Use
+  /// `idle()` when you explicitly want to run the runtime until quiescent.
   ///
   /// ## Returns
   ///
-  /// `true` if a job was executed, `false` if no jobs were pending
+  /// `true` if this call executed a job or advanced pending async work,
+  /// `false` if nothing progressed during this step
   ///
   /// ## Throws
   ///
-  /// If job execution fails
+  /// If a scheduled job throws while running
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// while (await runtime.isJobPending()) {
+  ///   final progressed = await runtime.executePendingJob();
+  ///   if (!progressed) {
+  ///     break;
+  ///   }
+  /// }
+  /// ```
   Future<bool> executePendingJob();
 
-  /// Puts the runtime into idle state.
+  /// Runs the async runtime until no queued jobs or spawned futures remain.
   ///
-  /// Signals that the runtime is idle and may be used for background
-  /// processing or resource cleanup.
+  /// This is a full drain operation. It may execute timers, promise callbacks,
+  /// and other background work unrelated to the call site, so it should be used
+  /// deliberately for teardown, tests, or explicit "drain everything" flows.
+  ///
+  /// QuickJS job errors raised during this drain are handled by the underlying
+  /// runtime and are not surfaced through this method.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// await runtime.idle();
+  /// ```
   Future<void> idle();
 
-  /// Checks if there are pending jobs.
+  /// Checks whether the async runtime still has work to do.
   ///
-  /// Jobs are asynchronous tasks that need to be executed, such as
-  /// promise callbacks or timer callbacks.
+  /// This reports both queued QuickJS jobs and background futures managed by
+  /// the runtime scheduler, such as timers or other spawned async work.
   ///
   /// ## Returns
   ///
-  /// `true` if there are pending jobs, `false` otherwise
+  /// `true` if the runtime still has queued jobs or scheduled async work,
+  /// `false` otherwise
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// if (await runtime.isJobPending()) {
+  ///   await runtime.executePendingJob();
+  /// }
+  /// ```
   Future<bool> isJobPending();
 
   /// Returns memory usage statistics.
@@ -309,7 +348,7 @@ abstract class JsAsyncRuntime implements RustOpaqueInterface {
   /// final runtime = await JsAsyncRuntime.withOptions(
   ///   builtin: JsBuiltinOptions.all(),
   ///   additional: [
-  ///     JsModule.fromCode(module: 'my-utils', code: 'export const foo = "bar";'),
+  ///     JsModule.code(module: 'my-utils', code: 'export const foo = "bar";'),
   ///   ],
   /// );
   /// ```
@@ -435,32 +474,55 @@ abstract class JsContext implements RustOpaqueInterface {
   /// ```
   static JsContext from({required JsRuntime runtime}) =>
       LibFjs.instance.api.crateApiRuntimeJsContextFrom(runtime: runtime);
+
+  /// Returns all modules currently available in this context.
+  ///
+  /// This includes builtin modules, statically configured extra modules,
+  /// and any dynamically declared modules attached to the context.
+  List<String> getAvailableModules();
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsRuntime>>
 abstract class JsRuntime implements RustOpaqueInterface {
-  /// Executes a pending job.
+  /// Executes one pending QuickJS job.
   ///
-  /// Runs one pending job if any are available. This method should be
-  /// called repeatedly to process all pending asynchronous work.
+  /// This is a low-level pump for synchronous runtimes. It is mainly useful
+  /// when you want explicit control over when Promise callbacks are drained.
   ///
   /// ## Returns
   ///
-  /// `true` if a job was executed, `false` if no jobs were pending
+  /// `true` if one job was executed, `false` if the queue was empty
   ///
   /// ## Throws
   ///
-  /// If job execution fails
+  /// If the job throws while running
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// while (runtime.isJobPending()) {
+  ///   runtime.executePendingJob();
+  /// }
+  /// ```
   bool executePendingJob();
 
-  /// Checks if there are pending jobs.
+  /// Checks whether the QuickJS job queue is non-empty.
   ///
-  /// Jobs are asynchronous tasks that need to be executed, such as
-  /// promise callbacks or timer callbacks.
+  /// In the synchronous runtime this only reflects QuickJS jobs, such as
+  /// pending Promise reaction callbacks created by already-resolved promises.
+  /// It does not wait for external async work.
   ///
   /// ## Returns
   ///
-  /// `true` if there are pending jobs, `false` otherwise
+  /// `true` if at least one QuickJS job is queued, `false` otherwise
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// if (runtime.isJobPending()) {
+  ///   runtime.executePendingJob();
+  /// }
+  /// ```
   bool isJobPending();
 
   /// Returns memory usage statistics.
@@ -586,7 +648,7 @@ abstract class JsRuntime implements RustOpaqueInterface {
   /// final runtime = await JsRuntime.withOptions(
   ///   builtin: JsBuiltinOptions.all(),
   ///   additional: [
-  ///     JsModule.fromCode(module: 'my-utils', code: 'export const foo = "bar";'),
+  ///     JsModule.code(module: 'my-utils', code: 'export const foo = "bar";'),
   ///   ],
   /// );
   /// ```

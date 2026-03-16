@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/bytecode.dart';
 import 'api/engine.dart';
 import 'api/error.dart';
 import 'api/runtime.dart';
@@ -30,6 +31,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
       get rust_arc_decrement_strong_count_JsAsyncRuntimePtr => wire
           ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntimePtr;
 
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_JsBytecodePtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecodePtr;
+
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_JsContextPtr =>
       wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsContextPtr;
 
@@ -54,6 +58,11 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   @protected
   JsAsyncRuntime
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
+          dynamic raw);
+
+  @protected
+  JsBytecode
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
           dynamic raw);
 
   @protected
@@ -128,6 +137,11 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           dynamic raw);
 
   @protected
+  JsBytecode
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
+          dynamic raw);
+
+  @protected
   JsContext
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsContext(
           dynamic raw);
@@ -160,6 +174,10 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsBuiltinOptions dco_decode_box_autoadd_js_builtin_options(dynamic raw);
 
   @protected
+  JsBytecodeEndianness dco_decode_box_autoadd_js_bytecode_endianness(
+      dynamic raw);
+
+  @protected
   JsCode dco_decode_box_autoadd_js_code(dynamic raw);
 
   @protected
@@ -172,6 +190,24 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsModule dco_decode_box_autoadd_js_module(dynamic raw);
 
   @protected
+  JsModuleBytecode dco_decode_box_autoadd_js_module_bytecode(dynamic raw);
+
+  @protected
+  JsModuleBytecodeBundle dco_decode_box_autoadd_js_module_bytecode_bundle(
+      dynamic raw);
+
+  @protected
+  JsModuleBytecodeOptions dco_decode_box_autoadd_js_module_bytecode_options(
+      dynamic raw);
+
+  @protected
+  JsScriptBytecode dco_decode_box_autoadd_js_script_bytecode(dynamic raw);
+
+  @protected
+  JsScriptBytecodeOptions dco_decode_box_autoadd_js_script_bytecode_options(
+      dynamic raw);
+
+  @protected
   JsValue dco_decode_box_autoadd_js_value(dynamic raw);
 
   @protected
@@ -181,6 +217,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   double dco_decode_f_64(dynamic raw);
 
   @protected
+  int dco_decode_i_32(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
@@ -188,6 +227,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   JsBuiltinOptions dco_decode_js_builtin_options(dynamic raw);
+
+  @protected
+  JsBytecodeEndianness dco_decode_js_bytecode_endianness(dynamic raw);
 
   @protected
   JsCode dco_decode_js_code(dynamic raw);
@@ -202,7 +244,22 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsModule dco_decode_js_module(dynamic raw);
 
   @protected
+  JsModuleBytecode dco_decode_js_module_bytecode(dynamic raw);
+
+  @protected
+  JsModuleBytecodeBundle dco_decode_js_module_bytecode_bundle(dynamic raw);
+
+  @protected
+  JsModuleBytecodeOptions dco_decode_js_module_bytecode_options(dynamic raw);
+
+  @protected
   JsResult dco_decode_js_result(dynamic raw);
+
+  @protected
+  JsScriptBytecode dco_decode_js_script_bytecode(dynamic raw);
+
+  @protected
+  JsScriptBytecodeOptions dco_decode_js_script_bytecode_options(dynamic raw);
 
   @protected
   JsValue dco_decode_js_value(dynamic raw);
@@ -212,6 +269,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   List<JsModule> dco_decode_list_js_module(dynamic raw);
+
+  @protected
+  List<JsModuleBytecode> dco_decode_list_js_module_bytecode(dynamic raw);
 
   @protected
   List<JsValue> dco_decode_list_js_value(dynamic raw);
@@ -235,7 +295,19 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsBuiltinOptions? dco_decode_opt_box_autoadd_js_builtin_options(dynamic raw);
 
   @protected
+  JsBytecodeEndianness? dco_decode_opt_box_autoadd_js_bytecode_endianness(
+      dynamic raw);
+
+  @protected
   JsEvalOptions? dco_decode_opt_box_autoadd_js_eval_options(dynamic raw);
+
+  @protected
+  JsModuleBytecodeOptions?
+      dco_decode_opt_box_autoadd_js_module_bytecode_options(dynamic raw);
+
+  @protected
+  JsScriptBytecodeOptions?
+      dco_decode_opt_box_autoadd_js_script_bytecode_options(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -275,6 +347,11 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   @protected
   JsAsyncRuntime
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
+          SseDeserializer deserializer);
+
+  @protected
+  JsBytecode
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
           SseDeserializer deserializer);
 
   @protected
@@ -345,6 +422,11 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
           SseDeserializer deserializer);
 
   @protected
+  JsBytecode
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
+          SseDeserializer deserializer);
+
+  @protected
   JsContext
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsContext(
           SseDeserializer deserializer);
@@ -378,6 +460,10 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
       SseDeserializer deserializer);
 
   @protected
+  JsBytecodeEndianness sse_decode_box_autoadd_js_bytecode_endianness(
+      SseDeserializer deserializer);
+
+  @protected
   JsCode sse_decode_box_autoadd_js_code(SseDeserializer deserializer);
 
   @protected
@@ -391,6 +477,26 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsModule sse_decode_box_autoadd_js_module(SseDeserializer deserializer);
 
   @protected
+  JsModuleBytecode sse_decode_box_autoadd_js_module_bytecode(
+      SseDeserializer deserializer);
+
+  @protected
+  JsModuleBytecodeBundle sse_decode_box_autoadd_js_module_bytecode_bundle(
+      SseDeserializer deserializer);
+
+  @protected
+  JsModuleBytecodeOptions sse_decode_box_autoadd_js_module_bytecode_options(
+      SseDeserializer deserializer);
+
+  @protected
+  JsScriptBytecode sse_decode_box_autoadd_js_script_bytecode(
+      SseDeserializer deserializer);
+
+  @protected
+  JsScriptBytecodeOptions sse_decode_box_autoadd_js_script_bytecode_options(
+      SseDeserializer deserializer);
+
+  @protected
   JsValue sse_decode_box_autoadd_js_value(SseDeserializer deserializer);
 
   @protected
@@ -400,6 +506,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
@@ -407,6 +516,10 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   JsBuiltinOptions sse_decode_js_builtin_options(SseDeserializer deserializer);
+
+  @protected
+  JsBytecodeEndianness sse_decode_js_bytecode_endianness(
+      SseDeserializer deserializer);
 
   @protected
   JsCode sse_decode_js_code(SseDeserializer deserializer);
@@ -421,7 +534,25 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   JsModule sse_decode_js_module(SseDeserializer deserializer);
 
   @protected
+  JsModuleBytecode sse_decode_js_module_bytecode(SseDeserializer deserializer);
+
+  @protected
+  JsModuleBytecodeBundle sse_decode_js_module_bytecode_bundle(
+      SseDeserializer deserializer);
+
+  @protected
+  JsModuleBytecodeOptions sse_decode_js_module_bytecode_options(
+      SseDeserializer deserializer);
+
+  @protected
   JsResult sse_decode_js_result(SseDeserializer deserializer);
+
+  @protected
+  JsScriptBytecode sse_decode_js_script_bytecode(SseDeserializer deserializer);
+
+  @protected
+  JsScriptBytecodeOptions sse_decode_js_script_bytecode_options(
+      SseDeserializer deserializer);
 
   @protected
   JsValue sse_decode_js_value(SseDeserializer deserializer);
@@ -431,6 +562,10 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   List<JsModule> sse_decode_list_js_module(SseDeserializer deserializer);
+
+  @protected
+  List<JsModuleBytecode> sse_decode_list_js_module_bytecode(
+      SseDeserializer deserializer);
 
   @protected
   List<JsValue> sse_decode_list_js_value(SseDeserializer deserializer);
@@ -456,8 +591,22 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
       SseDeserializer deserializer);
 
   @protected
+  JsBytecodeEndianness? sse_decode_opt_box_autoadd_js_bytecode_endianness(
+      SseDeserializer deserializer);
+
+  @protected
   JsEvalOptions? sse_decode_opt_box_autoadd_js_eval_options(
       SseDeserializer deserializer);
+
+  @protected
+  JsModuleBytecodeOptions?
+      sse_decode_opt_box_autoadd_js_module_bytecode_options(
+          SseDeserializer deserializer);
+
+  @protected
+  JsScriptBytecodeOptions?
+      sse_decode_opt_box_autoadd_js_script_bytecode_options(
+          SseDeserializer deserializer);
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
@@ -488,9 +637,6 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
-
-  @protected
   void sse_encode_AnyhowException(
       AnyhowException self, SseSerializer serializer);
 
@@ -503,6 +649,11 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
           JsAsyncRuntime self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
+          JsBytecode self, SseSerializer serializer);
 
   @protected
   void
@@ -577,6 +728,11 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
+          JsBytecode self, SseSerializer serializer);
+
+  @protected
+  void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsContext(
           JsContext self, SseSerializer serializer);
 
@@ -609,6 +765,10 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
       JsBuiltinOptions self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_js_bytecode_endianness(
+      JsBytecodeEndianness self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_js_code(JsCode self, SseSerializer serializer);
 
   @protected
@@ -623,6 +783,26 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
       JsModule self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_js_module_bytecode(
+      JsModuleBytecode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_js_module_bytecode_bundle(
+      JsModuleBytecodeBundle self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_js_module_bytecode_options(
+      JsModuleBytecodeOptions self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_js_script_bytecode(
+      JsScriptBytecode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_js_script_bytecode_options(
+      JsScriptBytecodeOptions self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_js_value(JsValue self, SseSerializer serializer);
 
   @protected
@@ -630,6 +810,9 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
@@ -640,6 +823,10 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   @protected
   void sse_encode_js_builtin_options(
       JsBuiltinOptions self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_js_bytecode_endianness(
+      JsBytecodeEndianness self, SseSerializer serializer);
 
   @protected
   void sse_encode_js_code(JsCode self, SseSerializer serializer);
@@ -654,7 +841,27 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
   void sse_encode_js_module(JsModule self, SseSerializer serializer);
 
   @protected
+  void sse_encode_js_module_bytecode(
+      JsModuleBytecode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_js_module_bytecode_bundle(
+      JsModuleBytecodeBundle self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_js_module_bytecode_options(
+      JsModuleBytecodeOptions self, SseSerializer serializer);
+
+  @protected
   void sse_encode_js_result(JsResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_js_script_bytecode(
+      JsScriptBytecode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_js_script_bytecode_options(
+      JsScriptBytecodeOptions self, SseSerializer serializer);
 
   @protected
   void sse_encode_js_value(JsValue self, SseSerializer serializer);
@@ -664,6 +871,10 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   void sse_encode_list_js_module(List<JsModule> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_js_module_bytecode(
+      List<JsModuleBytecode> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_js_value(List<JsValue> self, SseSerializer serializer);
@@ -690,8 +901,20 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
       JsBuiltinOptions? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_js_bytecode_endianness(
+      JsBytecodeEndianness? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_js_eval_options(
       JsEvalOptions? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_js_module_bytecode_options(
+      JsModuleBytecodeOptions? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_js_script_bytecode_options(
+      JsScriptBytecodeOptions? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
@@ -722,9 +945,6 @@ abstract class LibFjsApiImplPlatform extends BaseApiImpl<LibFjsWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class
@@ -803,6 +1023,38 @@ class LibFjsWire implements BaseWire {
           'frbgen_fjs_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime');
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntimePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecodePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_fjs_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecodePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecodePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_fjs_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecode =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsBytecodePtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

@@ -8,6 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'value.freezed.dart';
 
+// These functions are ignored because they are not marked as `pub`: `capture`, `date_millis`, `dynamic_view_bytes`, `install_value_intrinsics`, `is_safe_js_integer`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ValueIntrinsics`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`, `from_js`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `into_js`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `array`, `bigint`, `boolean`, `bytes`, `date`, `float`, `integer`, `none`, `object`, `string`
 
@@ -23,7 +25,7 @@ sealed class JsValue with _$JsValue {
     bool field0,
   ) = JsValue_Boolean;
 
-  /// Represents 64-bit integer values
+  /// Represents JavaScript safe integers (`Number` within +/- 2^53 - 1)
   const factory JsValue.integer(
     PlatformInt64 field0,
   ) = JsValue_Integer;
@@ -43,7 +45,7 @@ sealed class JsValue with _$JsValue {
     String field0,
   ) = JsValue_String;
 
-  /// Represents binary data (ArrayBuffer/TypedArray)
+  /// Represents binary data (ArrayBuffer or typed array bytes)
   const factory JsValue.bytes(
     Uint8List field0,
   ) = JsValue_Bytes;
@@ -184,6 +186,10 @@ sealed class JsValue with _$JsValue {
     } else if (any is bool) {
       return JsValue.boolean(any);
     } else if (any is int) {
+      const maxSafeInteger = 9007199254740991;
+      if (any > maxSafeInteger || any < -maxSafeInteger) {
+        return JsValue.bigint(any.toString());
+      }
       return JsValue.integer(any);
     } else if (any is double) {
       return JsValue.float(any);
