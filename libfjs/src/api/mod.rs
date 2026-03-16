@@ -15,6 +15,7 @@
 //! The `init_app()` function sets up the Flutter Rust bridge with default utilities.
 //! This function should be called once during application initialization.
 
+pub mod bytecode;
 pub mod engine;
 pub mod error;
 pub mod module;
@@ -23,11 +24,15 @@ pub mod source;
 pub mod value;
 
 // Re-export main types for convenience
+pub use bytecode::JsBytecode;
 pub use engine::JsEngine;
 pub use error::{JsError, JsResult};
 pub use module::{DynamicModuleLoader, DynamicModuleResolver, GlobalAttachment, ModuleBuilder};
 pub use runtime::{JsAsyncContext, JsAsyncRuntime, JsContext, JsRuntime, MemoryUsage};
-pub use source::{JsBuiltinOptions, JsCode, JsEvalOptions, JsModule};
+pub use source::{
+    JsBuiltinOptions, JsBytecodeEndianness, JsCode, JsEvalOptions, JsModule, JsModuleBytecode,
+    JsModuleBytecodeBundle, JsModuleBytecodeOptions, JsScriptBytecode, JsScriptBytecodeOptions,
+};
 pub use value::JsValue;
 
 /// Initializes the Flutter Rust bridge with default user utilities.

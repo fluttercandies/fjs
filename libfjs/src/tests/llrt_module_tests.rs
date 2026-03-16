@@ -604,7 +604,10 @@ test_llrt_module!(
     "#,
     |result| {
         // timeOrigin may be 0 in some environments
-        assert!(result.is_ok(), "performance.timeOrigin should be accessible");
+        assert!(
+            result.is_ok(),
+            "performance.timeOrigin should be accessible"
+        );
     }
 );
 
@@ -700,7 +703,10 @@ test_llrt_module!(
         }
     "#,
     |result| {
-        assert!(result.is_ok(), "structuredClone array test should not throw");
+        assert!(
+            result.is_ok(),
+            "structuredClone array test should not throw"
+        );
         if let Ok(JsValue::Integer(v)) = result {
             assert_eq!(v, 2);
         }
@@ -1861,6 +1867,73 @@ test_llrt_module!(
     |result| {
         if let Ok(JsValue::String(s)) = result {
             assert_eq!(s, "hello");
+        }
+    }
+);
+
+// ============================================================================
+// Additional Official LLRT Module Tests
+// ============================================================================
+
+test_llrt_module!(
+    test_dgram_module_loads,
+    r#"
+        const dgram = await import('dgram');
+        typeof dgram.createSocket === 'function' && typeof dgram.Socket === 'function'
+    "#,
+    |result| {
+        if let Ok(JsValue::Boolean(value)) = result {
+            assert!(value);
+        }
+    }
+);
+
+test_llrt_module!(
+    test_https_module_loads,
+    r#"
+        const https = await import('https');
+        typeof https.Agent === 'function'
+    "#,
+    |result| {
+        if let Ok(JsValue::Boolean(value)) = result {
+            assert!(value);
+        }
+    }
+);
+
+test_llrt_module!(
+    test_temporal_global_available,
+    r#"
+        const instant = Temporal.Instant.fromEpochMilliseconds(1234);
+        instant.epochMilliseconds === 1234 &&
+          Object.prototype.toString.call(Temporal.Now) === '[object Temporal.Now]'
+    "#,
+    |result| {
+        if let Ok(JsValue::Boolean(value)) = result {
+            assert!(value);
+        }
+    }
+);
+
+test_llrt_module!(
+    test_intl_date_time_format_timezone_support,
+    r#"
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Denver',
+          hour12: false,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        const date = new Date('2022-03-02T15:45:34Z');
+        formatter.formatToParts(date).find((part) => part.type === 'hour').value
+    "#,
+    |result| {
+        if let Ok(JsValue::String(value)) = result {
+            assert_eq!(value, "08");
         }
     }
 );

@@ -4,7 +4,7 @@
 //! Covers synchronous and asynchronous runtimes, memory management,
 //! and basic evaluation.
 
-use crate::api::runtime::{JsAsyncRuntime, JsContext, JsRuntime};
+use crate::api::runtime::{JsAsyncContext, JsAsyncRuntime, JsContext, JsRuntime};
 use crate::api::source::{JsBuiltinOptions, JsEvalOptions, JsModule};
 use crate::api::value::JsValue;
 
@@ -280,6 +280,29 @@ fn test_context_eval_multiline() {
     }
 }
 
+#[test]
+fn test_context_eval_date_uses_captured_intrinsics() {
+    let runtime = JsRuntime::new().unwrap();
+    let context = JsContext::from(&runtime).unwrap();
+
+    let result = context.eval(
+        r#"
+        const OriginalDate = Date;
+        const date = new OriginalDate(1609459200000);
+        Date.prototype.getTime = () => 1;
+        globalThis.Date = function FakeDate() {};
+        Date.prototype = { getTime() { return 2; } };
+        date
+    "#
+        .to_string(),
+    );
+
+    assert!(matches!(
+        result,
+        crate::api::error::JsResult::Ok(JsValue::Date(1609459200000))
+    ));
+}
+
 // ============================================================================
 // Asynchronous Runtime Tests (using tokio)
 // ============================================================================
@@ -358,10 +381,100 @@ async fn test_async_runtime_idle() {
 }
 
 #[tokio::test]
+async fn test_async_context_eval_does_not_implicitly_idle_runtime() {
+    let runtime = JsAsyncRuntime::with_options(Some(JsBuiltinOptions::essential()), None)
+        .await
+        .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    let result = context
+        .eval(
+            r#"
+                setTimeout(() => {
+                    globalThis.__fjs_timer_fired = true;
+                }, 10);
+                'scheduled'
+            "#
+            .to_string(),
+        )
+        .await;
+
+    match result {
+        crate::api::error::JsResult::Ok(JsValue::String(value)) => assert_eq!(value, "scheduled"),
+        other => panic!("Expected string result, got {other:?}"),
+    }
+
+    assert!(runtime.is_job_pending().await);
+
+    let before_idle = context
+        .eval("globalThis.__fjs_timer_fired ?? false".to_string())
+        .await;
+    match before_idle {
+        crate::api::error::JsResult::Ok(JsValue::Boolean(false)) => {}
+        other => panic!("Expected timer to be pending before idle, got {other:?}"),
+    }
+
+    runtime.idle().await;
+
+    let after_idle = context
+        .eval("globalThis.__fjs_timer_fired".to_string())
+        .await;
+    match after_idle {
+        crate::api::error::JsResult::Ok(JsValue::Boolean(true)) => {}
+        other => panic!("Expected timer to fire after idle, got {other:?}"),
+    }
+}
+
+#[tokio::test]
 async fn test_async_runtime_set_info() {
     let runtime = JsAsyncRuntime::new().unwrap();
     let result = runtime.set_info("test async runtime".to_string()).await;
     assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_context_get_available_modules_includes_additional_modules() {
+    let runtime = JsRuntime::with_options(
+        Some(JsBuiltinOptions {
+            path: Some(true),
+            ..Default::default()
+        }),
+        Some(vec![JsModule::code(
+            "test-extra".to_string(),
+            "export const value = 1;".to_string(),
+        )]),
+    )
+    .await
+    .unwrap();
+    let context = JsContext::from(&runtime).unwrap();
+
+    let modules = context.get_available_modules().unwrap();
+
+    assert!(modules.contains(&"path".to_string()));
+    assert!(modules.contains(&"test-extra".to_string()));
+}
+
+#[tokio::test]
+async fn test_async_context_get_available_modules_includes_dynamic_modules() {
+    let runtime = JsAsyncRuntime::with_options(
+        Some(JsBuiltinOptions {
+            dgram: Some(true),
+            ..Default::default()
+        }),
+        Some(vec![JsModule::code(
+            "test-extra".to_string(),
+            "export const value = 1;".to_string(),
+        )]),
+    )
+    .await
+    .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    let mut modules = context.get_available_modules().await.unwrap();
+    modules.sort();
+
+    assert!(modules.contains(&"dgram".to_string()));
+    assert!(modules.contains(&"test-extra".to_string()));
 }
 
 // ============================================================================
@@ -374,7 +487,8 @@ fn test_memory_usage_getters() {
     let context = JsContext::from(&runtime).unwrap();
 
     // Allocate some objects
-    let _ = context.eval("let arr = []; for(let i = 0; i < 1000; i++) arr.push({x: i});".to_string());
+    let _ =
+        context.eval("let arr = []; for(let i = 0; i < 1000; i++) arr.push({x: i});".to_string());
 
     let usage = runtime.memory_usage();
 
@@ -448,12 +562,7 @@ fn test_eval_options_module() {
 
 #[test]
 fn test_eval_options_new() {
-    let options = JsEvalOptions::new(
-        Some(false),
-        Some(false),
-        Some(true),
-        Some(true),
-    );
+    let options = JsEvalOptions::new(Some(false), Some(false), Some(true), Some(true));
     assert_eq!(options.global, Some(false));
     assert_eq!(options.strict, Some(false));
     assert_eq!(options.backtrace_barrier, Some(true));
@@ -471,7 +580,11 @@ fn test_builtin_options_all() {
     assert_eq!(options.timers, Some(true));
     assert_eq!(options.buffer, Some(true));
     assert_eq!(options.crypto, Some(true));
+    assert_eq!(options.dgram, Some(true));
     assert_eq!(options.fs, Some(true));
+    assert_eq!(options.https, Some(true));
+    assert_eq!(options.intl, Some(true));
+    assert_eq!(options.temporal, Some(true));
     assert_eq!(options.path, Some(true));
     assert_eq!(options.url, Some(true));
 }
@@ -482,6 +595,9 @@ fn test_builtin_options_none() {
     assert_eq!(options.console, None);
     assert_eq!(options.timers, None);
     assert_eq!(options.buffer, None);
+    assert_eq!(options.dgram, None);
+    assert_eq!(options.intl, None);
+    assert_eq!(options.temporal, None);
 }
 
 #[test]
@@ -505,6 +621,7 @@ fn test_builtin_options_web() {
     assert_eq!(options.fetch, Some(true));
     assert_eq!(options.url, Some(true));
     assert_eq!(options.crypto, Some(true));
+    assert_eq!(options.intl, Some(true));
     assert_eq!(options.stream_web, Some(true));
     assert_eq!(options.navigator, Some(true));
     // Node.js specific should be None
@@ -516,7 +633,10 @@ fn test_builtin_options_web() {
 fn test_builtin_options_node() {
     let options = JsBuiltinOptions::node();
     assert_eq!(options.console, Some(true));
+    assert_eq!(options.dgram, Some(true));
     assert_eq!(options.fs, Some(true));
+    assert_eq!(options.https, Some(true));
+    assert_eq!(options.intl, Some(true));
     assert_eq!(options.path, Some(true));
     assert_eq!(options.process, Some(true));
     assert_eq!(options.events, Some(true));

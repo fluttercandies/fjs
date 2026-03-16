@@ -4,6 +4,7 @@
 //! modules, and evaluation options.
 
 use flutter_rust_bridge::frb;
+use rquickjs::{WriteOptions, WriteOptionsEndianness};
 
 /// Maximum file size for JavaScript source files (10 MB).
 ///
@@ -14,7 +15,9 @@ pub const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024;
 /// Represents the source of JavaScript code.
 ///
 /// This enum provides three ways to specify JavaScript source:
-/// inline code as a string, a file path to load code from, or raw bytes.
+/// inline code as a string, a file path to load code from, or raw UTF-8 bytes.
+///
+/// `JsCode::Bytes` is still source text. QuickJS bytecode uses `JsModuleBytecode`.
 ///
 /// ## Example
 ///
@@ -35,7 +38,7 @@ pub enum JsCode {
     Code(String),
     /// File path containing JavaScript code
     Path(String),
-    /// Raw bytes containing JavaScript code (UTF-8 encoded)
+    /// Raw UTF-8 bytes containing JavaScript source code
     Bytes(Vec<u8>),
 }
 
@@ -68,7 +71,7 @@ impl JsCode {
         JsCode::Path(path)
     }
 
-    /// Creates bytes source.
+    /// Creates bytes source from UTF-8 JavaScript source text.
     ///
     /// ## Parameters
     ///
@@ -131,6 +134,9 @@ impl JsCode {
 /// This struct defines a module with a name and source code,
 /// which can be loaded and executed in the JavaScript runtime.
 ///
+/// `JsModule::bytes()` stores UTF-8 source bytes. Pre-compiled QuickJS bytecode
+/// uses `JsModuleBytecode`.
+///
 /// ## Example
 ///
 /// ```dart
@@ -172,12 +178,33 @@ impl JsModule {
     /// ## Returns
     ///
     /// A new `JsModule` instance
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final module = JsModule(
+    ///   name: 'math',
+    ///   source: JsCode.code('export const add = (a, b) => a + b;'),
+    /// );
+    /// ```
     #[frb(sync)]
     pub fn new(name: String, source: JsCode) -> Self {
         JsModule { name, source }
     }
 
-    /// Creates a module from inline code.
+    /// Creates a module from inline source text.
+    ///
+    /// This is the most convenient constructor when module code is already
+    /// available in memory.
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final module = JsModule.code(
+    ///   module: 'feature/flags',
+    ///   code: 'export const enabled = true;',
+    /// );
+    /// ```
     #[frb(sync)]
     pub fn code(module: String, code: String) -> Self {
         JsModule {
@@ -187,6 +214,17 @@ impl JsModule {
     }
 
     /// Creates a module from a file path.
+    ///
+    /// Use this when the module source should be loaded lazily from disk.
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final module = JsModule.path(
+    ///   module: 'plugins/logger',
+    ///   path: '/absolute/path/to/logger.js',
+    /// );
+    /// ```
     #[frb(sync)]
     pub fn path(module: String, path: String) -> Self {
         JsModule {
@@ -195,13 +233,301 @@ impl JsModule {
         }
     }
 
-    /// Creates a module from raw bytes.
+    /// Creates a module from raw UTF-8 source bytes.
+    ///
+    /// The bytes are still JavaScript source text, not QuickJS bytecode.
+    /// Use `JsModuleBytecode` for precompiled modules.
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final module = JsModule.bytes(
+    ///   module: 'embedded/config',
+    ///   bytes: utf8.encode('export const env = "prod";'),
+    /// );
+    /// ```
     #[frb(sync)]
     pub fn bytes(module: String, bytes: Vec<u8>) -> Self {
         JsModule {
             name: module,
             source: JsCode::Bytes(bytes),
         }
+    }
+}
+
+/// Byte order to use when writing QuickJS module bytecode.
+///
+/// Use a fixed endianness when bytecode must be shared between devices.
+/// `little` is the safest default for modern mobile and desktop targets.
+#[frb(dart_metadata = ("freezed"))]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub enum JsBytecodeEndianness {
+    /// Use the current device's native endianness.
+    Native,
+    /// Always emit little-endian bytecode.
+    #[default]
+    Little,
+    /// Always emit big-endian bytecode.
+    Big,
+}
+
+/// Options used when compiling an ES module into QuickJS bytecode.
+///
+/// QuickJS bytecode is version-specific and must only be loaded from trusted sources.
+/// It is useful for distributing pre-compiled modules, but it is not a security boundary.
+#[frb(dart_metadata = ("freezed"))]
+#[derive(Debug, Clone)]
+pub struct JsModuleBytecodeOptions {
+    /// Byte order used in the serialized bytecode.
+    pub endianness: Option<JsBytecodeEndianness>,
+    /// Strip embedded source text from the bytecode.
+    pub strip_source: Option<bool>,
+    /// Strip debug metadata from the bytecode.
+    pub strip_debug: Option<bool>,
+}
+
+impl Default for JsModuleBytecodeOptions {
+    fn default() -> Self {
+        Self {
+            endianness: Some(JsBytecodeEndianness::Little),
+            strip_source: Some(true),
+            strip_debug: Some(true),
+        }
+    }
+}
+
+impl JsModuleBytecodeOptions {
+    /// Creates bytecode options suitable for distribution.
+    ///
+    /// Defaults:
+    /// - little-endian output
+    /// - `stripSource: true`
+    /// - `stripDebug: true`
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final options = JsModuleBytecodeOptions.defaults();
+    /// final bytecode = await JsBytecode.compile(
+    ///   module: JsModule.code(
+    ///     module: 'feature/main',
+    ///     code: 'export default 42;',
+    ///   ),
+    ///   options: options,
+    /// );
+    /// ```
+    #[frb(sync)]
+    pub fn defaults() -> Self {
+        Self::default()
+    }
+}
+
+impl From<JsModuleBytecodeOptions> for WriteOptions {
+    fn from(value: JsModuleBytecodeOptions) -> Self {
+        let endianness = match value.endianness.unwrap_or_default() {
+            JsBytecodeEndianness::Native => WriteOptionsEndianness::Native,
+            JsBytecodeEndianness::Little => WriteOptionsEndianness::Little,
+            JsBytecodeEndianness::Big => WriteOptionsEndianness::Big,
+        };
+
+        WriteOptions {
+            endianness,
+            strip_source: value.strip_source.unwrap_or(true),
+            strip_debug: value.strip_debug.unwrap_or(true),
+            ..Default::default()
+        }
+    }
+}
+
+/// Serialized QuickJS bytecode for a single ES module.
+///
+/// The `name` must match the module name embedded in the bytecode when it is declared
+/// or evaluated. Bytecode must be treated as trusted input and recompiled whenever the
+/// embedded QuickJS engine version changes.
+#[frb(dart_metadata = ("freezed"))]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct JsModuleBytecode {
+    /// Module specifier embedded in the compiled bytecode.
+    pub name: String,
+    /// Serialized QuickJS module bytecode.
+    pub bytes: Vec<u8>,
+}
+
+impl JsModuleBytecode {
+    /// Creates a new module bytecode container.
+    ///
+    /// Use this when loading previously persisted bytecode bytes back into FJS.
+    /// The `name` must match the module name embedded in the bytecode payload.
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final compiled = await JsBytecode.compile(
+    ///   module: JsModule.code(
+    ///     module: 'plugins/auth',
+    ///     code: 'export const ready = true;',
+    ///   ),
+    /// );
+    ///
+    /// final restored = JsModuleBytecode(
+    ///   name: compiled.name,
+    ///   bytes: compiled.bytes,
+    /// );
+    /// ```
+    #[frb(sync)]
+    pub fn new(name: String, bytes: Vec<u8>) -> Self {
+        Self { name, bytes }
+    }
+}
+
+/// A collection of precompiled ES modules, optionally with a designated entry module.
+///
+/// Bundles are useful when a feature ships as a module graph rather than a single module.
+#[frb(dart_metadata = ("freezed"))]
+#[derive(Debug, Clone)]
+pub struct JsModuleBytecodeBundle {
+    /// Optional entry module to execute when evaluating the bundle.
+    pub entry: Option<String>,
+    /// Serialized bytecode for all modules in the bundle.
+    pub modules: Vec<JsModuleBytecode>,
+}
+
+impl JsModuleBytecodeBundle {
+    /// Creates a new bundle of bytecode modules.
+    ///
+    /// Set `entry` when the bundle will later be executed with
+    /// `engine.evaluateBytecodeBundle(...)`. Leave it `null` when the bundle is
+    /// only used for declaration.
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final bundle = JsModuleBytecodeBundle(
+    ///   entry: 'feature/index',
+    ///   modules: [
+    ///     featureIndexBytecode,
+    ///     sharedUtilBytecode,
+    ///   ],
+    /// );
+    /// ```
+    #[frb(sync)]
+    pub fn new(entry: Option<String>, modules: Vec<JsModuleBytecode>) -> Self {
+        Self { entry, modules }
+    }
+}
+
+/// Options used when compiling non-module JavaScript into QuickJS bytecode.
+///
+/// This is intended for classic global/script evaluation, including optional top-level await.
+#[frb(dart_metadata = ("freezed"))]
+#[derive(Debug, Clone)]
+pub struct JsScriptBytecodeOptions {
+    /// Byte order used in the serialized bytecode.
+    pub endianness: Option<JsBytecodeEndianness>,
+    /// Strip embedded source text from the bytecode.
+    pub strip_source: Option<bool>,
+    /// Strip debug metadata from the bytecode.
+    pub strip_debug: Option<bool>,
+    /// Force strict mode for the compiled script.
+    pub strict: Option<bool>,
+    /// Do not include previous stack frames in future backtraces.
+    pub backtrace_barrier: Option<bool>,
+    /// Compile with top-level await support enabled.
+    pub promise: Option<bool>,
+}
+
+impl Default for JsScriptBytecodeOptions {
+    fn default() -> Self {
+        Self {
+            endianness: Some(JsBytecodeEndianness::Little),
+            strip_source: Some(true),
+            strip_debug: Some(true),
+            strict: Some(true),
+            backtrace_barrier: Some(false),
+            promise: Some(false),
+        }
+    }
+}
+
+impl JsScriptBytecodeOptions {
+    /// Creates script bytecode options suitable for distribution.
+    ///
+    /// Defaults:
+    /// - little-endian output
+    /// - `stripSource: true`
+    /// - `stripDebug: true`
+    /// - `strict: true`
+    /// - `backtraceBarrier: false`
+    /// - `promise: false`
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final options = JsScriptBytecodeOptions.defaults().copyWith(
+    ///   promise: true,
+    /// );
+    ///
+    /// final script = await JsBytecode.compileScript(
+    ///   name: 'bootstrap.js',
+    ///   source: JsCode.code('await Promise.resolve("ready")'),
+    ///   options: options,
+    /// );
+    /// ```
+    #[frb(sync)]
+    pub fn defaults() -> Self {
+        Self::default()
+    }
+}
+
+impl From<JsScriptBytecodeOptions> for WriteOptions {
+    fn from(value: JsScriptBytecodeOptions) -> Self {
+        let endianness = match value.endianness.unwrap_or_default() {
+            JsBytecodeEndianness::Native => WriteOptionsEndianness::Native,
+            JsBytecodeEndianness::Little => WriteOptionsEndianness::Little,
+            JsBytecodeEndianness::Big => WriteOptionsEndianness::Big,
+        };
+
+        WriteOptions {
+            endianness,
+            strip_source: value.strip_source.unwrap_or(true),
+            strip_debug: value.strip_debug.unwrap_or(true),
+            ..Default::default()
+        }
+    }
+}
+
+/// Serialized QuickJS bytecode for a classic global script.
+///
+/// Unlike module bytecode, the `name` acts as compile-time metadata and source filename.
+/// QuickJS does not expose an embedded script name that can be verified on load, so
+/// validation is structural only.
+#[frb(dart_metadata = ("freezed"))]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct JsScriptBytecode {
+    /// Logical script name and compile-time filename.
+    pub name: String,
+    /// Serialized QuickJS script bytecode.
+    pub bytes: Vec<u8>,
+}
+
+impl JsScriptBytecode {
+    /// Creates a new script bytecode container.
+    ///
+    /// Use this when restoring previously persisted classic-script bytecode.
+    /// Unlike module bytecode, the `name` is descriptive metadata and is not
+    /// verified against the payload on load.
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// final restored = JsScriptBytecode(
+    ///   name: 'bootstrap.js',
+    ///   bytes: storedBytes,
+    /// );
+    /// ```
+    #[frb(sync)]
+    pub fn new(name: String, bytes: Vec<u8>) -> Self {
+        Self { name, bytes }
     }
 }
 
@@ -273,7 +599,7 @@ impl JsEvalOptions {
     /// Default settings:
     /// - global: true
     /// - strict: true
-    /// - backtrace_barrier: false
+    /// - backtraceBarrier: false
     /// - promise: false
     ///
     /// ## Returns
@@ -366,9 +692,9 @@ impl From<JsEvalOptions> for rquickjs::context::EvalOptions {
 ///
 /// // Custom configuration
 /// final opts4 = JsBuiltinOptions(
-///   console: Some(true),
-///   timers: Some(true),
-///   // ... other options
+///   console: true,
+///   timers: true,
+///   fetch: true,
 /// );
 /// ```
 #[frb(dart_metadata = ("freezed"))]
@@ -376,18 +702,20 @@ impl From<JsEvalOptions> for rquickjs::context::EvalOptions {
 pub struct JsBuiltinOptions {
     /// Enable abort functionality
     pub abort: Option<bool>,
-    /// Enable assert module
+    /// Enable the `assert` module
     pub assert: Option<bool>,
-    /// Enable async_hooks module
+    /// Enable the `asyncHooks` module
     pub async_hooks: Option<bool>,
     /// Enable buffer module
     pub buffer: Option<bool>,
-    /// Enable child_process module
+    /// Enable the `childProcess` module
     pub child_process: Option<bool>,
     /// Enable console module
     pub console: Option<bool>,
     /// Enable crypto module
     pub crypto: Option<bool>,
+    /// Enable dgram module
+    pub dgram: Option<bool>,
     /// Enable dns module
     pub dns: Option<bool>,
     /// Enable events module
@@ -398,6 +726,10 @@ pub struct JsBuiltinOptions {
     pub fetch: Option<bool>,
     /// Enable fs module
     pub fs: Option<bool>,
+    /// Enable https module
+    pub https: Option<bool>,
+    /// Enable lightweight Intl.DateTimeFormat timezone support
+    pub intl: Option<bool>,
     /// Enable navigator object
     pub navigator: Option<bool>,
     /// Enable net module
@@ -406,14 +738,16 @@ pub struct JsBuiltinOptions {
     pub os: Option<bool>,
     /// Enable path module
     pub path: Option<bool>,
-    /// Enable perf_hooks module
+    /// Enable the `perfHooks` module
     pub perf_hooks: Option<bool>,
     /// Enable process module
     pub process: Option<bool>,
-    /// Enable stream_web module
+    /// Enable the `streamWeb` module
     pub stream_web: Option<bool>,
-    /// Enable string_decoder module
+    /// Enable the `stringDecoder` module
     pub string_decoder: Option<bool>,
+    /// Enable Temporal global
+    pub temporal: Option<bool>,
     /// Enable timers module
     pub timers: Option<bool>,
     /// Enable tty module
@@ -431,7 +765,7 @@ pub struct JsBuiltinOptions {
 impl JsBuiltinOptions {
     /// Creates builtin options with all modules enabled.
     ///
-    /// This enables every available Node.js-compatible builtin module,
+    /// This enables every available builtin module,
     /// providing maximum compatibility at the cost of larger binary size.
     ///
     /// ## Returns
@@ -454,11 +788,14 @@ impl JsBuiltinOptions {
             child_process: Some(true),
             console: Some(true),
             crypto: Some(true),
+            dgram: Some(true),
             dns: Some(true),
             events: Some(true),
             exceptions: Some(true),
             fetch: Some(true),
             fs: Some(true),
+            https: Some(true),
+            intl: Some(true),
             navigator: Some(true),
             net: Some(true),
             os: Some(true),
@@ -467,6 +804,7 @@ impl JsBuiltinOptions {
             process: Some(true),
             stream_web: Some(true),
             string_decoder: Some(true),
+            temporal: Some(true),
             timers: Some(true),
             tty: Some(true),
             url: Some(true),
@@ -526,7 +864,7 @@ impl JsBuiltinOptions {
     /// Creates builtin options for web-like environment.
     ///
     /// Enables modules typically available in web browsers:
-    /// console, timers, fetch, url, crypto, stream_web, navigator, exceptions, json.
+    /// console, timers, fetch, url, crypto, streamWeb, navigator, exceptions, intl, json.
     ///
     /// ## Returns
     ///
@@ -546,6 +884,7 @@ impl JsBuiltinOptions {
             fetch: Some(true),
             url: Some(true),
             crypto: Some(true),
+            intl: Some(true),
             stream_web: Some(true),
             navigator: Some(true),
             exceptions: Some(true),
@@ -578,10 +917,13 @@ impl JsBuiltinOptions {
             buffer: Some(true),
             console: Some(true),
             crypto: Some(true),
+            dgram: Some(true),
             dns: Some(true),
             events: Some(true),
             exceptions: Some(true),
             fs: Some(true),
+            https: Some(true),
+            intl: Some(true),
             path: Some(true),
             perf_hooks: Some(true),
             process: Some(true),

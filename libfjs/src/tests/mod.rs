@@ -47,7 +47,7 @@ pub mod test_utils {
     {
         let rt = Runtime::new().unwrap();
         let ctx = Context::full(&rt).unwrap();
-        ctx.with(|ctx| f(ctx));
+        ctx.with(f);
     }
 
     /// Creates a test runtime with default settings.

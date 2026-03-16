@@ -37,6 +37,7 @@
 //! ```
 
 pub mod api;
+mod bytecode_support;
 mod frb_generated;
 
 #[cfg(test)]
