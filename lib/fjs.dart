@@ -25,7 +25,7 @@
 /// );
 ///
 /// // Create a context
-/// final context = await JsAsyncContext.from(runtime);
+/// final context = await JsAsyncContext.from(runtime: runtime);
 ///
 /// // Create an engine
 /// final engine = JsEngine(context: context);
@@ -46,12 +46,15 @@
 /// ```dart
 /// // Load a module from file
 /// await engine.declareNewModule(
-///   module: JsModule.path('utils', '/path/to/utils.js'),
+///   module: JsModule.path(module: 'utils', path: '/path/to/utils.js'),
 /// );
 ///
 /// // Execute a function from a module
 /// final result = await engine.eval(
-///   source: JsCode.code("import { add } from 'utils'; add(2, 3);"),
+///   source: JsCode.code('''
+///     const { add } = await import('utils');
+///     add(2, 3);
+///   '''),
 /// );
 /// ```
 ///
@@ -69,6 +72,7 @@
 library;
 
 // JavaScript API with high-level abstractions
+export 'src/frb/api/bytecode.dart';
 export 'src/frb/api/engine.dart';
 
 // Error handling

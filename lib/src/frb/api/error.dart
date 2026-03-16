@@ -146,21 +146,21 @@ sealed class JsError with _$JsError {
   /// ## Example
   ///
   /// ```dart
-  /// try {
-  ///   final result = await context.eval(code: 'invalid');
-  /// } catch (e) {
-  ///   if (e is JsError) {
-  ///     switch (e.code()) {
-  ///       case 'SYNTAX_ERROR':
-  ///         print('Syntax error in code');
-  ///         break;
-  ///       case 'RUNTIME_ERROR':
-  ///         print('Runtime error occurred');
-  ///         break;
-  ///       default:
-  ///         print('Other error: ${e.code()}');
-  ///     }
-  ///   }
+  /// const error = JsError.syntax(
+  ///   message: 'Unexpected token',
+  ///   line: 1,
+  ///   column: 10,
+  /// );
+  ///
+  /// switch (error.code()) {
+  ///   case 'SYNTAX_ERROR':
+  ///     print('Syntax error in code');
+  ///     break;
+  ///   case 'RUNTIME_ERROR':
+  ///     print('Runtime error occurred');
+  ///     break;
+  ///   default:
+  ///     print('Other error: ${error.code()}');
   /// }
   /// ```
   String code() => LibFjs.instance.api.crateApiErrorJsErrorCode(
@@ -182,17 +182,13 @@ sealed class JsError with _$JsError {
   /// ## Example
   ///
   /// ```dart
-  /// try {
-  ///   final result = await context.eval(code: code);
-  /// } catch (e) {
-  ///   if (e is JsError && e.isRecoverable()) {
-  ///     // Can retry the operation
-  ///     await Future.delayed(Duration(seconds: 1));
-  ///     await context.eval(code: code);
-  ///   } else {
-  ///     // Fatal error, cannot recover
-  ///     rethrow;
-  ///   }
+  /// final error = JsError.runtime('Temporary runtime failure');
+  ///
+  /// if (error.isRecoverable()) {
+  ///   await Future.delayed(const Duration(seconds: 1));
+  ///   print('Retrying operation...');
+  /// } else {
+  ///   print('Fatal error, cannot recover');
   /// }
   /// ```
   bool isRecoverable() => LibFjs.instance.api.crateApiErrorJsErrorIsRecoverable(
@@ -204,7 +200,6 @@ sealed class JsError with _$JsError {
   /// ## Returns
   ///
   /// A formatted string describing the error
-  @override
   String toString() => LibFjs.instance.api.crateApiErrorJsErrorToString(
         that: this,
       );

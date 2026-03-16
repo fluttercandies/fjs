@@ -21,11 +21,14 @@ mixin _$JsBuiltinOptions {
   bool? get childProcess;
   bool? get console;
   bool? get crypto;
+  bool? get dgram;
   bool? get dns;
   bool? get events;
   bool? get exceptions;
   bool? get fetch;
   bool? get fs;
+  bool? get https;
+  bool? get intl;
   bool? get navigator;
   bool? get net;
   bool? get os;
@@ -34,6 +37,7 @@ mixin _$JsBuiltinOptions {
   bool? get process;
   bool? get streamWeb;
   bool? get stringDecoder;
+  bool? get temporal;
   bool? get timers;
   bool? get tty;
   bool? get url;
@@ -63,12 +67,15 @@ mixin _$JsBuiltinOptions {
                 other.childProcess == childProcess) &&
             (identical(other.console, console) || other.console == console) &&
             (identical(other.crypto, crypto) || other.crypto == crypto) &&
+            (identical(other.dgram, dgram) || other.dgram == dgram) &&
             (identical(other.dns, dns) || other.dns == dns) &&
             (identical(other.events, events) || other.events == events) &&
             (identical(other.exceptions, exceptions) ||
                 other.exceptions == exceptions) &&
             (identical(other.fetch, fetch) || other.fetch == fetch) &&
             (identical(other.fs, fs) || other.fs == fs) &&
+            (identical(other.https, https) || other.https == https) &&
+            (identical(other.intl, intl) || other.intl == intl) &&
             (identical(other.navigator, navigator) ||
                 other.navigator == navigator) &&
             (identical(other.net, net) || other.net == net) &&
@@ -81,6 +88,8 @@ mixin _$JsBuiltinOptions {
                 other.streamWeb == streamWeb) &&
             (identical(other.stringDecoder, stringDecoder) ||
                 other.stringDecoder == stringDecoder) &&
+            (identical(other.temporal, temporal) ||
+                other.temporal == temporal) &&
             (identical(other.timers, timers) || other.timers == timers) &&
             (identical(other.tty, tty) || other.tty == tty) &&
             (identical(other.url, url) || other.url == url) &&
@@ -99,11 +108,14 @@ mixin _$JsBuiltinOptions {
         childProcess,
         console,
         crypto,
+        dgram,
         dns,
         events,
         exceptions,
         fetch,
         fs,
+        https,
+        intl,
         navigator,
         net,
         os,
@@ -112,6 +124,7 @@ mixin _$JsBuiltinOptions {
         process,
         streamWeb,
         stringDecoder,
+        temporal,
         timers,
         tty,
         url,
@@ -122,7 +135,7 @@ mixin _$JsBuiltinOptions {
 
   @override
   String toString() {
-    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
+    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dgram: $dgram, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, https: $https, intl: $intl, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, temporal: $temporal, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
   }
 }
 
@@ -140,11 +153,14 @@ abstract mixin class $JsBuiltinOptionsCopyWith<$Res> {
       bool? childProcess,
       bool? console,
       bool? crypto,
+      bool? dgram,
       bool? dns,
       bool? events,
       bool? exceptions,
       bool? fetch,
       bool? fs,
+      bool? https,
+      bool? intl,
       bool? navigator,
       bool? net,
       bool? os,
@@ -153,6 +169,7 @@ abstract mixin class $JsBuiltinOptionsCopyWith<$Res> {
       bool? process,
       bool? streamWeb,
       bool? stringDecoder,
+      bool? temporal,
       bool? timers,
       bool? tty,
       bool? url,
@@ -181,11 +198,14 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? childProcess = freezed,
     Object? console = freezed,
     Object? crypto = freezed,
+    Object? dgram = freezed,
     Object? dns = freezed,
     Object? events = freezed,
     Object? exceptions = freezed,
     Object? fetch = freezed,
     Object? fs = freezed,
+    Object? https = freezed,
+    Object? intl = freezed,
     Object? navigator = freezed,
     Object? net = freezed,
     Object? os = freezed,
@@ -194,6 +214,7 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? process = freezed,
     Object? streamWeb = freezed,
     Object? stringDecoder = freezed,
+    Object? temporal = freezed,
     Object? timers = freezed,
     Object? tty = freezed,
     Object? url = freezed,
@@ -230,6 +251,10 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
           ? _self.crypto
           : crypto // ignore: cast_nullable_to_non_nullable
               as bool?,
+      dgram: freezed == dgram
+          ? _self.dgram
+          : dgram // ignore: cast_nullable_to_non_nullable
+              as bool?,
       dns: freezed == dns
           ? _self.dns
           : dns // ignore: cast_nullable_to_non_nullable
@@ -249,6 +274,14 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
       fs: freezed == fs
           ? _self.fs
           : fs // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      https: freezed == https
+          ? _self.https
+          : https // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      intl: freezed == intl
+          ? _self.intl
+          : intl // ignore: cast_nullable_to_non_nullable
               as bool?,
       navigator: freezed == navigator
           ? _self.navigator
@@ -281,6 +314,10 @@ class _$JsBuiltinOptionsCopyWithImpl<$Res>
       stringDecoder: freezed == stringDecoder
           ? _self.stringDecoder
           : stringDecoder // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      temporal: freezed == temporal
+          ? _self.temporal
+          : temporal // ignore: cast_nullable_to_non_nullable
               as bool?,
       timers: freezed == timers
           ? _self.timers
@@ -409,11 +446,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? childProcess,
             bool? console,
             bool? crypto,
+            bool? dgram,
             bool? dns,
             bool? events,
             bool? exceptions,
             bool? fetch,
             bool? fs,
+            bool? https,
+            bool? intl,
             bool? navigator,
             bool? net,
             bool? os,
@@ -422,6 +462,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? process,
             bool? streamWeb,
             bool? stringDecoder,
+            bool? temporal,
             bool? timers,
             bool? tty,
             bool? url,
@@ -442,11 +483,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.childProcess,
             _that.console,
             _that.crypto,
+            _that.dgram,
             _that.dns,
             _that.events,
             _that.exceptions,
             _that.fetch,
             _that.fs,
+            _that.https,
+            _that.intl,
             _that.navigator,
             _that.net,
             _that.os,
@@ -455,6 +499,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.process,
             _that.streamWeb,
             _that.stringDecoder,
+            _that.temporal,
             _that.timers,
             _that.tty,
             _that.url,
@@ -489,11 +534,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? childProcess,
             bool? console,
             bool? crypto,
+            bool? dgram,
             bool? dns,
             bool? events,
             bool? exceptions,
             bool? fetch,
             bool? fs,
+            bool? https,
+            bool? intl,
             bool? navigator,
             bool? net,
             bool? os,
@@ -502,6 +550,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? process,
             bool? streamWeb,
             bool? stringDecoder,
+            bool? temporal,
             bool? timers,
             bool? tty,
             bool? url,
@@ -521,11 +570,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.childProcess,
             _that.console,
             _that.crypto,
+            _that.dgram,
             _that.dns,
             _that.events,
             _that.exceptions,
             _that.fetch,
             _that.fs,
+            _that.https,
+            _that.intl,
             _that.navigator,
             _that.net,
             _that.os,
@@ -534,6 +586,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.process,
             _that.streamWeb,
             _that.stringDecoder,
+            _that.temporal,
             _that.timers,
             _that.tty,
             _that.url,
@@ -565,11 +618,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? childProcess,
             bool? console,
             bool? crypto,
+            bool? dgram,
             bool? dns,
             bool? events,
             bool? exceptions,
             bool? fetch,
             bool? fs,
+            bool? https,
+            bool? intl,
             bool? navigator,
             bool? net,
             bool? os,
@@ -578,6 +634,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             bool? process,
             bool? streamWeb,
             bool? stringDecoder,
+            bool? temporal,
             bool? timers,
             bool? tty,
             bool? url,
@@ -597,11 +654,14 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.childProcess,
             _that.console,
             _that.crypto,
+            _that.dgram,
             _that.dns,
             _that.events,
             _that.exceptions,
             _that.fetch,
             _that.fs,
+            _that.https,
+            _that.intl,
             _that.navigator,
             _that.net,
             _that.os,
@@ -610,6 +670,7 @@ extension JsBuiltinOptionsPatterns on JsBuiltinOptions {
             _that.process,
             _that.streamWeb,
             _that.stringDecoder,
+            _that.temporal,
             _that.timers,
             _that.tty,
             _that.url,
@@ -633,11 +694,14 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
       this.childProcess,
       this.console,
       this.crypto,
+      this.dgram,
       this.dns,
       this.events,
       this.exceptions,
       this.fetch,
       this.fs,
+      this.https,
+      this.intl,
       this.navigator,
       this.net,
       this.os,
@@ -646,6 +710,7 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
       this.process,
       this.streamWeb,
       this.stringDecoder,
+      this.temporal,
       this.timers,
       this.tty,
       this.url,
@@ -669,6 +734,8 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
   @override
   final bool? crypto;
   @override
+  final bool? dgram;
+  @override
   final bool? dns;
   @override
   final bool? events;
@@ -678,6 +745,10 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
   final bool? fetch;
   @override
   final bool? fs;
+  @override
+  final bool? https;
+  @override
+  final bool? intl;
   @override
   final bool? navigator;
   @override
@@ -694,6 +765,8 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
   final bool? streamWeb;
   @override
   final bool? stringDecoder;
+  @override
+  final bool? temporal;
   @override
   final bool? timers;
   @override
@@ -729,12 +802,15 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
                 other.childProcess == childProcess) &&
             (identical(other.console, console) || other.console == console) &&
             (identical(other.crypto, crypto) || other.crypto == crypto) &&
+            (identical(other.dgram, dgram) || other.dgram == dgram) &&
             (identical(other.dns, dns) || other.dns == dns) &&
             (identical(other.events, events) || other.events == events) &&
             (identical(other.exceptions, exceptions) ||
                 other.exceptions == exceptions) &&
             (identical(other.fetch, fetch) || other.fetch == fetch) &&
             (identical(other.fs, fs) || other.fs == fs) &&
+            (identical(other.https, https) || other.https == https) &&
+            (identical(other.intl, intl) || other.intl == intl) &&
             (identical(other.navigator, navigator) ||
                 other.navigator == navigator) &&
             (identical(other.net, net) || other.net == net) &&
@@ -747,6 +823,8 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
                 other.streamWeb == streamWeb) &&
             (identical(other.stringDecoder, stringDecoder) ||
                 other.stringDecoder == stringDecoder) &&
+            (identical(other.temporal, temporal) ||
+                other.temporal == temporal) &&
             (identical(other.timers, timers) || other.timers == timers) &&
             (identical(other.tty, tty) || other.tty == tty) &&
             (identical(other.url, url) || other.url == url) &&
@@ -765,11 +843,14 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
         childProcess,
         console,
         crypto,
+        dgram,
         dns,
         events,
         exceptions,
         fetch,
         fs,
+        https,
+        intl,
         navigator,
         net,
         os,
@@ -778,6 +859,7 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
         process,
         streamWeb,
         stringDecoder,
+        temporal,
         timers,
         tty,
         url,
@@ -788,7 +870,7 @@ class _JsBuiltinOptions extends JsBuiltinOptions {
 
   @override
   String toString() {
-    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
+    return 'JsBuiltinOptions(abort: $abort, assert_: $assert_, asyncHooks: $asyncHooks, buffer: $buffer, childProcess: $childProcess, console: $console, crypto: $crypto, dgram: $dgram, dns: $dns, events: $events, exceptions: $exceptions, fetch: $fetch, fs: $fs, https: $https, intl: $intl, navigator: $navigator, net: $net, os: $os, path: $path, perfHooks: $perfHooks, process: $process, streamWeb: $streamWeb, stringDecoder: $stringDecoder, temporal: $temporal, timers: $timers, tty: $tty, url: $url, util: $util, zlib: $zlib, json: $json)';
   }
 }
 
@@ -808,11 +890,14 @@ abstract mixin class _$JsBuiltinOptionsCopyWith<$Res>
       bool? childProcess,
       bool? console,
       bool? crypto,
+      bool? dgram,
       bool? dns,
       bool? events,
       bool? exceptions,
       bool? fetch,
       bool? fs,
+      bool? https,
+      bool? intl,
       bool? navigator,
       bool? net,
       bool? os,
@@ -821,6 +906,7 @@ abstract mixin class _$JsBuiltinOptionsCopyWith<$Res>
       bool? process,
       bool? streamWeb,
       bool? stringDecoder,
+      bool? temporal,
       bool? timers,
       bool? tty,
       bool? url,
@@ -849,11 +935,14 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? childProcess = freezed,
     Object? console = freezed,
     Object? crypto = freezed,
+    Object? dgram = freezed,
     Object? dns = freezed,
     Object? events = freezed,
     Object? exceptions = freezed,
     Object? fetch = freezed,
     Object? fs = freezed,
+    Object? https = freezed,
+    Object? intl = freezed,
     Object? navigator = freezed,
     Object? net = freezed,
     Object? os = freezed,
@@ -862,6 +951,7 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
     Object? process = freezed,
     Object? streamWeb = freezed,
     Object? stringDecoder = freezed,
+    Object? temporal = freezed,
     Object? timers = freezed,
     Object? tty = freezed,
     Object? url = freezed,
@@ -898,6 +988,10 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
           ? _self.crypto
           : crypto // ignore: cast_nullable_to_non_nullable
               as bool?,
+      dgram: freezed == dgram
+          ? _self.dgram
+          : dgram // ignore: cast_nullable_to_non_nullable
+              as bool?,
       dns: freezed == dns
           ? _self.dns
           : dns // ignore: cast_nullable_to_non_nullable
@@ -917,6 +1011,14 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
       fs: freezed == fs
           ? _self.fs
           : fs // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      https: freezed == https
+          ? _self.https
+          : https // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      intl: freezed == intl
+          ? _self.intl
+          : intl // ignore: cast_nullable_to_non_nullable
               as bool?,
       navigator: freezed == navigator
           ? _self.navigator
@@ -949,6 +1051,10 @@ class __$JsBuiltinOptionsCopyWithImpl<$Res>
       stringDecoder: freezed == stringDecoder
           ? _self.stringDecoder
           : stringDecoder // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      temporal: freezed == temporal
+          ? _self.temporal
+          : temporal // ignore: cast_nullable_to_non_nullable
               as bool?,
       timers: freezed == timers
           ? _self.timers
@@ -2047,6 +2153,1662 @@ class __$JsModuleCopyWithImpl<$Res> implements _$JsModuleCopyWith<$Res> {
     return $JsCodeCopyWith<$Res>(_self.source, (value) {
       return _then(_self.copyWith(source: value));
     });
+  }
+}
+
+/// @nodoc
+mixin _$JsModuleBytecode {
+  String get name;
+  Uint8List get bytes;
+
+  /// Create a copy of JsModuleBytecode
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsModuleBytecodeCopyWith<JsModuleBytecode> get copyWith =>
+      _$JsModuleBytecodeCopyWithImpl<JsModuleBytecode>(
+          this as JsModuleBytecode, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsModuleBytecode &&
+            (identical(other.name, name) || other.name == name) &&
+            const DeepCollectionEquality().equals(other.bytes, bytes));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, name, const DeepCollectionEquality().hash(bytes));
+
+  @override
+  String toString() {
+    return 'JsModuleBytecode(name: $name, bytes: $bytes)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsModuleBytecodeCopyWith<$Res> {
+  factory $JsModuleBytecodeCopyWith(
+          JsModuleBytecode value, $Res Function(JsModuleBytecode) _then) =
+      _$JsModuleBytecodeCopyWithImpl;
+  @useResult
+  $Res call({String name, Uint8List bytes});
+}
+
+/// @nodoc
+class _$JsModuleBytecodeCopyWithImpl<$Res>
+    implements $JsModuleBytecodeCopyWith<$Res> {
+  _$JsModuleBytecodeCopyWithImpl(this._self, this._then);
+
+  final JsModuleBytecode _self;
+  final $Res Function(JsModuleBytecode) _then;
+
+  /// Create a copy of JsModuleBytecode
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? name = null,
+    Object? bytes = null,
+  }) {
+    return _then(_self.copyWith(
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      bytes: null == bytes
+          ? _self.bytes
+          : bytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+    ));
+  }
+}
+
+/// Adds pattern-matching-related methods to [JsModuleBytecode].
+extension JsModuleBytecodePatterns on JsModuleBytecode {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_JsModuleBytecode value)? raw,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecode() when raw != null:
+        return raw(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_JsModuleBytecode value) raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecode():
+        return raw(_that);
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_JsModuleBytecode value)? raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecode() when raw != null:
+        return raw(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String name, Uint8List bytes)? raw,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecode() when raw != null:
+        return raw(_that.name, _that.bytes);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String name, Uint8List bytes) raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecode():
+        return raw(_that.name, _that.bytes);
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String name, Uint8List bytes)? raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecode() when raw != null:
+        return raw(_that.name, _that.bytes);
+      case _:
+        return null;
+    }
+  }
+}
+
+/// @nodoc
+
+class _JsModuleBytecode extends JsModuleBytecode {
+  const _JsModuleBytecode({required this.name, required this.bytes})
+      : super._();
+
+  @override
+  final String name;
+  @override
+  final Uint8List bytes;
+
+  /// Create a copy of JsModuleBytecode
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$JsModuleBytecodeCopyWith<_JsModuleBytecode> get copyWith =>
+      __$JsModuleBytecodeCopyWithImpl<_JsModuleBytecode>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _JsModuleBytecode &&
+            (identical(other.name, name) || other.name == name) &&
+            const DeepCollectionEquality().equals(other.bytes, bytes));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, name, const DeepCollectionEquality().hash(bytes));
+
+  @override
+  String toString() {
+    return 'JsModuleBytecode.raw(name: $name, bytes: $bytes)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$JsModuleBytecodeCopyWith<$Res>
+    implements $JsModuleBytecodeCopyWith<$Res> {
+  factory _$JsModuleBytecodeCopyWith(
+          _JsModuleBytecode value, $Res Function(_JsModuleBytecode) _then) =
+      __$JsModuleBytecodeCopyWithImpl;
+  @override
+  @useResult
+  $Res call({String name, Uint8List bytes});
+}
+
+/// @nodoc
+class __$JsModuleBytecodeCopyWithImpl<$Res>
+    implements _$JsModuleBytecodeCopyWith<$Res> {
+  __$JsModuleBytecodeCopyWithImpl(this._self, this._then);
+
+  final _JsModuleBytecode _self;
+  final $Res Function(_JsModuleBytecode) _then;
+
+  /// Create a copy of JsModuleBytecode
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? name = null,
+    Object? bytes = null,
+  }) {
+    return _then(_JsModuleBytecode(
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      bytes: null == bytes
+          ? _self.bytes
+          : bytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+    ));
+  }
+}
+
+/// @nodoc
+mixin _$JsModuleBytecodeBundle {
+  String? get entry;
+  List<JsModuleBytecode> get modules;
+
+  /// Create a copy of JsModuleBytecodeBundle
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsModuleBytecodeBundleCopyWith<JsModuleBytecodeBundle> get copyWith =>
+      _$JsModuleBytecodeBundleCopyWithImpl<JsModuleBytecodeBundle>(
+          this as JsModuleBytecodeBundle, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsModuleBytecodeBundle &&
+            (identical(other.entry, entry) || other.entry == entry) &&
+            const DeepCollectionEquality().equals(other.modules, modules));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, entry, const DeepCollectionEquality().hash(modules));
+
+  @override
+  String toString() {
+    return 'JsModuleBytecodeBundle(entry: $entry, modules: $modules)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsModuleBytecodeBundleCopyWith<$Res> {
+  factory $JsModuleBytecodeBundleCopyWith(JsModuleBytecodeBundle value,
+          $Res Function(JsModuleBytecodeBundle) _then) =
+      _$JsModuleBytecodeBundleCopyWithImpl;
+  @useResult
+  $Res call({String? entry, List<JsModuleBytecode> modules});
+}
+
+/// @nodoc
+class _$JsModuleBytecodeBundleCopyWithImpl<$Res>
+    implements $JsModuleBytecodeBundleCopyWith<$Res> {
+  _$JsModuleBytecodeBundleCopyWithImpl(this._self, this._then);
+
+  final JsModuleBytecodeBundle _self;
+  final $Res Function(JsModuleBytecodeBundle) _then;
+
+  /// Create a copy of JsModuleBytecodeBundle
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? entry = freezed,
+    Object? modules = null,
+  }) {
+    return _then(_self.copyWith(
+      entry: freezed == entry
+          ? _self.entry
+          : entry // ignore: cast_nullable_to_non_nullable
+              as String?,
+      modules: null == modules
+          ? _self.modules
+          : modules // ignore: cast_nullable_to_non_nullable
+              as List<JsModuleBytecode>,
+    ));
+  }
+}
+
+/// Adds pattern-matching-related methods to [JsModuleBytecodeBundle].
+extension JsModuleBytecodeBundlePatterns on JsModuleBytecodeBundle {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_JsModuleBytecodeBundle value)? raw,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeBundle() when raw != null:
+        return raw(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_JsModuleBytecodeBundle value) raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeBundle():
+        return raw(_that);
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_JsModuleBytecodeBundle value)? raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeBundle() when raw != null:
+        return raw(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String? entry, List<JsModuleBytecode> modules)? raw,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeBundle() when raw != null:
+        return raw(_that.entry, _that.modules);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String? entry, List<JsModuleBytecode> modules)
+        raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeBundle():
+        return raw(_that.entry, _that.modules);
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String? entry, List<JsModuleBytecode> modules)? raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeBundle() when raw != null:
+        return raw(_that.entry, _that.modules);
+      case _:
+        return null;
+    }
+  }
+}
+
+/// @nodoc
+
+class _JsModuleBytecodeBundle extends JsModuleBytecodeBundle {
+  const _JsModuleBytecodeBundle(
+      {this.entry, required final List<JsModuleBytecode> modules})
+      : _modules = modules,
+        super._();
+
+  @override
+  final String? entry;
+  final List<JsModuleBytecode> _modules;
+  @override
+  List<JsModuleBytecode> get modules {
+    if (_modules is EqualUnmodifiableListView) return _modules;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_modules);
+  }
+
+  /// Create a copy of JsModuleBytecodeBundle
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$JsModuleBytecodeBundleCopyWith<_JsModuleBytecodeBundle> get copyWith =>
+      __$JsModuleBytecodeBundleCopyWithImpl<_JsModuleBytecodeBundle>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _JsModuleBytecodeBundle &&
+            (identical(other.entry, entry) || other.entry == entry) &&
+            const DeepCollectionEquality().equals(other._modules, _modules));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, entry, const DeepCollectionEquality().hash(_modules));
+
+  @override
+  String toString() {
+    return 'JsModuleBytecodeBundle.raw(entry: $entry, modules: $modules)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$JsModuleBytecodeBundleCopyWith<$Res>
+    implements $JsModuleBytecodeBundleCopyWith<$Res> {
+  factory _$JsModuleBytecodeBundleCopyWith(_JsModuleBytecodeBundle value,
+          $Res Function(_JsModuleBytecodeBundle) _then) =
+      __$JsModuleBytecodeBundleCopyWithImpl;
+  @override
+  @useResult
+  $Res call({String? entry, List<JsModuleBytecode> modules});
+}
+
+/// @nodoc
+class __$JsModuleBytecodeBundleCopyWithImpl<$Res>
+    implements _$JsModuleBytecodeBundleCopyWith<$Res> {
+  __$JsModuleBytecodeBundleCopyWithImpl(this._self, this._then);
+
+  final _JsModuleBytecodeBundle _self;
+  final $Res Function(_JsModuleBytecodeBundle) _then;
+
+  /// Create a copy of JsModuleBytecodeBundle
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? entry = freezed,
+    Object? modules = null,
+  }) {
+    return _then(_JsModuleBytecodeBundle(
+      entry: freezed == entry
+          ? _self.entry
+          : entry // ignore: cast_nullable_to_non_nullable
+              as String?,
+      modules: null == modules
+          ? _self._modules
+          : modules // ignore: cast_nullable_to_non_nullable
+              as List<JsModuleBytecode>,
+    ));
+  }
+}
+
+/// @nodoc
+mixin _$JsModuleBytecodeOptions {
+  JsBytecodeEndianness? get endianness;
+  bool? get stripSource;
+  bool? get stripDebug;
+
+  /// Create a copy of JsModuleBytecodeOptions
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsModuleBytecodeOptionsCopyWith<JsModuleBytecodeOptions> get copyWith =>
+      _$JsModuleBytecodeOptionsCopyWithImpl<JsModuleBytecodeOptions>(
+          this as JsModuleBytecodeOptions, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsModuleBytecodeOptions &&
+            (identical(other.endianness, endianness) ||
+                other.endianness == endianness) &&
+            (identical(other.stripSource, stripSource) ||
+                other.stripSource == stripSource) &&
+            (identical(other.stripDebug, stripDebug) ||
+                other.stripDebug == stripDebug));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, endianness, stripSource, stripDebug);
+
+  @override
+  String toString() {
+    return 'JsModuleBytecodeOptions(endianness: $endianness, stripSource: $stripSource, stripDebug: $stripDebug)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsModuleBytecodeOptionsCopyWith<$Res> {
+  factory $JsModuleBytecodeOptionsCopyWith(JsModuleBytecodeOptions value,
+          $Res Function(JsModuleBytecodeOptions) _then) =
+      _$JsModuleBytecodeOptionsCopyWithImpl;
+  @useResult
+  $Res call(
+      {JsBytecodeEndianness? endianness, bool? stripSource, bool? stripDebug});
+}
+
+/// @nodoc
+class _$JsModuleBytecodeOptionsCopyWithImpl<$Res>
+    implements $JsModuleBytecodeOptionsCopyWith<$Res> {
+  _$JsModuleBytecodeOptionsCopyWithImpl(this._self, this._then);
+
+  final JsModuleBytecodeOptions _self;
+  final $Res Function(JsModuleBytecodeOptions) _then;
+
+  /// Create a copy of JsModuleBytecodeOptions
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? endianness = freezed,
+    Object? stripSource = freezed,
+    Object? stripDebug = freezed,
+  }) {
+    return _then(_self.copyWith(
+      endianness: freezed == endianness
+          ? _self.endianness
+          : endianness // ignore: cast_nullable_to_non_nullable
+              as JsBytecodeEndianness?,
+      stripSource: freezed == stripSource
+          ? _self.stripSource
+          : stripSource // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      stripDebug: freezed == stripDebug
+          ? _self.stripDebug
+          : stripDebug // ignore: cast_nullable_to_non_nullable
+              as bool?,
+    ));
+  }
+}
+
+/// Adds pattern-matching-related methods to [JsModuleBytecodeOptions].
+extension JsModuleBytecodeOptionsPatterns on JsModuleBytecodeOptions {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_JsModuleBytecodeOptions value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeOptions() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_JsModuleBytecodeOptions value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeOptions():
+        return $default(_that);
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_JsModuleBytecodeOptions value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeOptions() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(JsBytecodeEndianness? endianness, bool? stripSource,
+            bool? stripDebug)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeOptions() when $default != null:
+        return $default(_that.endianness, _that.stripSource, _that.stripDebug);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(JsBytecodeEndianness? endianness, bool? stripSource,
+            bool? stripDebug)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeOptions():
+        return $default(_that.endianness, _that.stripSource, _that.stripDebug);
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(JsBytecodeEndianness? endianness, bool? stripSource,
+            bool? stripDebug)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _JsModuleBytecodeOptions() when $default != null:
+        return $default(_that.endianness, _that.stripSource, _that.stripDebug);
+      case _:
+        return null;
+    }
+  }
+}
+
+/// @nodoc
+
+class _JsModuleBytecodeOptions extends JsModuleBytecodeOptions {
+  const _JsModuleBytecodeOptions(
+      {this.endianness, this.stripSource, this.stripDebug})
+      : super._();
+
+  @override
+  final JsBytecodeEndianness? endianness;
+  @override
+  final bool? stripSource;
+  @override
+  final bool? stripDebug;
+
+  /// Create a copy of JsModuleBytecodeOptions
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$JsModuleBytecodeOptionsCopyWith<_JsModuleBytecodeOptions> get copyWith =>
+      __$JsModuleBytecodeOptionsCopyWithImpl<_JsModuleBytecodeOptions>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _JsModuleBytecodeOptions &&
+            (identical(other.endianness, endianness) ||
+                other.endianness == endianness) &&
+            (identical(other.stripSource, stripSource) ||
+                other.stripSource == stripSource) &&
+            (identical(other.stripDebug, stripDebug) ||
+                other.stripDebug == stripDebug));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, endianness, stripSource, stripDebug);
+
+  @override
+  String toString() {
+    return 'JsModuleBytecodeOptions(endianness: $endianness, stripSource: $stripSource, stripDebug: $stripDebug)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$JsModuleBytecodeOptionsCopyWith<$Res>
+    implements $JsModuleBytecodeOptionsCopyWith<$Res> {
+  factory _$JsModuleBytecodeOptionsCopyWith(_JsModuleBytecodeOptions value,
+          $Res Function(_JsModuleBytecodeOptions) _then) =
+      __$JsModuleBytecodeOptionsCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {JsBytecodeEndianness? endianness, bool? stripSource, bool? stripDebug});
+}
+
+/// @nodoc
+class __$JsModuleBytecodeOptionsCopyWithImpl<$Res>
+    implements _$JsModuleBytecodeOptionsCopyWith<$Res> {
+  __$JsModuleBytecodeOptionsCopyWithImpl(this._self, this._then);
+
+  final _JsModuleBytecodeOptions _self;
+  final $Res Function(_JsModuleBytecodeOptions) _then;
+
+  /// Create a copy of JsModuleBytecodeOptions
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? endianness = freezed,
+    Object? stripSource = freezed,
+    Object? stripDebug = freezed,
+  }) {
+    return _then(_JsModuleBytecodeOptions(
+      endianness: freezed == endianness
+          ? _self.endianness
+          : endianness // ignore: cast_nullable_to_non_nullable
+              as JsBytecodeEndianness?,
+      stripSource: freezed == stripSource
+          ? _self.stripSource
+          : stripSource // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      stripDebug: freezed == stripDebug
+          ? _self.stripDebug
+          : stripDebug // ignore: cast_nullable_to_non_nullable
+              as bool?,
+    ));
+  }
+}
+
+/// @nodoc
+mixin _$JsScriptBytecode {
+  String get name;
+  Uint8List get bytes;
+
+  /// Create a copy of JsScriptBytecode
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsScriptBytecodeCopyWith<JsScriptBytecode> get copyWith =>
+      _$JsScriptBytecodeCopyWithImpl<JsScriptBytecode>(
+          this as JsScriptBytecode, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsScriptBytecode &&
+            (identical(other.name, name) || other.name == name) &&
+            const DeepCollectionEquality().equals(other.bytes, bytes));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, name, const DeepCollectionEquality().hash(bytes));
+
+  @override
+  String toString() {
+    return 'JsScriptBytecode(name: $name, bytes: $bytes)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsScriptBytecodeCopyWith<$Res> {
+  factory $JsScriptBytecodeCopyWith(
+          JsScriptBytecode value, $Res Function(JsScriptBytecode) _then) =
+      _$JsScriptBytecodeCopyWithImpl;
+  @useResult
+  $Res call({String name, Uint8List bytes});
+}
+
+/// @nodoc
+class _$JsScriptBytecodeCopyWithImpl<$Res>
+    implements $JsScriptBytecodeCopyWith<$Res> {
+  _$JsScriptBytecodeCopyWithImpl(this._self, this._then);
+
+  final JsScriptBytecode _self;
+  final $Res Function(JsScriptBytecode) _then;
+
+  /// Create a copy of JsScriptBytecode
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? name = null,
+    Object? bytes = null,
+  }) {
+    return _then(_self.copyWith(
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      bytes: null == bytes
+          ? _self.bytes
+          : bytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+    ));
+  }
+}
+
+/// Adds pattern-matching-related methods to [JsScriptBytecode].
+extension JsScriptBytecodePatterns on JsScriptBytecode {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_JsScriptBytecode value)? raw,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecode() when raw != null:
+        return raw(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_JsScriptBytecode value) raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecode():
+        return raw(_that);
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_JsScriptBytecode value)? raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecode() when raw != null:
+        return raw(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String name, Uint8List bytes)? raw,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecode() when raw != null:
+        return raw(_that.name, _that.bytes);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String name, Uint8List bytes) raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecode():
+        return raw(_that.name, _that.bytes);
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String name, Uint8List bytes)? raw,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecode() when raw != null:
+        return raw(_that.name, _that.bytes);
+      case _:
+        return null;
+    }
+  }
+}
+
+/// @nodoc
+
+class _JsScriptBytecode extends JsScriptBytecode {
+  const _JsScriptBytecode({required this.name, required this.bytes})
+      : super._();
+
+  @override
+  final String name;
+  @override
+  final Uint8List bytes;
+
+  /// Create a copy of JsScriptBytecode
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$JsScriptBytecodeCopyWith<_JsScriptBytecode> get copyWith =>
+      __$JsScriptBytecodeCopyWithImpl<_JsScriptBytecode>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _JsScriptBytecode &&
+            (identical(other.name, name) || other.name == name) &&
+            const DeepCollectionEquality().equals(other.bytes, bytes));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, name, const DeepCollectionEquality().hash(bytes));
+
+  @override
+  String toString() {
+    return 'JsScriptBytecode.raw(name: $name, bytes: $bytes)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$JsScriptBytecodeCopyWith<$Res>
+    implements $JsScriptBytecodeCopyWith<$Res> {
+  factory _$JsScriptBytecodeCopyWith(
+          _JsScriptBytecode value, $Res Function(_JsScriptBytecode) _then) =
+      __$JsScriptBytecodeCopyWithImpl;
+  @override
+  @useResult
+  $Res call({String name, Uint8List bytes});
+}
+
+/// @nodoc
+class __$JsScriptBytecodeCopyWithImpl<$Res>
+    implements _$JsScriptBytecodeCopyWith<$Res> {
+  __$JsScriptBytecodeCopyWithImpl(this._self, this._then);
+
+  final _JsScriptBytecode _self;
+  final $Res Function(_JsScriptBytecode) _then;
+
+  /// Create a copy of JsScriptBytecode
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? name = null,
+    Object? bytes = null,
+  }) {
+    return _then(_JsScriptBytecode(
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      bytes: null == bytes
+          ? _self.bytes
+          : bytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+    ));
+  }
+}
+
+/// @nodoc
+mixin _$JsScriptBytecodeOptions {
+  JsBytecodeEndianness? get endianness;
+  bool? get stripSource;
+  bool? get stripDebug;
+  bool? get strict;
+  bool? get backtraceBarrier;
+  bool? get promise;
+
+  /// Create a copy of JsScriptBytecodeOptions
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $JsScriptBytecodeOptionsCopyWith<JsScriptBytecodeOptions> get copyWith =>
+      _$JsScriptBytecodeOptionsCopyWithImpl<JsScriptBytecodeOptions>(
+          this as JsScriptBytecodeOptions, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is JsScriptBytecodeOptions &&
+            (identical(other.endianness, endianness) ||
+                other.endianness == endianness) &&
+            (identical(other.stripSource, stripSource) ||
+                other.stripSource == stripSource) &&
+            (identical(other.stripDebug, stripDebug) ||
+                other.stripDebug == stripDebug) &&
+            (identical(other.strict, strict) || other.strict == strict) &&
+            (identical(other.backtraceBarrier, backtraceBarrier) ||
+                other.backtraceBarrier == backtraceBarrier) &&
+            (identical(other.promise, promise) || other.promise == promise));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, endianness, stripSource,
+      stripDebug, strict, backtraceBarrier, promise);
+
+  @override
+  String toString() {
+    return 'JsScriptBytecodeOptions(endianness: $endianness, stripSource: $stripSource, stripDebug: $stripDebug, strict: $strict, backtraceBarrier: $backtraceBarrier, promise: $promise)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $JsScriptBytecodeOptionsCopyWith<$Res> {
+  factory $JsScriptBytecodeOptionsCopyWith(JsScriptBytecodeOptions value,
+          $Res Function(JsScriptBytecodeOptions) _then) =
+      _$JsScriptBytecodeOptionsCopyWithImpl;
+  @useResult
+  $Res call(
+      {JsBytecodeEndianness? endianness,
+      bool? stripSource,
+      bool? stripDebug,
+      bool? strict,
+      bool? backtraceBarrier,
+      bool? promise});
+}
+
+/// @nodoc
+class _$JsScriptBytecodeOptionsCopyWithImpl<$Res>
+    implements $JsScriptBytecodeOptionsCopyWith<$Res> {
+  _$JsScriptBytecodeOptionsCopyWithImpl(this._self, this._then);
+
+  final JsScriptBytecodeOptions _self;
+  final $Res Function(JsScriptBytecodeOptions) _then;
+
+  /// Create a copy of JsScriptBytecodeOptions
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? endianness = freezed,
+    Object? stripSource = freezed,
+    Object? stripDebug = freezed,
+    Object? strict = freezed,
+    Object? backtraceBarrier = freezed,
+    Object? promise = freezed,
+  }) {
+    return _then(_self.copyWith(
+      endianness: freezed == endianness
+          ? _self.endianness
+          : endianness // ignore: cast_nullable_to_non_nullable
+              as JsBytecodeEndianness?,
+      stripSource: freezed == stripSource
+          ? _self.stripSource
+          : stripSource // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      stripDebug: freezed == stripDebug
+          ? _self.stripDebug
+          : stripDebug // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      strict: freezed == strict
+          ? _self.strict
+          : strict // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      backtraceBarrier: freezed == backtraceBarrier
+          ? _self.backtraceBarrier
+          : backtraceBarrier // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      promise: freezed == promise
+          ? _self.promise
+          : promise // ignore: cast_nullable_to_non_nullable
+              as bool?,
+    ));
+  }
+}
+
+/// Adds pattern-matching-related methods to [JsScriptBytecodeOptions].
+extension JsScriptBytecodeOptionsPatterns on JsScriptBytecodeOptions {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_JsScriptBytecodeOptions value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecodeOptions() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_JsScriptBytecodeOptions value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecodeOptions():
+        return $default(_that);
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_JsScriptBytecodeOptions value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecodeOptions() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(
+            JsBytecodeEndianness? endianness,
+            bool? stripSource,
+            bool? stripDebug,
+            bool? strict,
+            bool? backtraceBarrier,
+            bool? promise)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecodeOptions() when $default != null:
+        return $default(_that.endianness, _that.stripSource, _that.stripDebug,
+            _that.strict, _that.backtraceBarrier, _that.promise);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(
+            JsBytecodeEndianness? endianness,
+            bool? stripSource,
+            bool? stripDebug,
+            bool? strict,
+            bool? backtraceBarrier,
+            bool? promise)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecodeOptions():
+        return $default(_that.endianness, _that.stripSource, _that.stripDebug,
+            _that.strict, _that.backtraceBarrier, _that.promise);
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(
+            JsBytecodeEndianness? endianness,
+            bool? stripSource,
+            bool? stripDebug,
+            bool? strict,
+            bool? backtraceBarrier,
+            bool? promise)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _JsScriptBytecodeOptions() when $default != null:
+        return $default(_that.endianness, _that.stripSource, _that.stripDebug,
+            _that.strict, _that.backtraceBarrier, _that.promise);
+      case _:
+        return null;
+    }
+  }
+}
+
+/// @nodoc
+
+class _JsScriptBytecodeOptions extends JsScriptBytecodeOptions {
+  const _JsScriptBytecodeOptions(
+      {this.endianness,
+      this.stripSource,
+      this.stripDebug,
+      this.strict,
+      this.backtraceBarrier,
+      this.promise})
+      : super._();
+
+  @override
+  final JsBytecodeEndianness? endianness;
+  @override
+  final bool? stripSource;
+  @override
+  final bool? stripDebug;
+  @override
+  final bool? strict;
+  @override
+  final bool? backtraceBarrier;
+  @override
+  final bool? promise;
+
+  /// Create a copy of JsScriptBytecodeOptions
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$JsScriptBytecodeOptionsCopyWith<_JsScriptBytecodeOptions> get copyWith =>
+      __$JsScriptBytecodeOptionsCopyWithImpl<_JsScriptBytecodeOptions>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _JsScriptBytecodeOptions &&
+            (identical(other.endianness, endianness) ||
+                other.endianness == endianness) &&
+            (identical(other.stripSource, stripSource) ||
+                other.stripSource == stripSource) &&
+            (identical(other.stripDebug, stripDebug) ||
+                other.stripDebug == stripDebug) &&
+            (identical(other.strict, strict) || other.strict == strict) &&
+            (identical(other.backtraceBarrier, backtraceBarrier) ||
+                other.backtraceBarrier == backtraceBarrier) &&
+            (identical(other.promise, promise) || other.promise == promise));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, endianness, stripSource,
+      stripDebug, strict, backtraceBarrier, promise);
+
+  @override
+  String toString() {
+    return 'JsScriptBytecodeOptions(endianness: $endianness, stripSource: $stripSource, stripDebug: $stripDebug, strict: $strict, backtraceBarrier: $backtraceBarrier, promise: $promise)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$JsScriptBytecodeOptionsCopyWith<$Res>
+    implements $JsScriptBytecodeOptionsCopyWith<$Res> {
+  factory _$JsScriptBytecodeOptionsCopyWith(_JsScriptBytecodeOptions value,
+          $Res Function(_JsScriptBytecodeOptions) _then) =
+      __$JsScriptBytecodeOptionsCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {JsBytecodeEndianness? endianness,
+      bool? stripSource,
+      bool? stripDebug,
+      bool? strict,
+      bool? backtraceBarrier,
+      bool? promise});
+}
+
+/// @nodoc
+class __$JsScriptBytecodeOptionsCopyWithImpl<$Res>
+    implements _$JsScriptBytecodeOptionsCopyWith<$Res> {
+  __$JsScriptBytecodeOptionsCopyWithImpl(this._self, this._then);
+
+  final _JsScriptBytecodeOptions _self;
+  final $Res Function(_JsScriptBytecodeOptions) _then;
+
+  /// Create a copy of JsScriptBytecodeOptions
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? endianness = freezed,
+    Object? stripSource = freezed,
+    Object? stripDebug = freezed,
+    Object? strict = freezed,
+    Object? backtraceBarrier = freezed,
+    Object? promise = freezed,
+  }) {
+    return _then(_JsScriptBytecodeOptions(
+      endianness: freezed == endianness
+          ? _self.endianness
+          : endianness // ignore: cast_nullable_to_non_nullable
+              as JsBytecodeEndianness?,
+      stripSource: freezed == stripSource
+          ? _self.stripSource
+          : stripSource // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      stripDebug: freezed == stripDebug
+          ? _self.stripDebug
+          : stripDebug // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      strict: freezed == strict
+          ? _self.strict
+          : strict // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      backtraceBarrier: freezed == backtraceBarrier
+          ? _self.backtraceBarrier
+          : backtraceBarrier // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      promise: freezed == promise
+          ? _self.promise
+          : promise // ignore: cast_nullable_to_non_nullable
+              as bool?,
+    ));
   }
 }
 
