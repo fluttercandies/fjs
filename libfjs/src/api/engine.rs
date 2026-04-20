@@ -26,11 +26,12 @@ use crate::api::module::{
     is_dynamic_module_loaded, mark_dynamic_module_loaded,
 };
 use crate::api::runtime::{
-    JsAsyncContext, call_module_method, result_from_maybe_promise, result_from_promise,
+    JsAsyncContext, JsAsyncRuntime, MemoryUsage, call_module_method, result_from_maybe_promise,
+    result_from_promise,
 };
 use crate::api::source::{
-    JsCode, JsEvalOptions, JsModule, JsModuleBytecode, JsModuleBytecodeBundle, JsScriptBytecode,
-    get_raw_source_code,
+    JsBuiltinOptions, JsCode, JsEvalOptions, JsModule, JsModuleBytecode, JsModuleBytecodeBundle,
+    JsScriptBytecode, get_raw_source_code,
 };
 use crate::api::value::JsValue;
 use crate::bytecode_support::{
@@ -47,11 +48,21 @@ use std::sync::atomic::{AtomicU8, Ordering};
 /// Type alias for the bridge callback function.
 pub type BridgeCallback = dyn Fn(JsValue) -> DartFnFuture<JsResult> + Sync + Send + 'static;
 
+/// Runtime configuration applied when constructing a high-level `JsEngine`.
+#[frb(dart_metadata = ("freezed"))]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct JsEngineRuntimeOptions {
+    pub memory_limit: Option<usize>,
+    pub gc_threshold: Option<usize>,
+    pub max_stack_size: Option<usize>,
+    pub info: Option<String>,
+}
+
 /// Engine state constants
 const STATE_CREATED: u8 = 0;
 const STATE_INITIALIZING: u8 = 1;
 const STATE_RUNNING: u8 = 2;
-const STATE_DISPOSED: u8 = 3;
+const STATE_CLOSED: u8 = 3;
 
 /// The JavaScript engine.
 ///
@@ -60,68 +71,86 @@ const STATE_DISPOSED: u8 = 3;
 ///
 /// ## Lifecycle
 ///
-/// 1. Create an engine with `JsEngine.new(context)`
+/// 1. Create an engine with `JsEngine.create(...)`
 /// 2. Initialize it with `init(bridge)` or `initWithoutBridge()`
 /// 3. Execute JavaScript using `eval()`, `evaluateModule()`, or `call()`
-/// 4. Dispose when done with `dispose()`
+/// 4. Close when done with `close()`
 ///
 /// ## Example
 ///
 /// ```dart
-/// final runtime = await JsAsyncRuntime.withOptions();
-/// final context = await JsAsyncContext.from(runtime: runtime);
-/// final engine = JsEngine(context: context);
+/// final engine = await JsEngine.create(
+///   builtins: JsBuiltinOptions.essential(),
+/// );
 /// await engine.initWithoutBridge();
 /// final result = await engine.eval(source: JsCode.code('1 + 1'));
 /// print(result.value); // 2
-/// await engine.dispose();
+/// await engine.close();
 /// ```
 #[frb(opaque)]
 pub struct JsEngine {
+    runtime: JsAsyncRuntime,
     context: JsAsyncContext,
     state: AtomicU8,
 }
 
 impl JsEngine {
-    /// Creates a new JavaScript engine from an async context.
-    ///
-    /// The engine starts in a "created" state and must be initialized
-    /// with `init()` or `initWithoutBridge()` before use.
+    /// Creates a new JavaScript engine with custom runtime configuration.
     ///
     /// ## Parameters
-    /// - `context`: The async JavaScript execution context
-    ///
-    /// ## Returns
-    /// A new `JsEngine` instance
-    ///
-    /// ## Example
-    /// ```dart
-    /// final engine = JsEngine(context: context);
-    /// ```
-    #[frb(sync)]
-    pub fn new(context: &JsAsyncContext) -> anyhow::Result<Self> {
+    /// - `builtins`: Optional builtin module configuration
+    /// - `modules`: Optional list of additional modules to register
+    /// - `runtimeOptions`: Optional runtime-level limits and metadata applied
+    ///   before the engine context is created
+    pub async fn create(
+        builtins: Option<JsBuiltinOptions>,
+        modules: Option<Vec<JsModule>>,
+        runtime_options: Option<JsEngineRuntimeOptions>,
+    ) -> anyhow::Result<Self> {
+        let runtime = JsAsyncRuntime::create(builtins, modules).await?;
+        if let Some(options) = runtime_options {
+            if let Some(limit) = options.memory_limit {
+                runtime.set_memory_limit(limit).await;
+            }
+            if let Some(threshold) = options.gc_threshold {
+                runtime.set_gc_threshold(threshold).await;
+            }
+            if let Some(limit) = options.max_stack_size {
+                runtime.set_max_stack_size(limit).await;
+            }
+            if let Some(info) = options.info {
+                runtime.set_info(info).await?;
+            }
+        }
+        let context = JsAsyncContext::from(&runtime).await?;
+
         Ok(Self {
-            context: context.clone(),
+            runtime,
+            context,
             state: AtomicU8::new(STATE_CREATED),
         })
     }
 
-    /// Returns the underlying async context.
-    ///
-    /// This can be used to access lower-level context operations if needed.
-    /// The engine does not own the context; disposing the engine does not
-    /// dispose the returned context or its runtime.
-    #[frb(sync, getter)]
-    pub fn context(&self) -> JsAsyncContext {
-        self.context.clone()
+    #[cfg(test)]
+    pub(crate) fn new_for_test(runtime: JsAsyncRuntime, context: JsAsyncContext) -> Self {
+        Self {
+            runtime,
+            context,
+            state: AtomicU8::new(STATE_CREATED),
+        }
     }
 
-    /// Returns whether the engine has been disposed.
+    #[cfg(test)]
+    pub(crate) fn runtime_for_test(&self) -> JsAsyncRuntime {
+        self.runtime.clone()
+    }
+
+    /// Returns whether the engine has been closed.
     ///
-    /// Once disposed, the engine cannot be used anymore.
+    /// Once closed, the engine cannot be used anymore.
     #[frb(sync, getter)]
-    pub fn disposed(&self) -> bool {
-        self.state.load(Ordering::Acquire) == STATE_DISPOSED
+    pub fn closed(&self) -> bool {
+        self.state.load(Ordering::Acquire) == STATE_CLOSED
     }
 
     /// Returns whether the engine is running and ready for execution.
@@ -133,11 +162,21 @@ impl JsEngine {
         self.state.load(Ordering::Acquire) == STATE_RUNNING
     }
 
+    /// Ensures runtime-level controls can be used on this engine.
+    fn ensure_runtime_accessible(&self) -> anyhow::Result<()> {
+        match self.state.load(Ordering::Acquire) {
+            STATE_CREATED | STATE_RUNNING => Ok(()),
+            STATE_CLOSED => Err(anyhow!("Engine is closed")),
+            STATE_INITIALIZING => Err(anyhow!("Engine is initializing")),
+            _ => Err(anyhow!("Engine is in an invalid state")),
+        }
+    }
+
     /// Ensures the engine is in running state.
     fn ensure_running(&self) -> anyhow::Result<()> {
         match self.state.load(Ordering::Acquire) {
             STATE_RUNNING => Ok(()),
-            STATE_DISPOSED => Err(anyhow!("Engine is disposed")),
+            STATE_CLOSED => Err(anyhow!("Engine is closed")),
             STATE_INITIALIZING => Err(anyhow!("Engine is initializing")),
             STATE_CREATED => Err(anyhow!("Engine is not initialized")),
             _ => Err(anyhow!("Engine is in an invalid state")),
@@ -147,8 +186,8 @@ impl JsEngine {
     /// Transitions the engine into the initializing state.
     fn begin_init(&self) -> anyhow::Result<()> {
         let current = self.state.load(Ordering::Acquire);
-        if current == STATE_DISPOSED {
-            return Err(anyhow!("Engine is disposed"));
+        if current == STATE_CLOSED {
+            return Err(anyhow!("Engine is closed"));
         }
         if current == STATE_INITIALIZING {
             return Err(anyhow!("Engine is initializing"));
@@ -165,6 +204,65 @@ impl JsEngine {
                 Ordering::Acquire,
             )
             .map_err(|_| anyhow!("Failed to initialize engine - invalid state"))?;
+        Ok(())
+    }
+
+    /// Advances the engine-owned runtime by one scheduler step.
+    pub async fn execute_pending_job(&self) -> anyhow::Result<bool> {
+        self.ensure_runtime_accessible()?;
+        self.runtime.execute_pending_job().await
+    }
+
+    /// Runs the engine-owned runtime until quiescent.
+    pub async fn idle(&self) -> anyhow::Result<()> {
+        self.ensure_runtime_accessible()?;
+        self.runtime.idle().await;
+        Ok(())
+    }
+
+    /// Returns whether the engine-owned runtime still has work pending.
+    pub async fn is_job_pending(&self) -> anyhow::Result<bool> {
+        self.ensure_runtime_accessible()?;
+        Ok(self.runtime.is_job_pending().await)
+    }
+
+    /// Returns memory usage statistics for the engine-owned runtime.
+    pub async fn memory_usage(&self) -> anyhow::Result<MemoryUsage> {
+        self.ensure_runtime_accessible()?;
+        Ok(self.runtime.memory_usage().await)
+    }
+
+    /// Forces a garbage collection pass on the engine-owned runtime.
+    pub async fn run_gc(&self) -> anyhow::Result<()> {
+        self.ensure_runtime_accessible()?;
+        self.runtime.run_gc().await;
+        Ok(())
+    }
+
+    /// Sets the garbage collection threshold on the engine-owned runtime.
+    pub async fn set_gc_threshold(&self, threshold: usize) -> anyhow::Result<()> {
+        self.ensure_runtime_accessible()?;
+        self.runtime.set_gc_threshold(threshold).await;
+        Ok(())
+    }
+
+    /// Sets runtime metadata on the engine-owned runtime.
+    pub async fn set_info(&self, info: String) -> anyhow::Result<()> {
+        self.ensure_runtime_accessible()?;
+        self.runtime.set_info(info).await
+    }
+
+    /// Sets the max stack size on the engine-owned runtime.
+    pub async fn set_max_stack_size(&self, limit: usize) -> anyhow::Result<()> {
+        self.ensure_runtime_accessible()?;
+        self.runtime.set_max_stack_size(limit).await;
+        Ok(())
+    }
+
+    /// Sets the memory limit on the engine-owned runtime.
+    pub async fn set_memory_limit(&self, limit: usize) -> anyhow::Result<()> {
+        self.ensure_runtime_accessible()?;
+        self.runtime.set_memory_limit(limit).await;
         Ok(())
     }
 
@@ -191,19 +289,19 @@ impl JsEngine {
         );
     }
 
-    /// Marks the engine as disposed and returns the previous stable state.
-    fn begin_dispose(&self) -> anyhow::Result<u8> {
+    /// Marks the engine as closed and returns the previous stable state.
+    fn begin_close(&self) -> anyhow::Result<u8> {
         loop {
             let current = self.state.load(Ordering::Acquire);
             match current {
-                STATE_DISPOSED => return Err(anyhow!("Engine is already disposed")),
+                STATE_CLOSED => return Err(anyhow!("Engine is already closed")),
                 STATE_INITIALIZING => return Err(anyhow!("Engine is initializing")),
                 STATE_CREATED | STATE_RUNNING => {
                     if self
                         .state
                         .compare_exchange(
                             current,
-                            STATE_DISPOSED,
+                            STATE_CLOSED,
                             Ordering::AcqRel,
                             Ordering::Acquire,
                         )
@@ -227,7 +325,7 @@ impl JsEngine {
     ///   and returns a `JsResult` back to JavaScript
     ///
     /// ## Throws
-    /// - If the engine is already disposed
+    /// - If the engine is already closed
     /// - If the engine is already initialized
     /// - If initialization is already in progress
     ///
@@ -280,7 +378,7 @@ impl JsEngine {
     /// JavaScript code can still run, but `fjs.bridge_call()` will not be available.
     ///
     /// ## Throws
-    /// - If the engine is already disposed
+    /// - If the engine is already closed
     /// - If the engine is already initialized
     /// - If initialization is already in progress
     ///
@@ -316,29 +414,29 @@ impl JsEngine {
         Ok(())
     }
 
-    /// Disposes the engine and releases resources.
+    /// Closes the engine and releases resources.
     ///
-    /// After disposal, the engine wrapper cannot be used anymore.
+    /// After close, the engine wrapper cannot be used anymore.
     /// This detaches the `fjs` bridge object, drains pending runtime work,
-    /// and triggers a garbage collection pass, but it does not dispose the
-    /// underlying runtime or context.
+    /// and triggers a garbage collection pass, but it does not directly
+    /// release the underlying runtime or context objects.
     ///
     /// Pending timers, Promise callbacks, and other runtime tasks may run during
     /// this drain step. Errors raised by those drained jobs are handled by the
     /// underlying runtime and are not surfaced through this method.
     ///
     /// ## Throws
-    /// - If the engine is already disposed
+    /// - If the engine is already closed
     /// - If initialization is still in progress
     ///
     /// ## Example
     /// ```dart
-    /// await engine.dispose();
+    /// await engine.close();
     /// ```
-    pub async fn dispose(&self) -> anyhow::Result<()> {
-        let previous_state = self.begin_dispose()?;
+    pub async fn close(&self) -> anyhow::Result<()> {
+        let previous_state = self.begin_close()?;
 
-        if previous_state == STATE_RUNNING {
+        if previous_state == STATE_CREATED || previous_state == STATE_RUNNING {
             let _ = self
                 .context
                 .ctx
@@ -349,10 +447,10 @@ impl JsEngine {
                 })
                 .await;
 
-            if self.context.ctx.runtime().is_job_pending().await {
-                self.context.ctx.runtime().idle().await;
+            if self.runtime.is_job_pending().await {
+                self.runtime.idle().await;
             }
-            self.context.ctx.runtime().run_gc().await;
+            self.runtime.run_gc().await;
         }
 
         Ok(())
@@ -372,7 +470,7 @@ impl JsEngine {
     ///
     /// ## Throws
     /// - If the engine is not initialized
-    /// - If the engine is disposed
+    /// - If the engine is closed
     /// - If JavaScript execution fails
     ///
     /// ## Example
@@ -426,7 +524,7 @@ impl JsEngine {
     /// final bytecode = await JsBytecode.compile(
     ///   module: JsModule.code(
     ///     module: 'feature/config',
-    ///     code: 'export const version = "2.1.0";',
+    ///     code: 'export const version = "2.2.0";',
     ///   ),
     /// );
     ///
@@ -900,7 +998,7 @@ impl JsEngine {
     /// ```dart
     /// final script = await JsBytecode.compileScript(
     ///   name: 'bootstrap.js',
-    ///   source: JsCode.code('globalThis.appVersion = "2.1.0";'),
+    ///   source: JsCode.code('globalThis.appVersion = "2.2.0";'),
     /// );
     ///
     /// await engine.evaluateScriptBytecode(script: script);
@@ -1000,7 +1098,7 @@ impl JsEngine {
 
     /// Gets all modules available to this engine.
     ///
-    /// Returns builtin modules, statically configured extra modules,
+    /// Returns builtin modules, statically configured modules,
     /// and dynamically declared modules in a sorted list.
     ///
     /// ## Returns
@@ -1055,7 +1153,7 @@ impl JsEngine {
 
     /// Checks if a module is available to the engine.
     ///
-    /// This includes builtin modules, statically configured extra modules,
+    /// This includes builtin modules, statically configured modules,
     /// and dynamically declared modules.
     ///
     /// ## Parameters

@@ -17,9 +17,6 @@ class ErrorApiScreen extends StatefulWidget {
 
 class _ErrorApiScreenState extends State<ErrorApiScreen>
     with MountedStateMixin<ErrorApiScreen> {
-  // ignore: unused_field - retained to keep the opaque runtime alive
-  JsAsyncRuntime? _runtime;
-  JsAsyncContext? _context;
   JsEngine? _engine;
   // ignore: unused_field - used for internal state tracking
   bool _isInitialized = false;
@@ -29,8 +26,6 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
 
   JsEngine get _engineOrThrow =>
       _engine ?? (throw StateError('Engine not initialized'));
-  JsAsyncContext get _contextOrThrow =>
-      _context ?? (throw StateError('Context not initialized'));
 
   @override
   void initState() {
@@ -40,32 +35,24 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
 
   Future<void> _initializeEngine() async {
     setStateIfMounted(() => _isLoading = true);
-    JsAsyncRuntime? runtime;
-    JsAsyncContext? context;
     JsEngine? engine;
 
     try {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
       await engine.initWithoutBridge();
       if (!mounted) {
-        await engine.dispose();
+        await engine.close();
         return;
       }
 
-      _runtime = runtime;
-      _context = context;
       _engine = engine;
       setStateIfMounted(() => _isInitialized = true);
     } catch (e) {
-      _runtime = null;
-      _context = null;
       _engine = null;
       if (engine != null) {
-        await engine.dispose();
+        await engine.close();
       }
       if (kDebugMode) {
         debugPrint('Failed to initialize engine: $e');
@@ -76,14 +63,12 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
     }
   }
 
-  Future<void> _disposeCurrentEngine() async {
+  Future<void> _closeCurrentEngine() async {
     final engine = _engine;
-    _runtime = null;
-    _context = null;
     _engine = null;
 
     if (engine != null) {
-      await engine.dispose();
+      await engine.close();
     }
   }
 
@@ -114,7 +99,7 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
     final engine = _engine;
     _engine = null;
     if (engine != null) {
-      unawaited(engine.dispose());
+      unawaited(engine.close());
     }
     super.dispose();
   }
@@ -128,7 +113,7 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () async {
-              await _disposeCurrentEngine();
+              await _closeCurrentEngine();
               setStateIfMounted(() {
                 _isInitialized = false;
                 _testResults.clear();
@@ -597,8 +582,8 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
           }),
         ),
         ApiTestCard(
-          title: 'Context eval() Result',
-          subtitle: 'Test actual context evaluation result',
+          title: 'Engine eval() Result',
+          subtitle: 'Test actual engine evaluation result',
           icon: Icons.science,
           isSuccess: _testResults['result_context']?.isSuccess,
           isLoading: _testResults['result_context']?.isLoading ?? false,
@@ -606,20 +591,25 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
           error: _testResults['result_context']?.error,
           onRun: () => _runTest('result_context', () async {
             // Test successful eval
-            final successResult = await _contextOrThrow.eval(code: '1 + 2 + 3');
+            final successResult = await _engineOrThrow.eval(
+                source: const JsCode.code('1 + 2 + 3'));
 
             // Test error eval
-            final errorResult =
-                await _contextOrThrow.eval(code: 'undefinedVar');
+            Object? errorResult;
+            try {
+              await _engineOrThrow.eval(
+                  source: const JsCode.code('undefinedVar'));
+            } catch (error) {
+              errorResult = error;
+            }
 
             return {
               'success': {
-                'isOk': successResult.isOk,
-                'value': successResult.isOk ? successResult.ok.value : null,
+                'value': successResult.value,
               },
               'error': {
-                'isErr': errorResult.isErr,
-                'error': errorResult.isErr ? errorResult.err.toString() : null,
+                'thrown': errorResult != null,
+                'error': errorResult?.toString(),
               },
             };
           }),

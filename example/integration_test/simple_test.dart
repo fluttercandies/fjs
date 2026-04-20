@@ -352,8 +352,8 @@ void main() {
     late JsContext context;
 
     setUp(() async {
-      runtime = await JsRuntime.withOptions(
-        builtin: JsBuiltinOptions.essential(),
+      runtime = await JsRuntime.create(
+        builtins: JsBuiltinOptions.essential(),
       );
       context = JsContext.from(runtime: runtime);
     });
@@ -543,8 +543,8 @@ void main() {
     late JsAsyncContext context;
 
     setUp(() async {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.essential(),
+      runtime = await JsAsyncRuntime.create(
+        builtins: JsBuiltinOptions.essential(),
       );
       context = await JsAsyncContext.from(runtime: runtime);
     });
@@ -603,21 +603,17 @@ void main() {
   });
 
   group('JsEngine Advanced Tests', () {
-    late JsAsyncRuntime runtime;
-    late JsAsyncContext context;
     late JsEngine engine;
 
     setUp(() async {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
     });
 
     tearDown(() async {
-      if (!engine.disposed) {
-        await engine.dispose();
+      if (!engine.closed) {
+        await engine.close();
       }
     });
 
@@ -943,12 +939,12 @@ void main() {
       );
     });
 
-    test('Engine disposal', () async {
+    test('Engine close', () async {
       await engine.initWithoutBridge();
-      expect(engine.disposed, false);
+      expect(engine.closed, false);
 
-      await engine.dispose();
-      expect(engine.disposed, true);
+      await engine.close();
+      expect(engine.closed, true);
     });
 
     test('Duplicate initialization should throw', () async {
@@ -960,9 +956,9 @@ void main() {
       );
     });
 
-    test('Use after disposal should throw', () async {
+    test('Use after close should throw', () async {
       await engine.initWithoutBridge();
-      await engine.dispose();
+      await engine.close();
 
       expect(
         () => engine.eval(source: const JsCode.code('1 + 1')),
@@ -989,22 +985,18 @@ void main() {
   });
 
   group('ES6+ Features Tests', () {
-    late JsAsyncRuntime runtime;
-    late JsAsyncContext context;
     late JsEngine engine;
 
     setUp(() async {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
 
     tearDown(() async {
-      if (!engine.disposed) {
-        await engine.dispose();
+      if (!engine.closed) {
+        await engine.close();
       }
     });
 
@@ -1191,22 +1183,18 @@ void main() {
   });
 
   group('Builtin Modules Tests', () {
-    late JsAsyncRuntime runtime;
-    late JsAsyncContext context;
     late JsEngine engine;
 
     setUp(() async {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
 
     tearDown(() async {
-      if (!engine.disposed) {
-        await engine.dispose();
+      if (!engine.closed) {
+        await engine.close();
       }
     });
 
@@ -1279,11 +1267,9 @@ void main() {
 
   group('Performance and Stability Tests', () {
     test('Heavy computation', () async {
-      final runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.essential(),
+      final engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.essential(),
       );
-      final context = await JsAsyncContext.from(runtime: runtime);
-      final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
       final result = await engine.eval(
@@ -1297,15 +1283,13 @@ void main() {
       );
       expect(result.value, equals(49995000));
 
-      await engine.dispose();
+      await engine.close();
     });
 
     test('Large array processing', () async {
-      final runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.essential(),
+      final engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.essential(),
       );
-      final context = await JsAsyncContext.from(runtime: runtime);
-      final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
       final result = await engine.eval(
@@ -1316,15 +1300,13 @@ void main() {
       );
       expect(result.value, equals(499500));
 
-      await engine.dispose();
+      await engine.close();
     });
 
     test('Multiple evaluations', () async {
-      final runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.essential(),
+      final engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.essential(),
       );
-      final context = await JsAsyncContext.from(runtime: runtime);
-      final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
       for (int i = 0; i < 100; i++) {
@@ -1332,18 +1314,16 @@ void main() {
         expect(result.value, equals(i * 2));
       }
 
-      await engine.dispose();
+      await engine.close();
     });
 
     test('Multiple engine instances', () async {
       final engines = <JsEngine>[];
 
       for (int i = 0; i < 5; i++) {
-        final runtime = await JsAsyncRuntime.withOptions(
-          builtin: JsBuiltinOptions.essential(),
+        final engine = await JsEngine.create(
+          builtins: JsBuiltinOptions.essential(),
         );
-        final context = await JsAsyncContext.from(runtime: runtime);
-        final engine = JsEngine(context: context);
         await engine.initWithoutBridge();
         engines.add(engine);
       }
@@ -1361,28 +1341,24 @@ void main() {
 
       // Cleanup
       for (final engine in engines) {
-        await engine.dispose();
+        await engine.close();
       }
     });
   });
 
   group('Promise and Async Edge Cases', () {
-    late JsAsyncRuntime runtime;
-    late JsAsyncContext context;
     late JsEngine engine;
 
     setUp(() async {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
 
     tearDown(() async {
-      if (!engine.disposed) {
-        await engine.dispose();
+      if (!engine.closed) {
+        await engine.close();
       }
     });
 
@@ -1529,22 +1505,18 @@ void main() {
   });
 
   group('Edge Cases and Boundary Tests', () {
-    late JsAsyncRuntime runtime;
-    late JsAsyncContext context;
     late JsEngine engine;
 
     setUp(() async {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
 
     tearDown(() async {
-      if (!engine.disposed) {
-        await engine.dispose();
+      if (!engine.closed) {
+        await engine.close();
       }
     });
 
@@ -1718,22 +1690,18 @@ void main() {
   });
 
   group('Error Handling Edge Cases', () {
-    late JsAsyncRuntime runtime;
-    late JsAsyncContext context;
     late JsEngine engine;
 
     setUp(() async {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
       await engine.initWithoutBridge();
     });
 
     tearDown(() async {
-      if (!engine.disposed) {
-        await engine.dispose();
+      if (!engine.closed) {
+        await engine.close();
       }
     });
 
@@ -1796,21 +1764,17 @@ void main() {
   });
 
   group('Bridge Call Edge Cases', () {
-    late JsAsyncRuntime runtime;
-    late JsAsyncContext context;
     late JsEngine engine;
 
     setUp(() async {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.essential(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
     });
 
     tearDown(() async {
-      if (!engine.disposed) {
-        await engine.dispose();
+      if (!engine.closed) {
+        await engine.close();
       }
     });
 
@@ -1947,15 +1911,12 @@ void main() {
 
   group('Memory and Resource Tests', () {
     test('Memory limit enforcement', () async {
-      final runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.essential(),
+      final engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.essential(),
+        runtimeOptions: JsEngineRuntimeOptions(
+          memoryLimit: BigInt.from(1024 * 1024),
+        ),
       );
-      final context = await JsAsyncContext.from(runtime: runtime);
-
-      // Set a small memory limit
-      await runtime.setMemoryLimit(limit: BigInt.from(1024 * 1024)); // 1MB
-
-      final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
       // This should work with small data
@@ -1964,45 +1925,57 @@ void main() {
       );
       expect(smallResult.value, equals(3));
 
-      await engine.dispose();
+      expect(
+        () => engine.eval(
+          source: const JsCode.code('new Array(10000000).fill({})'),
+        ),
+        throwsAnyhowException(),
+      );
+
+      await engine.close();
     });
 
     test('Garbage collection', () async {
-      final runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.essential(),
+      final engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.essential(),
       );
-      final context = await JsAsyncContext.from(runtime: runtime);
-      final engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
-      // Create and discard objects
-      for (int i = 0; i < 100; i++) {
-        await engine.eval(
-          source:
-              JsCode.code('const obj$i = { data: new Array(100).fill($i) };'),
-        );
-      }
+      final allocated = await engine.eval(
+        source: const JsCode.code(r'''
+          globalThis.__gcObjects = [];
+          for (let i = 0; i < 1000; i++) {
+            globalThis.__gcObjects.push({ data: new Array(100).fill(i) });
+          }
+          globalThis.__gcObjects.length
+        '''),
+      );
+      expect(allocated.value, equals(1000));
 
-      // Force GC
-      await runtime.runGc();
+      final beforeGc = await engine.memoryUsage();
+      expect(beforeGc.totalMemory, greaterThan(0));
+
+      await engine.eval(
+          source: const JsCode.code('globalThis.__gcObjects = null'));
+      await engine.runGc();
+
+      final afterGc = await engine.memoryUsage();
+      expect(afterGc.totalMemory, greaterThan(0));
 
       // Engine should still work
       final result = await engine.eval(source: const JsCode.code('1 + 1'));
       expect(result.value, equals(2));
 
-      await engine.dispose();
+      await engine.close();
     });
 
     test('Context isolation', () async {
-      final runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.essential(),
+      final engine1 = await JsEngine.create(
+        builtins: JsBuiltinOptions.essential(),
       );
-
-      final context1 = await JsAsyncContext.from(runtime: runtime);
-      final context2 = await JsAsyncContext.from(runtime: runtime);
-
-      final engine1 = JsEngine(context: context1);
-      final engine2 = JsEngine(context: context2);
+      final engine2 = await JsEngine.create(
+        builtins: JsBuiltinOptions.essential(),
+      );
 
       await engine1.initWithoutBridge();
       await engine2.initWithoutBridge();
@@ -2017,8 +1990,8 @@ void main() {
       );
       expect(result.value, equals('undefined'));
 
-      await engine1.dispose();
-      await engine2.dispose();
+      await engine1.close();
+      await engine2.close();
     });
   });
 }

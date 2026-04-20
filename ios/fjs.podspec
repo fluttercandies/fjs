@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'fjs'
-  s.version          = '1.0.0'
+  s.version          = '2.2.0'
   s.summary          = 'A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS.'
   s.description      = <<-DESC
 A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS.
@@ -22,8 +22,6 @@ A high-performance JavaScript runtime for Flutter applications, built with Rust 
   s.dependency 'Flutter'
   s.platform = :ios, '12.0'
 
-  # Flutter.framework does not contain a i386 slice.
-  # Remove the old single line configuration
   s.swift_version = '5.0'
 
   s.script_phase = {
@@ -40,9 +38,7 @@ A high-performance JavaScript runtime for Flutter applications, built with Rust 
     'DEFINES_MODULE' => 'YES',
     # Exclude architectures for iOS simulator only:
     # - i386: Flutter.framework does not contain a i386 slice
-    # - arm64: rquickjs build issues on aarch64-apple-ios-sim target
-    # Note: This ONLY affects iOS simulator, real iOS devices (arm64) work normally
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 arm64',
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
     'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libfjs.a',
   }
 end

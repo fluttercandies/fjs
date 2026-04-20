@@ -27,10 +27,6 @@ class _ExampleScreenState extends State<ExampleScreen>
   bool _isExecuting = false;
   int _selectedExampleIndex = 0;
 
-  // ignore: unused_field - retained to keep the opaque runtime/context alive
-  JsAsyncRuntime? _runtime;
-  // ignore: unused_field - retained to keep the opaque runtime/context alive
-  JsAsyncContext? _context;
   JsEngine? _engine;
 
   JsEngine get _engineOrThrow =>
@@ -40,11 +36,9 @@ class _ExampleScreenState extends State<ExampleScreen>
   void dispose() {
     _scrollController.dispose();
     final engine = _engine;
-    _runtime = null;
-    _context = null;
     _engine = null;
     if (engine != null) {
-      unawaited(engine.dispose());
+      unawaited(engine.close());
     }
     super.dispose();
   }
@@ -54,8 +48,6 @@ class _ExampleScreenState extends State<ExampleScreen>
 
     _addLog('⚠️ Initializing JavaScript engine...');
 
-    JsAsyncRuntime? runtime;
-    JsAsyncContext? context;
     JsEngine? engine;
 
     try {
@@ -65,15 +57,15 @@ class _ExampleScreenState extends State<ExampleScreen>
       final canvasBundle =
           await rootBundle.load('assets/examples/canvas.bundle.mjs');
 
-      // Create runtime with builtin modules and custom modules
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions(
+      // Create engine with builtin modules and custom modules
+      engine = await JsEngine.create(
+        builtins: const JsBuiltinOptions(
           console: true,
           fetch: true,
           timers: true,
           url: true,
         ),
-        additional: [
+        modules: [
           JsModule(
             name: 'canvas',
             source: JsCode.bytes(canvasBundle.buffer.asUint8List()),
@@ -85,22 +77,18 @@ class _ExampleScreenState extends State<ExampleScreen>
         ],
       );
 
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
       await engine.initWithoutBridge();
 
       if (!mounted) {
-        await engine.dispose();
+        await engine.close();
         return;
       }
 
-      _runtime = runtime;
-      _context = context;
       _engine = engine;
       _addLog('✅ Engine initialized with linkedom and canvas support!');
     } catch (_) {
       if (engine != null) {
-        await engine.dispose();
+        await engine.close();
       }
       rethrow;
     }

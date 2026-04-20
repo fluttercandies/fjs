@@ -17,10 +17,6 @@ class EngineApiScreen extends StatefulWidget {
 
 class _EngineApiScreenState extends State<EngineApiScreen>
     with MountedStateMixin<EngineApiScreen> {
-  // ignore: unused_field - retained to keep the opaque runtime/context alive
-  JsAsyncRuntime? _runtime;
-  // ignore: unused_field - retained to keep the opaque runtime/context alive
-  JsAsyncContext? _context;
   JsEngine? _engine;
   bool _isInitialized = false;
   bool _isLoading = false;
@@ -40,16 +36,12 @@ class _EngineApiScreenState extends State<EngineApiScreen>
 
   Future<void> _initializeEngine() async {
     setStateIfMounted(() => _isLoading = true);
-    JsAsyncRuntime? runtime;
-    JsAsyncContext? context;
     JsEngine? engine;
 
     try {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
       await engine.init(
         bridge: (value) async {
           if (kDebugMode) {
@@ -60,20 +52,16 @@ class _EngineApiScreenState extends State<EngineApiScreen>
         },
       );
       if (!mounted) {
-        await engine.dispose();
+        await engine.close();
         return;
       }
 
-      _runtime = runtime;
-      _context = context;
       _engine = engine;
       setStateIfMounted(() => _isInitialized = true);
     } catch (e) {
-      _runtime = null;
-      _context = null;
       _engine = null;
       if (engine != null) {
-        await engine.dispose();
+        await engine.close();
       }
       if (kDebugMode) {
         debugPrint('Failed to initialize engine: $e');
@@ -84,14 +72,12 @@ class _EngineApiScreenState extends State<EngineApiScreen>
     }
   }
 
-  Future<void> _disposeCurrentEngine() async {
+  Future<void> _closeCurrentEngine() async {
     final engine = _engine;
-    _runtime = null;
-    _context = null;
     _engine = null;
 
     if (engine != null) {
-      await engine.dispose();
+      await engine.close();
     }
   }
 
@@ -122,7 +108,7 @@ class _EngineApiScreenState extends State<EngineApiScreen>
     final engine = _engine;
     _engine = null;
     if (engine != null) {
-      unawaited(engine.dispose());
+      unawaited(engine.close());
     }
     _codeController.dispose();
     super.dispose();
@@ -137,7 +123,7 @@ class _EngineApiScreenState extends State<EngineApiScreen>
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () async {
-              await _disposeCurrentEngine();
+              await _closeCurrentEngine();
               setStateIfMounted(() {
                 _isInitialized = false;
                 _testResults.clear();
@@ -230,7 +216,7 @@ class _EngineApiScreenState extends State<EngineApiScreen>
                 ),
                 if (engine != null)
                   Text(
-                    'running: ${engine.running}, disposed: ${engine.disposed}',
+                    'running: ${engine.running}, closed: ${engine.closed}',
                     style: TextStyle(
                       fontSize: 12,
                       color: _isInitialized
@@ -262,15 +248,15 @@ class _EngineApiScreenState extends State<EngineApiScreen>
           }),
         ),
         ApiTestCard(
-          title: 'engine.disposed',
-          subtitle: 'Check if engine is disposed',
+          title: 'engine.closed',
+          subtitle: 'Check if engine is closed',
           icon: Icons.delete,
-          isSuccess: _testResults['disposed']?.isSuccess,
-          isLoading: _testResults['disposed']?.isLoading ?? false,
-          result: _testResults['disposed']?.result,
-          error: _testResults['disposed']?.error,
-          onRun: () => _runTest('disposed', () async {
-            return {'disposed': _engine?.disposed ?? true};
+          isSuccess: _testResults['closed']?.isSuccess,
+          isLoading: _testResults['closed']?.isLoading ?? false,
+          result: _testResults['closed']?.result,
+          error: _testResults['closed']?.error,
+          onRun: () => _runTest('closed', () async {
+            return {'closed': _engine?.closed ?? true};
           }),
         ),
       ],

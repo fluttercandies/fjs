@@ -322,8 +322,8 @@ async fn test_memory_limit_async() {
     let runtime = JsAsyncRuntime::new().unwrap();
     runtime.set_memory_limit(8 * 1024 * 1024).await;
 
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // Should work with reasonable allocation

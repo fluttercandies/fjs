@@ -38,6 +38,9 @@ class Environment {
   static List<String> get darwinArchs =>
       _getEnv("CARGOKIT_DARWIN_ARCHS").split(' ');
 
+  static String get iosDeploymentTarget =>
+      Platform.environment['IPHONEOS_DEPLOYMENT_TARGET'] ?? '12.0';
+
   // Gradle
   static String get minSdkVersion => _getEnv("CARGOKIT_MIN_SDK_VERSION");
   static String get ndkVersion => _getEnv("CARGOKIT_NDK_VERSION");

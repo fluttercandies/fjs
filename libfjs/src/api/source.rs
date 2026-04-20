@@ -776,7 +776,7 @@ impl JsBuiltinOptions {
     ///
     /// ```dart
     /// final opts = JsBuiltinOptions.all();
-    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// final runtime = await JsAsyncRuntime.create(builtins: opts);
     /// ```
     #[frb(sync)]
     pub fn all() -> Self {
@@ -827,7 +827,7 @@ impl JsBuiltinOptions {
     ///
     /// ```dart
     /// final opts = JsBuiltinOptions.none();
-    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// final runtime = await JsAsyncRuntime.create(builtins: opts);
     /// ```
     #[frb(sync)]
     pub fn none() -> Self {
@@ -847,7 +847,7 @@ impl JsBuiltinOptions {
     ///
     /// ```dart
     /// final opts = JsBuiltinOptions.essential();
-    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// final runtime = await JsAsyncRuntime.create(builtins: opts);
     /// ```
     #[frb(sync)]
     pub fn essential() -> Self {
@@ -874,7 +874,7 @@ impl JsBuiltinOptions {
     ///
     /// ```dart
     /// final opts = JsBuiltinOptions.web();
-    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// final runtime = await JsAsyncRuntime.create(builtins: opts);
     /// ```
     #[frb(sync)]
     pub fn web() -> Self {
@@ -906,7 +906,7 @@ impl JsBuiltinOptions {
     ///
     /// ```dart
     /// final opts = JsBuiltinOptions.node();
-    /// final runtime = await JsAsyncRuntime.withOptions(builtin: opts);
+    /// final runtime = await JsAsyncRuntime.create(builtins: opts);
     /// ```
     #[frb(sync)]
     pub fn node() -> Self {

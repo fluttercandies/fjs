@@ -315,21 +315,21 @@ async fn test_async_runtime_new() {
 
 #[tokio::test]
 async fn test_async_runtime_with_options_none() {
-    let runtime = JsAsyncRuntime::with_options(None, None).await;
+    let runtime = JsAsyncRuntime::create(None, None).await;
     assert!(runtime.is_ok());
 }
 
 #[tokio::test]
 async fn test_async_runtime_with_builtin_essential() {
     let builtin = JsBuiltinOptions::essential();
-    let runtime = JsAsyncRuntime::with_options(Some(builtin), None).await;
+    let runtime = JsAsyncRuntime::create(Some(builtin), None).await;
     assert!(runtime.is_ok());
 }
 
 #[tokio::test]
 async fn test_async_runtime_with_builtin_all() {
     let builtin = JsBuiltinOptions::all();
-    let runtime = JsAsyncRuntime::with_options(Some(builtin), None).await;
+    let runtime = JsAsyncRuntime::create(Some(builtin), None).await;
     assert!(runtime.is_ok());
 }
 
@@ -340,7 +340,7 @@ async fn test_async_runtime_with_additional_modules() {
         "test-module".to_string(),
         JsCode::Code("export const value = 42;".to_string()),
     );
-    let runtime = JsAsyncRuntime::with_options(None, Some(vec![module])).await;
+    let runtime = JsAsyncRuntime::create(None, Some(vec![module])).await;
     assert!(runtime.is_ok());
 }
 
@@ -382,7 +382,7 @@ async fn test_async_runtime_idle() {
 
 #[tokio::test]
 async fn test_async_context_eval_does_not_implicitly_idle_runtime() {
-    let runtime = JsAsyncRuntime::with_options(Some(JsBuiltinOptions::essential()), None)
+    let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::essential()), None)
         .await
         .unwrap();
     let context = JsAsyncContext::from(&runtime).await.unwrap();
@@ -434,7 +434,7 @@ async fn test_async_runtime_set_info() {
 
 #[tokio::test]
 async fn test_context_get_available_modules_includes_additional_modules() {
-    let runtime = JsRuntime::with_options(
+    let runtime = JsRuntime::create(
         Some(JsBuiltinOptions {
             path: Some(true),
             ..Default::default()
@@ -456,7 +456,7 @@ async fn test_context_get_available_modules_includes_additional_modules() {
 
 #[tokio::test]
 async fn test_async_context_get_available_modules_includes_dynamic_modules() {
-    let runtime = JsAsyncRuntime::with_options(
+    let runtime = JsAsyncRuntime::create(
         Some(JsBuiltinOptions {
             dgram: Some(true),
             ..Default::default()

@@ -42,20 +42,14 @@ import 'package:fjs/fjs.dart';
 void main() async {
   await LibFjs.init();
 
-  // Create runtime with builtin modules
-  final runtime = await JsAsyncRuntime.withOptions(
-    builtin: JsBuiltinOptions(
+  // Create engine with builtin modules
+  final engine = await JsEngine.create(
+    builtins: JsBuiltinOptions(
       console: true,
       fetch: true,
       timers: true,
     ),
   );
-
-  // Create context
-  final context = await JsAsyncContext.from(runtime: runtime);
-
-  // Create engine
-  final engine = JsEngine(context: context);
   await engine.init(bridge: (jsValue) {
     return JsResult.ok(JsValue.string('Hello from Dart'));
   });
@@ -67,7 +61,7 @@ void main() async {
   '''));
   print(result.value); // 3
 
-  await engine.dispose();
+  await engine.close();
 }
 ```
 
@@ -75,9 +69,9 @@ void main() async {
 
 ```dart
 // Create an async runtime with web-style builtins and one extra ES module.
-final runtime = await JsAsyncRuntime.withOptions(
-  builtin: JsBuiltinOptions.web(),
-  additional: [
+final runtime = await JsAsyncRuntime.create(
+  builtins: JsBuiltinOptions.web(),
+  modules: [
     JsModule.code(
       module: 'app/math',
       code: 'export function add(a, b) { return a + b; }',
@@ -137,8 +131,8 @@ Low-level context APIs return `JsResult`, which is useful when you want structur
 
 ```dart
 // Build a synchronous runtime when you do not need async JavaScript execution.
-final runtime = await JsRuntime.withOptions(
-  builtin: JsBuiltinOptions.essential(),
+final runtime = await JsRuntime.create(
+  builtins: JsBuiltinOptions.essential(),
 );
 final context = JsContext.from(runtime: runtime);
 
@@ -277,8 +271,8 @@ print('console: $hasConsole, llrt:xml: $hasXml');
 
 ## 🔄 Engine Lifecycle Notes
 
-- `JsEngine` wraps an existing `JsAsyncContext`; disposing the engine does not dispose the underlying context or runtime
-- `dispose()` detaches the `fjs` bridge object, drains pending runtime work, and then runs GC before the engine becomes unusable
+- `JsEngine` creates and owns its internal runtime/context when constructed via `create()`
+- `close()` detaches the `fjs` bridge object, drains pending runtime work, and then runs GC before the engine becomes unusable
 - `clearPendingModules()` only removes dynamic modules that have not been loaded into the current context yet
 - `declareNewModules()` and `declareNewBytecodeModules()` reject duplicate module names in a single request
 
@@ -480,9 +474,9 @@ await runtime.runGc();
 ```dart
 abstract class JsAsyncRuntime {
   factory JsAsyncRuntime();
-  static Future<JsAsyncRuntime> withOptions({
-    JsBuiltinOptions? builtin,
-    List<JsModule>? additional,
+  static Future<JsAsyncRuntime> create({
+    JsBuiltinOptions? builtins,
+    List<JsModule>? modules,
   });
 
   Future<bool> isJobPending();
@@ -518,9 +512,9 @@ abstract class JsAsyncContext {
 ```dart
 abstract class JsRuntime {
   factory JsRuntime();
-  static Future<JsRuntime> withOptions({
-    JsBuiltinOptions? builtin,
-    List<JsModule>? additional,
+  static Future<JsRuntime> create({
+    JsBuiltinOptions? builtins,
+    List<JsModule>? modules,
   });
 
   bool isJobPending();
@@ -548,7 +542,11 @@ abstract class JsContext {
 
 ```dart
 class JsEngine {
-  factory JsEngine({required JsAsyncContext context});
+  static Future<JsEngine> create({
+    JsBuiltinOptions? builtins,
+    List<JsModule>? modules,
+    JsEngineRuntimeOptions? runtimeOptions,
+  });
 
   Future<void> init({required FutureOr<JsResult> Function(JsValue) bridge});
   Future<void> initWithoutBridge();
@@ -570,10 +568,9 @@ class JsEngine {
   Future<JsValue> evaluateBytecodeModule({required JsModuleBytecode module});
   Future<JsValue> evaluateScriptBytecode({required JsScriptBytecode script});
 
-  Future<void> dispose(); // drains pending runtime work, then runs GC
+  Future<void> close(); // drains pending runtime work, then runs GC
   bool get running;
-  bool get disposed;
-  JsAsyncContext get context; // engine does not own the returned context
+  bool get closed;
 }
 ```
 

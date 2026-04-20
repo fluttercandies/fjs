@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.2.0
+
+* **BREAKING**: Renamed runtime and engine factory APIs from `withOptions(...)` to `create(...)`
+* **BREAKING**: Renamed factory parameters from `builtin`/`additional` to `builtins`/`modules`
+* **FEATURE**: Added `JsEngineRuntimeOptions` for engine-owned runtime limits and metadata during construction
+* **FEATURE**: Added runtime control proxies on `JsEngine`, including memory, GC, stack, scheduler, and info APIs
+* **FIX**: Kept `JsEngine` as the sole owner of its runtime/context while restoring access to runtime-level safety controls
+* **FIX**: Corrected engine integration tests to validate engine-owned runtime behavior instead of unrelated standalone runtimes
+* **FIX**: Restored and expanded lifecycle regression coverage for engine initialization and close state transitions
+* **DOCS**: Updated README, README_zh, FRB-generated API docs, and example app code to the final `create(...)` API
+* **INTERNAL**: Regenerated Flutter Rust Bridge bindings with `flutter_rust_bridge_codegen 2.12.0`
+* **INTERNAL**: Cleaned remaining Rust test warnings caused by unused async test contexts
+
 ## 2.1.0
 
 * **BREAKING**: Renamed `clearNewModules()` to `clearPendingModules()` to match its actual semantics; only not-yet-loaded dynamic modules can be cleared

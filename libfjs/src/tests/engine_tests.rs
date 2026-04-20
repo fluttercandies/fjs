@@ -12,7 +12,7 @@ use crate::api::source::{
     JsBuiltinOptions, JsCode, JsModule, JsModuleBytecode, JsScriptBytecode, JsScriptBytecodeOptions,
 };
 use crate::api::value::JsValue;
-use std::sync::{Arc, Condvar, Mutex, OnceLock};
+use std::sync::{Condvar, Mutex, OnceLock};
 
 fn failing_global_attachment(_ctx: &rquickjs::Ctx<'_>) -> rquickjs::Result<()> {
     Err(rquickjs::Error::new_from_js_message(
@@ -84,33 +84,93 @@ fn release_blocking_init_attachment() {
 // ============================================================================
 
 #[tokio::test]
-async fn test_engine_new() {
-    let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context);
+async fn test_engine_create() {
+    let engine = JsEngine::create(None, None, None).await;
     assert!(engine.is_ok());
 }
 
 #[tokio::test]
-async fn test_engine_initial_state() {
-    let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+async fn test_engine_create_owns_default_runtime_and_context() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
-    assert!(!engine.disposed());
+    engine.init_without_bridge().await.unwrap();
+    let result = engine
+        .eval(JsCode::Code("1 + 1".to_string()), None)
+        .await
+        .unwrap();
+
+    assert!(matches!(result, JsValue::Integer(2)));
+}
+
+#[tokio::test]
+async fn test_engine_create_owns_configured_runtime_and_context() {
+    let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+        .await
+        .unwrap();
+
+    engine.init_without_bridge().await.unwrap();
+    let result = engine
+        .eval(JsCode::Code("typeof setTimeout".to_string()), None)
+        .await
+        .unwrap();
+
+    assert!(matches!(result, JsValue::String(ref value) if value == "function"));
+}
+
+#[tokio::test]
+async fn test_engine_create_applies_runtime_options_before_init() {
+    let engine = JsEngine::create(
+        Some(JsBuiltinOptions::essential()),
+        None,
+        Some(crate::api::engine::JsEngineRuntimeOptions {
+            memory_limit: Some(1024 * 1024),
+            gc_threshold: Some(256 * 1024),
+            max_stack_size: Some(128 * 1024),
+            info: Some("engine-runtime".to_string()),
+        }),
+    )
+    .await
+    .unwrap();
+
+    let usage = engine.memory_usage().await.unwrap();
+    assert!(usage.total_memory() >= 0);
+}
+
+#[tokio::test]
+async fn test_engine_initial_state() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+
+    assert!(!engine.closed());
     assert!(!engine.running());
 }
 
 #[tokio::test]
+async fn test_engine_runtime_proxy_methods_work_before_init() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+
+    let pending = engine.is_job_pending().await.unwrap();
+    let usage = engine.memory_usage().await.unwrap();
+    engine.set_memory_limit(1024 * 1024).await.unwrap();
+    engine.set_gc_threshold(256 * 1024).await.unwrap();
+    engine.set_max_stack_size(128 * 1024).await.unwrap();
+    engine.set_info("before-init".to_string()).await.unwrap();
+    engine.run_gc().await.unwrap();
+    engine.idle().await.unwrap();
+    let progressed = engine.execute_pending_job().await.unwrap();
+
+    assert!(!pending);
+    assert!(usage.total_memory() >= 0);
+    assert!(!progressed);
+}
+
+#[tokio::test]
 async fn test_engine_init_without_bridge() {
-    let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     let result = engine.init_without_bridge().await;
     assert!(result.is_ok());
     assert!(engine.running());
-    assert!(!engine.disposed());
+    assert!(!engine.closed());
 }
 
 #[tokio::test]
@@ -122,7 +182,7 @@ async fn test_engine_init_failure_rolls_back_state() {
         ),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::new_for_test(runtime, context);
 
     let first_error = engine.init_without_bridge().await.unwrap_err();
     assert!(
@@ -142,7 +202,7 @@ async fn test_engine_init_failure_rolls_back_state() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_engine_is_not_running_while_initializing() {
+async fn test_engine_runtime_proxy_methods_fail_while_initializing() {
     prepare_blocking_init_attachment();
 
     let runtime = JsAsyncRuntime {
@@ -152,7 +212,7 @@ async fn test_engine_is_not_running_while_initializing() {
         ),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = Arc::new(JsEngine::new(&context).unwrap());
+    let engine = std::sync::Arc::new(JsEngine::new_for_test(runtime, context));
 
     let init_engine = engine.clone();
     let init_task = tokio::spawn(async move { init_engine.init_without_bridge().await });
@@ -161,28 +221,22 @@ async fn test_engine_is_not_running_while_initializing() {
         .await
         .unwrap();
 
-    assert!(!engine.running());
+    let usage_error = engine.memory_usage().await;
+    assert!(matches!(usage_error, Err(ref error) if error.to_string().contains("initializing")));
 
-    let eval_error = engine
-        .eval(JsCode::Code("1 + 1".to_string()), None)
-        .await
-        .unwrap_err();
-    assert!(eval_error.to_string().contains("initializing"));
+    let limit_error = engine.set_memory_limit(1024).await.unwrap_err();
+    assert!(limit_error.to_string().contains("initializing"));
 
-    let dispose_error = engine.dispose().await.unwrap_err();
-    assert!(dispose_error.to_string().contains("initializing"));
+    let close_error = engine.close().await.unwrap_err();
+    assert!(close_error.to_string().contains("initializing"));
 
     release_blocking_init_attachment();
-
     init_task.await.unwrap().unwrap();
-    assert!(engine.running());
 }
 
 #[tokio::test]
 async fn test_engine_init_with_bridge() {
-    let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     let result = engine
         .init(|value| {
@@ -195,14 +249,12 @@ async fn test_engine_init_with_bridge() {
 
     assert!(result.is_ok());
     assert!(engine.running());
-    engine.dispose().await.unwrap();
+    engine.close().await.unwrap();
 }
 
 #[tokio::test]
 async fn test_engine_double_init_fails() {
-    let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     let result1 = engine.init_without_bridge().await;
     assert!(result1.is_ok());
@@ -212,39 +264,44 @@ async fn test_engine_double_init_fails() {
 }
 
 #[tokio::test]
-async fn test_engine_dispose() {
-    let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+async fn test_engine_close() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     engine.init_without_bridge().await.unwrap();
-    let result = engine.dispose().await;
+    let result = engine.close().await;
 
     assert!(result.is_ok());
-    assert!(engine.disposed());
+    assert!(engine.closed());
     assert!(!engine.running());
 }
 
 #[tokio::test]
-async fn test_engine_double_dispose_fails() {
-    let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+async fn test_engine_double_close_fails() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     engine.init_without_bridge().await.unwrap();
-    engine.dispose().await.unwrap();
+    engine.close().await.unwrap();
 
-    let result = engine.dispose().await;
+    let result = engine.close().await;
     assert!(result.is_err());
 }
 
 #[tokio::test]
-async fn test_engine_dispose_drains_pending_runtime_work() {
-    let runtime = JsAsyncRuntime::with_options(Some(JsBuiltinOptions::essential()), None)
+async fn test_engine_close_marks_engine_closed() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+
+    engine.init_without_bridge().await.unwrap();
+    engine.close().await.unwrap();
+
+    assert!(engine.closed());
+    assert!(!engine.running());
+}
+
+#[tokio::test]
+async fn test_engine_close_drains_pending_runtime_work() {
+    let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
         .await
         .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let scheduled = engine
@@ -252,7 +309,7 @@ async fn test_engine_dispose_drains_pending_runtime_work() {
             JsCode::Code(
                 r#"
                     setTimeout(() => {
-                        globalThis.__dispose_timer_fired = true;
+                        globalThis.__close_timer_fired = true;
                     }, 10);
                     'scheduled'
                 "#
@@ -263,21 +320,21 @@ async fn test_engine_dispose_drains_pending_runtime_work() {
         .await
         .unwrap();
     assert!(matches!(scheduled, JsValue::String(ref value) if value == "scheduled"));
-    assert!(runtime.is_job_pending().await);
+    assert!(engine.is_job_pending().await.unwrap());
 
-    engine.dispose().await.unwrap();
+    engine.close().await.unwrap();
 
-    assert!(!runtime.is_job_pending().await);
+    assert!(!engine.runtime_for_test().is_job_pending().await);
 }
 
 #[tokio::test]
-async fn test_engine_context_getter() {
-    let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+async fn test_engine_runtime_proxy_methods_fail_after_close() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.close().await.unwrap();
 
-    let _ = engine.context();
-    // Should not panic
+    assert!(engine.memory_usage().await.is_err());
+    assert!(engine.set_memory_limit(1024).await.is_err());
+    assert!(engine.run_gc().await.is_err());
 }
 
 // ============================================================================
@@ -287,8 +344,8 @@ async fn test_engine_context_getter() {
 #[tokio::test]
 async fn test_engine_eval_simple() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine.eval(JsCode::Code("1 + 1".to_string()), None).await;
@@ -300,8 +357,8 @@ async fn test_engine_eval_simple() {
 #[tokio::test]
 async fn test_engine_eval_string() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -315,8 +372,8 @@ async fn test_engine_eval_string() {
 #[tokio::test]
 async fn test_engine_eval_async() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -329,11 +386,9 @@ async fn test_engine_eval_async() {
 
 #[tokio::test]
 async fn test_engine_eval_does_not_implicitly_idle_runtime() {
-    let runtime = JsAsyncRuntime::with_options(Some(JsBuiltinOptions::essential()), None)
+    let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
         .await
         .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -352,7 +407,7 @@ async fn test_engine_eval_does_not_implicitly_idle_runtime() {
         .await;
 
     assert!(matches!(result, Ok(JsValue::String(ref value)) if value == "scheduled"));
-    assert!(runtime.is_job_pending().await);
+    assert!(engine.is_job_pending().await.unwrap());
 
     let before_idle = engine
         .eval(
@@ -362,7 +417,7 @@ async fn test_engine_eval_does_not_implicitly_idle_runtime() {
         .await;
     assert!(matches!(before_idle, Ok(JsValue::Boolean(false))));
 
-    runtime.idle().await;
+    engine.idle().await.unwrap();
 
     let after_idle = engine
         .eval(
@@ -376,21 +431,21 @@ async fn test_engine_eval_does_not_implicitly_idle_runtime() {
 #[tokio::test]
 async fn test_engine_eval_before_init_fails() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     let result = engine.eval(JsCode::Code("1 + 1".to_string()), None).await;
     assert!(result.is_err());
 }
 
 #[tokio::test]
-async fn test_engine_eval_after_dispose_fails() {
+async fn test_engine_eval_after_close_fails() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     engine.init_without_bridge().await.unwrap();
-    engine.dispose().await.unwrap();
+    engine.close().await.unwrap();
 
     let result = engine.eval(JsCode::Code("1 + 1".to_string()), None).await;
     assert!(result.is_err());
@@ -399,8 +454,8 @@ async fn test_engine_eval_after_dispose_fails() {
 #[tokio::test]
 async fn test_engine_eval_syntax_error() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -412,8 +467,8 @@ async fn test_engine_eval_syntax_error() {
 #[tokio::test]
 async fn test_engine_eval_runtime_error() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -425,8 +480,8 @@ async fn test_engine_eval_runtime_error() {
 #[tokio::test]
 async fn test_engine_eval_throw_error() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -441,8 +496,8 @@ async fn test_engine_eval_throw_error() {
 #[tokio::test]
 async fn test_engine_eval_rejected_promise() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -461,8 +516,8 @@ async fn test_engine_eval_rejected_promise() {
 #[tokio::test]
 async fn test_engine_declare_new_module() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module = JsModule::code(
@@ -477,8 +532,8 @@ async fn test_engine_declare_new_module() {
 #[tokio::test]
 async fn test_engine_declare_new_modules() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let modules = vec![
@@ -493,8 +548,8 @@ async fn test_engine_declare_new_modules() {
 #[tokio::test]
 async fn test_engine_declare_new_modules_rejects_duplicate_names() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let error = engine
@@ -515,8 +570,8 @@ async fn test_engine_declare_new_modules_rejects_duplicate_names() {
 #[tokio::test]
 async fn test_engine_evaluate_module() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module = JsModule::code(
@@ -543,8 +598,8 @@ async fn test_engine_compile_module_bytecode_roundtrip_declare_and_import() {
     assert!(!bytecode.bytes.is_empty());
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     engine.declare_new_bytecode_module(bytecode).await.unwrap();
@@ -565,8 +620,8 @@ async fn test_engine_compile_module_bytecode_roundtrip_declare_and_import() {
 #[tokio::test]
 async fn test_engine_compile_module_bytecode_is_side_effect_free() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module_name = "isolated-bytecode-module".to_string();
@@ -607,8 +662,8 @@ async fn test_engine_evaluate_bytecode_module_roundtrip() {
     .unwrap();
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let evaluation = engine
@@ -651,8 +706,8 @@ async fn test_engine_bytecode_module_name_mismatch_fails_on_declare() {
     .unwrap();
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let error = engine
@@ -668,8 +723,8 @@ async fn test_engine_bytecode_module_name_mismatch_fails_on_declare() {
 #[tokio::test]
 async fn test_engine_invalid_bytecode_fails_on_declare() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let error = engine
@@ -708,8 +763,8 @@ async fn test_engine_bytecode_modules_support_relative_imports() {
     .unwrap();
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     engine
@@ -752,8 +807,8 @@ async fn test_engine_declare_new_bytecode_modules_rejects_duplicate_names() {
     .unwrap();
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let error = engine
@@ -788,8 +843,8 @@ async fn test_engine_declare_and_evaluate_bytecode_bundle() {
     .unwrap();
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine.evaluate_bytecode_bundle(bundle).await.unwrap();
@@ -840,8 +895,8 @@ async fn test_engine_evaluate_script_bytecode_roundtrip() {
     .unwrap();
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine.evaluate_script_bytecode(script).await.unwrap();
@@ -871,8 +926,8 @@ async fn test_engine_evaluate_async_script_bytecode_roundtrip() {
     .unwrap();
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine.evaluate_script_bytecode(script).await.unwrap();
@@ -896,8 +951,8 @@ async fn test_compile_script_bytecode_accepts_source_with_null_bytes() {
     JsBytecode::validate_script(script.clone()).await.unwrap();
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine.evaluate_script_bytecode(script).await.unwrap();
@@ -1068,8 +1123,8 @@ async fn test_engine_declare_new_bytecode_module_rejects_script_bytecode() {
     .unwrap();
 
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let error = engine
@@ -1086,8 +1141,8 @@ async fn test_engine_declare_new_bytecode_module_rejects_script_bytecode() {
 #[tokio::test]
 async fn test_engine_dynamic_module_relative_import() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     engine
@@ -1120,8 +1175,8 @@ async fn test_engine_dynamic_module_relative_import() {
 #[tokio::test]
 async fn test_engine_dynamic_module_parent_relative_import() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     engine
@@ -1154,8 +1209,8 @@ async fn test_engine_dynamic_module_parent_relative_import() {
 #[tokio::test]
 async fn test_engine_is_module_declared() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module = JsModule::code(
@@ -1180,8 +1235,8 @@ async fn test_engine_is_module_declared() {
 #[tokio::test]
 async fn test_engine_get_declared_modules() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let modules = vec![
@@ -1199,7 +1254,7 @@ async fn test_engine_get_declared_modules() {
 
 #[tokio::test]
 async fn test_engine_get_available_modules() {
-    let runtime = JsAsyncRuntime::with_options(
+    let engine = JsEngine::create(
         Some(JsBuiltinOptions {
             path: Some(true),
             https: Some(true),
@@ -1209,11 +1264,10 @@ async fn test_engine_get_available_modules() {
             "static-extra".to_string(),
             "export const value = 1;".to_string(),
         )]),
+        None,
     )
     .await
     .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
     engine.init_without_bridge().await.unwrap();
     engine
         .declare_new_module(JsModule::code(
@@ -1233,17 +1287,16 @@ async fn test_engine_get_available_modules() {
 
 #[tokio::test]
 async fn test_engine_is_module_available() {
-    let runtime = JsAsyncRuntime::with_options(
+    let engine = JsEngine::create(
         Some(JsBuiltinOptions {
             dgram: Some(true),
             ..Default::default()
         }),
         None,
+        None,
     )
     .await
     .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
     engine.init_without_bridge().await.unwrap();
     engine
         .declare_new_module(JsModule::code(
@@ -1276,8 +1329,8 @@ async fn test_engine_is_module_available() {
 #[tokio::test]
 async fn test_engine_clear_pending_modules() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module = JsModule::code(
@@ -1306,8 +1359,8 @@ async fn test_engine_clear_pending_modules() {
 #[tokio::test]
 async fn test_engine_clear_pending_modules_keeps_loaded_modules() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     engine
@@ -1359,8 +1412,8 @@ async fn test_engine_clear_pending_modules_keeps_loaded_modules() {
 #[tokio::test]
 async fn test_engine_redeclare_loaded_module_fails() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     engine
@@ -1401,8 +1454,8 @@ async fn test_engine_redeclare_loaded_module_fails() {
 #[tokio::test]
 async fn test_engine_evaluate_module_marks_module_as_loaded() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -1432,8 +1485,8 @@ async fn test_engine_evaluate_module_marks_module_as_loaded() {
 #[tokio::test]
 async fn test_engine_call_module_function() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module = JsModule::code(
@@ -1458,8 +1511,8 @@ async fn test_engine_call_module_function() {
 #[tokio::test]
 async fn test_engine_call_async_function() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module = JsModule::code(
@@ -1484,8 +1537,8 @@ async fn test_engine_call_async_function() {
 #[tokio::test]
 async fn test_engine_call_nonexistent_module() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -1498,8 +1551,8 @@ async fn test_engine_call_nonexistent_module() {
 #[tokio::test]
 async fn test_engine_call_nonexistent_function() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module = JsModule::code(
@@ -1522,8 +1575,8 @@ async fn test_engine_call_nonexistent_function() {
 #[tokio::test]
 async fn test_engine_bridge_call() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     engine
         .init(|value| {
@@ -1545,14 +1598,14 @@ async fn test_engine_bridge_call() {
     assert!(result.is_ok());
     let value = result.unwrap();
     assert!(matches!(value, JsValue::Integer(42)));
-    engine.dispose().await.unwrap();
+    engine.close().await.unwrap();
 }
 
 #[tokio::test]
 async fn test_engine_bridge_call_with_object() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     engine
         .init(|value| {
@@ -1574,7 +1627,7 @@ async fn test_engine_bridge_call_with_object() {
     assert!(result.is_ok());
     let value = result.unwrap();
     assert!(value.is_object());
-    engine.dispose().await.unwrap();
+    engine.close().await.unwrap();
 }
 
 // ============================================================================
@@ -1587,11 +1640,7 @@ async fn test_engine_with_console_builtin() {
         console: Some(true),
         ..Default::default()
     };
-    let runtime = JsAsyncRuntime::with_options(Some(builtin), None)
-        .await
-        .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(Some(builtin), None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // Console should be available
@@ -1612,11 +1661,7 @@ async fn test_engine_with_buffer_builtin() {
         buffer: Some(true),
         ..Default::default()
     };
-    let runtime = JsAsyncRuntime::with_options(Some(builtin), None)
-        .await
-        .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(Some(builtin), None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // Buffer should be available globally
@@ -1635,11 +1680,7 @@ async fn test_engine_with_url_builtin() {
         url: Some(true),
         ..Default::default()
     };
-    let runtime = JsAsyncRuntime::with_options(Some(builtin), None)
-        .await
-        .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(Some(builtin), None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // URL should be available
@@ -1660,11 +1701,7 @@ async fn test_engine_with_path_builtin() {
         path: Some(true),
         ..Default::default()
     };
-    let runtime = JsAsyncRuntime::with_options(Some(builtin), None)
-        .await
-        .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(Some(builtin), None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // Path module should be importable
@@ -1689,11 +1726,7 @@ async fn test_engine_with_crypto_builtin() {
         crypto: Some(true),
         ..Default::default()
     };
-    let runtime = JsAsyncRuntime::with_options(Some(builtin), None)
-        .await
-        .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(Some(builtin), None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // Crypto should be available
@@ -1712,11 +1745,7 @@ async fn test_engine_with_events_builtin() {
         events: Some(true),
         ..Default::default()
     };
-    let runtime = JsAsyncRuntime::with_options(Some(builtin), None)
-        .await
-        .unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(Some(builtin), None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // EventEmitter should be available

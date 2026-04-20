@@ -311,11 +311,9 @@ class ApiOverviewScreen extends StatelessWidget {
             ),
             child: SelectableText(
               '''// Initialize
-final runtime = await JsAsyncRuntime.withOptions(
-  builtin: JsBuiltinOptions.all(),
+final engine = await JsEngine.create(
+  builtins: JsBuiltinOptions.all(),
 );
-final context = await JsAsyncContext.from(runtime: runtime);
-final engine = JsEngine(context: context);
 await engine.initWithoutBridge();
 
 // Evaluate code
@@ -331,7 +329,7 @@ await engine.declareNewModule(module: JsModule.code(
 );
 
 // Cleanup
-await engine.dispose();''',
+await engine.close();''',
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 13,

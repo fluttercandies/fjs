@@ -42,20 +42,14 @@ import 'package:fjs/fjs.dart';
 void main() async {
   await LibFjs.init();
 
-  // 创建运行时，启用内置模块
-  final runtime = await JsAsyncRuntime.withOptions(
-    builtin: JsBuiltinOptions(
+  // 创建引擎并启用内置模块
+  final engine = await JsEngine.create(
+    builtins: JsBuiltinOptions(
       console: true,
       fetch: true,
       timers: true,
     ),
   );
-
-  // 创建上下文
-  final context = await JsAsyncContext.from(runtime: runtime);
-
-  // 创建引擎
-  final engine = JsEngine(context: context);
   await engine.init(bridge: (jsValue) {
     return JsResult.ok(JsValue.string('来自 Dart 的问候'));
   });
@@ -67,7 +61,7 @@ void main() async {
   '''));
   print(result.value); // 3
 
-  await engine.dispose();
+  await engine.close();
 }
 ```
 
@@ -75,9 +69,9 @@ void main() async {
 
 ```dart
 // 创建一个异步 runtime，启用 web 风格 builtin，并额外挂一个 ES 模块。
-final runtime = await JsAsyncRuntime.withOptions(
-  builtin: JsBuiltinOptions.web(),
-  additional: [
+final runtime = await JsAsyncRuntime.create(
+  builtins: JsBuiltinOptions.web(),
+  modules: [
     JsModule.code(
       module: 'app/math',
       code: 'export function add(a, b) { return a + b; }',
@@ -137,8 +131,8 @@ await runtime.idle();
 
 ```dart
 // 如果不需要异步 JavaScript 执行，可以使用同步 runtime。
-final runtime = await JsRuntime.withOptions(
-  builtin: JsBuiltinOptions.essential(),
+final runtime = await JsRuntime.create(
+  builtins: JsBuiltinOptions.essential(),
 );
 final context = JsContext.from(runtime: runtime);
 
@@ -277,8 +271,8 @@ print('console: $hasConsole, llrt:xml: $hasXml');
 
 ## 🔄 Engine 生命周期说明
 
-- `JsEngine` 只是包装一个已有的 `JsAsyncContext`；释放 engine 不会释放底层 context 或 runtime
-- `dispose()` 会先移除 `fjs` bridge、推进待处理的 runtime 工作，再执行 GC，之后 engine 不能再使用
+- `JsEngine` 通过 `create()` 创建时会自己持有内部 runtime/context
+- `close()` 会先移除 `fjs` bridge、推进待处理的 runtime 工作，再执行 GC，之后 engine 不能再使用
 - `clearPendingModules()` 只会清掉还没有被当前 context 真正加载过的动态模块
 - `declareNewModules()` 和 `declareNewBytecodeModules()` 会拒绝同一批请求里的重复模块名
 
@@ -480,9 +474,9 @@ await runtime.runGc();
 ```dart
 abstract class JsAsyncRuntime {
   factory JsAsyncRuntime();
-  static Future<JsAsyncRuntime> withOptions({
-    JsBuiltinOptions? builtin,
-    List<JsModule>? additional,
+  static Future<JsAsyncRuntime> create({
+    JsBuiltinOptions? builtins,
+    List<JsModule>? modules,
   });
 
   Future<bool> isJobPending();
@@ -518,9 +512,9 @@ abstract class JsAsyncContext {
 ```dart
 abstract class JsRuntime {
   factory JsRuntime();
-  static Future<JsRuntime> withOptions({
-    JsBuiltinOptions? builtin,
-    List<JsModule>? additional,
+  static Future<JsRuntime> create({
+    JsBuiltinOptions? builtins,
+    List<JsModule>? modules,
   });
 
   bool isJobPending();
@@ -548,7 +542,11 @@ abstract class JsContext {
 
 ```dart
 class JsEngine {
-  factory JsEngine({required JsAsyncContext context});
+  static Future<JsEngine> create({
+    JsBuiltinOptions? builtins,
+    List<JsModule>? modules,
+    JsEngineRuntimeOptions? runtimeOptions,
+  });
 
   Future<void> init({required FutureOr<JsResult> Function(JsValue) bridge});
   Future<void> initWithoutBridge();
@@ -570,10 +568,9 @@ class JsEngine {
   Future<JsValue> evaluateBytecodeModule({required JsModuleBytecode module});
   Future<JsValue> evaluateScriptBytecode({required JsScriptBytecode script});
 
-  Future<void> dispose(); // 会推进待处理的 runtime 工作，然后执行 GC
+  Future<void> close(); // 会推进待处理的 runtime 工作，然后执行 GC
   bool get running;
-  bool get disposed;
-  JsAsyncContext get context; // engine 不拥有这个 context
+  bool get closed;
 }
 ```
 

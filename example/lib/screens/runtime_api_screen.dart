@@ -43,14 +43,16 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
     JsEngine? engine;
 
     try {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      runtime = await JsAsyncRuntime.create(
+        builtins: JsBuiltinOptions.all(),
       );
       context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
+      );
       await engine.initWithoutBridge();
       if (!mounted) {
-        await engine.dispose();
+        await engine.close();
         return;
       }
 
@@ -63,7 +65,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
       _context = null;
       _engine = null;
       if (engine != null) {
-        await engine.dispose();
+        await engine.close();
       }
       if (kDebugMode) {
         debugPrint('Failed to initialize runtime: $e');
@@ -74,14 +76,14 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
     }
   }
 
-  Future<void> _disposeCurrentEngine() async {
+  Future<void> _closeCurrentEngine() async {
     final engine = _engine;
     _runtime = null;
     _context = null;
     _engine = null;
 
     if (engine != null) {
-      await engine.dispose();
+      await engine.close();
     }
   }
 
@@ -112,7 +114,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
     final engine = _engine;
     _engine = null;
     if (engine != null) {
-      unawaited(engine.dispose());
+      unawaited(engine.close());
     }
     super.dispose();
   }
@@ -126,7 +128,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () async {
-              await _disposeCurrentEngine();
+              await _closeCurrentEngine();
               setStateIfMounted(() {
                 _isInitialized = false;
                 _testResults.clear();
@@ -252,7 +254,7 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
           }),
         ),
         ApiTestCard(
-          title: 'JsAsyncRuntime.withOptions()',
+          title: 'JsAsyncRuntime.create()',
           subtitle: 'Create runtime with custom builtin modules',
           icon: Icons.tune,
           isSuccess: _testResults['runtime_options']?.isSuccess,
@@ -260,10 +262,10 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
           result: _testResults['runtime_options']?.result,
           error: _testResults['runtime_options']?.error,
           onRun: () => _runTest('runtime_options', () async {
-            final rt = await JsAsyncRuntime.withOptions(
-              builtin: JsBuiltinOptions.all(),
+            final rt = await JsAsyncRuntime.create(
+              builtins: JsBuiltinOptions.all(),
             );
-            return 'JsAsyncRuntime.withOptions() created: ${rt.hashCode}';
+            return 'JsAsyncRuntime.create() created: ${rt.hashCode}';
           }),
         ),
         ApiTestCard(

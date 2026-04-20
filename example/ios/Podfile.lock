@@ -33,7 +33,7 @@ PODS:
   - file_picker (0.0.1):
     - DKImagePickerController/PhotoGallery
     - Flutter
-  - fjs (1.0.0):
+  - fjs (2.2.0):
     - Flutter
   - Flutter (1.0.0)
   - integration_test (0.0.1):
@@ -87,7 +87,7 @@ SPEC CHECKSUMS:
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
   file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
-  fjs: 8836a5b8e1282ed5dc284d37b420ec5fbeb56516
+  fjs: 08fc0f926a82d3675df293880c68288ff9faa992
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564

@@ -16,8 +16,8 @@ use crate::api::value::JsValue;
 #[tokio::test]
 async fn test_promise_resolve_primitive() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // Integer
@@ -52,8 +52,8 @@ async fn test_promise_resolve_primitive() {
 #[tokio::test]
 async fn test_promise_resolve_complex() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // Array
@@ -77,8 +77,8 @@ async fn test_promise_resolve_complex() {
 #[tokio::test]
 async fn test_promise_reject_error() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -93,8 +93,8 @@ async fn test_promise_reject_error() {
 #[tokio::test]
 async fn test_promise_reject_value() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -110,8 +110,8 @@ async fn test_promise_reject_value() {
 #[tokio::test]
 async fn test_promise_then_chain() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -127,8 +127,8 @@ async fn test_promise_then_chain() {
 #[tokio::test]
 async fn test_promise_catch() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -144,8 +144,8 @@ async fn test_promise_catch() {
 #[tokio::test]
 async fn test_promise_finally() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -168,8 +168,8 @@ async fn test_promise_finally() {
 #[tokio::test]
 async fn test_promise_error_propagation() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     // Error in middle of chain should skip subsequent then handlers
@@ -198,8 +198,8 @@ async fn test_promise_error_propagation() {
 #[tokio::test]
 async fn test_promise_all_success() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -222,8 +222,8 @@ async fn test_promise_all_success() {
 #[tokio::test]
 async fn test_promise_all_failure() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -241,8 +241,8 @@ async fn test_promise_all_failure() {
 #[tokio::test]
 async fn test_promise_all_empty() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -259,8 +259,8 @@ async fn test_promise_all_empty() {
 #[tokio::test]
 async fn test_promise_race() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -280,8 +280,8 @@ async fn test_promise_race() {
 #[tokio::test]
 async fn test_promise_allsettled() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -303,8 +303,8 @@ async fn test_promise_allsettled() {
 #[tokio::test]
 async fn test_promise_any_success() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -328,7 +328,7 @@ async fn test_promise_any_success() {
 async fn test_async_function_basic() {
     let runtime = JsAsyncRuntime::new().unwrap();
     let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -348,7 +348,7 @@ async fn test_async_function_basic() {
         .unwrap();
 
     assert!(matches!(result, JsValue::Integer(42)));
-    engine.dispose().await.unwrap();
+    engine.close().await.unwrap();
     runtime.idle().await;
     runtime.run_gc().await;
     drop(engine);
@@ -358,8 +358,8 @@ async fn test_async_function_basic() {
 #[tokio::test]
 async fn test_async_await_sequential() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -387,8 +387,8 @@ async fn test_async_await_sequential() {
 #[tokio::test]
 async fn test_async_await_parallel() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -418,8 +418,8 @@ async fn test_async_await_parallel() {
 #[tokio::test]
 async fn test_async_try_catch() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -449,8 +449,8 @@ async fn test_async_try_catch() {
 #[tokio::test]
 async fn test_async_arrow_function() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -476,8 +476,8 @@ async fn test_async_arrow_function() {
 #[tokio::test]
 async fn test_nested_async_functions() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -511,8 +511,8 @@ async fn test_nested_async_functions() {
 #[tokio::test]
 async fn test_top_level_await() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -526,8 +526,8 @@ async fn test_top_level_await() {
 #[tokio::test]
 async fn test_top_level_await_with_variable() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let result = engine
@@ -554,8 +554,8 @@ async fn test_top_level_await_with_variable() {
 #[tokio::test]
 async fn test_async_module_function() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module = JsModule::code(
@@ -585,8 +585,8 @@ async fn test_async_module_function() {
 #[tokio::test]
 async fn test_async_module_chain() {
     let runtime = JsAsyncRuntime::new().unwrap();
-    let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let _context = JsAsyncContext::from(&runtime).await.unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
 
     let module = JsModule::code(
@@ -631,7 +631,7 @@ async fn test_async_module_chain() {
 async fn test_bridge_multiple_async_calls() {
     let runtime = JsAsyncRuntime::new().unwrap();
     let context = JsAsyncContext::from(&runtime).await.unwrap();
-    let engine = JsEngine::new(&context).unwrap();
+    let engine = JsEngine::create(None, None, None).await.unwrap();
 
     engine
         .init(|value| {
@@ -665,7 +665,7 @@ async fn test_bridge_multiple_async_calls() {
         .unwrap();
 
     assert!(matches!(result, JsValue::Integer(4))); // 1 + 1 + 1 + 1 = 4
-    engine.dispose().await.unwrap();
+    engine.close().await.unwrap();
     runtime.idle().await;
     runtime.run_gc().await;
     drop(engine);

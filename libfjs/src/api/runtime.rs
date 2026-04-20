@@ -25,9 +25,8 @@ use std::sync::{Arc, RwLock};
 /// ## Example
 ///
 /// ```dart
-/// final runtime = await JsAsyncRuntime.withOptions(builtin: JsBuiltinOptions.all());
-/// final context = await JsAsyncContext.from(runtime: runtime);
-/// final engine = JsEngine(context: context);
+/// final runtime = await JsAsyncRuntime.create(builtins: JsBuiltinOptions.all());
+/// final engine = await JsEngine.create(builtins: JsBuiltinOptions.all());
 /// await engine.initWithoutBridge();
 ///
 /// final memory = await runtime.memoryUsage();
@@ -207,7 +206,7 @@ pub struct JsRuntime {
 impl JsRuntime {
     /// Creates a new JavaScript runtime with default configuration.
     ///
-    /// The runtime is created with no builtin modules. Use `withOptions()`
+    /// The runtime is created with no builtin modules. Use `create()`
     /// to create a runtime with custom builtin modules.
     ///
     /// ## Returns
@@ -239,11 +238,11 @@ impl JsRuntime {
     /// Creates a new JavaScript runtime with custom builtin modules.
     ///
     /// This method creates a runtime with support for Node.js-compatible
-    /// builtin modules and additional custom modules.
+    /// builtin modules and custom modules.
     ///
     /// ## Parameters
-    /// - `builtin`: Optional builtin module configuration (e.g., console, fs, crypto)
-    /// - `additional`: Optional list of additional modules to register
+    /// - `builtins`: Optional builtin module configuration (e.g., console, fs, crypto)
+    /// - `modules`: Optional list of additional modules to register
     ///
     /// ## Returns
     ///
@@ -252,16 +251,16 @@ impl JsRuntime {
     /// ## Example
     ///
     /// ```dart
-    /// final runtime = await JsRuntime.withOptions(
-    ///   builtin: JsBuiltinOptions.all(),
-    ///   additional: [
+    /// final runtime = await JsRuntime.create(
+    ///   builtins: JsBuiltinOptions.all(),
+    ///   modules: [
     ///     JsModule.code(module: 'my-utils', code: 'export const foo = "bar";'),
     ///   ],
     /// );
     /// ```
-    pub async fn with_options(
-        builtin: Option<JsBuiltinOptions>,
-        additional: Option<Vec<JsModule>>,
+    pub async fn create(
+        builtins: Option<JsBuiltinOptions>,
+        modules: Option<Vec<JsModule>>,
     ) -> anyhow::Result<Self> {
         let runtime = rquickjs::Runtime::new()?;
         let (
@@ -270,7 +269,7 @@ impl JsRuntime {
             additional_resolver,
             additional_loader,
             global_attachment,
-        ) = Self::build_loaders(builtin, additional).await?;
+        ) = Self::build_loaders(builtins, modules).await?;
 
         let (resolver, loader) = make_loader_stack(
             module_resolver,
@@ -287,8 +286,8 @@ impl JsRuntime {
     }
 
     async fn build_loaders(
-        builtin: Option<JsBuiltinOptions>,
-        additional: Option<Vec<JsModule>>,
+        builtins: Option<JsBuiltinOptions>,
+        modules: Option<Vec<JsModule>>,
     ) -> anyhow::Result<(
         crate::api::module::ModuleResolver,
         rquickjs::loader::ModuleLoader,
@@ -297,7 +296,7 @@ impl JsRuntime {
         GlobalAttachment,
     )> {
         let (module_resolver, module_loader, mut global_attachment) =
-            if let Some(builtin_options) = builtin {
+            if let Some(builtin_options) = builtins {
                 builtin_options.to_module_builder().build()
             } else {
                 ModuleBuilder::new().build()
@@ -306,8 +305,8 @@ impl JsRuntime {
         let mut additional_resolver = BuiltinResolver::default();
         let mut additional_loader = BuiltinLoader::default();
 
-        if let Some(additional_modules) = additional {
-            for module in additional_modules {
+        if let Some(named_modules) = modules {
+            for module in named_modules {
                 let code = get_raw_source_code(module.source).await?;
                 additional_resolver = additional_resolver.with_module(&module.name);
                 additional_loader = additional_loader.with_module(&module.name, code);
@@ -673,7 +672,7 @@ impl JsContext {
 
     /// Returns all modules currently available in this context.
     ///
-    /// This includes builtin modules, statically configured extra modules,
+    /// This includes builtin modules, statically configured modules,
     /// and any dynamically declared modules attached to the context.
     #[frb(sync)]
     pub fn get_available_modules(&self) -> anyhow::Result<Vec<String>> {
@@ -696,7 +695,7 @@ impl JsContext {
 /// ## Example
 ///
 /// ```dart
-/// final runtime = await JsAsyncRuntime.withOptions(builtin: JsBuiltinOptions.all());
+/// final runtime = await JsAsyncRuntime.create(builtins: JsBuiltinOptions.all());
 /// final context = await JsAsyncContext.from(runtime: runtime);
 /// ```
 #[frb(opaque)]
@@ -709,7 +708,7 @@ pub struct JsAsyncRuntime {
 impl JsAsyncRuntime {
     /// Creates a new async runtime with default configuration.
     ///
-    /// The runtime is created with no builtin modules. Use `withOptions()`
+    /// The runtime is created with no builtin modules. Use `create()`
     /// to create a runtime with custom builtin modules.
     ///
     /// ## Returns
@@ -734,11 +733,11 @@ impl JsAsyncRuntime {
     /// Creates a new async runtime with custom configuration.
     ///
     /// This method creates a runtime with support for Node.js-compatible
-    /// builtin modules and additional custom modules.
+    /// builtin modules and custom modules.
     ///
     /// ## Parameters
-    /// - `builtin`: Optional builtin module configuration (e.g., console, fs, crypto)
-    /// - `additional`: Optional list of additional modules to register
+    /// - `builtins`: Optional builtin module configuration (e.g., console, fs, crypto)
+    /// - `modules`: Optional list of additional modules to register
     ///
     /// ## Returns
     ///
@@ -747,16 +746,16 @@ impl JsAsyncRuntime {
     /// ## Example
     ///
     /// ```dart
-    /// final runtime = await JsAsyncRuntime.withOptions(
-    ///   builtin: JsBuiltinOptions.all(),
-    ///   additional: [
+    /// final runtime = await JsAsyncRuntime.create(
+    ///   builtins: JsBuiltinOptions.all(),
+    ///   modules: [
     ///     JsModule.code(module: 'my-utils', code: 'export const foo = "bar";'),
     ///   ],
     /// );
     /// ```
-    pub async fn with_options(
-        builtin: Option<JsBuiltinOptions>,
-        additional: Option<Vec<JsModule>>,
+    pub async fn create(
+        builtins: Option<JsBuiltinOptions>,
+        modules: Option<Vec<JsModule>>,
     ) -> anyhow::Result<Self> {
         let runtime = rquickjs::AsyncRuntime::new()?;
         let (
@@ -765,7 +764,7 @@ impl JsAsyncRuntime {
             additional_resolver,
             additional_loader,
             global_attachment,
-        ) = JsRuntime::build_loaders(builtin, additional).await?;
+        ) = JsRuntime::build_loaders(builtins, modules).await?;
 
         let (resolver, loader) = make_loader_stack(
             module_resolver,
@@ -954,7 +953,7 @@ impl JsAsyncRuntime {
 /// ## Example
 ///
 /// ```dart
-/// final runtime = await JsAsyncRuntime.withOptions(builtin: JsBuiltinOptions.all());
+/// final runtime = await JsAsyncRuntime.create(builtins: JsBuiltinOptions.all());
 /// final context = await JsAsyncContext.from(runtime: runtime);
 /// final result = await context.eval(code: 'await Promise.resolve(42)');
 /// print(result.value); // 42
@@ -988,7 +987,7 @@ impl JsAsyncContext {
     /// ## Example
     ///
     /// ```dart
-    /// final runtime = await JsAsyncRuntime.withOptions(builtin: JsBuiltinOptions.all());
+    /// final runtime = await JsAsyncRuntime.create(builtins: JsBuiltinOptions.all());
     /// final context = await JsAsyncContext.from(runtime: runtime);
     /// ```
     pub async fn from(runtime: &JsAsyncRuntime) -> anyhow::Result<Self> {
@@ -1194,7 +1193,7 @@ impl JsAsyncContext {
 
     /// Returns all modules currently available in this context.
     ///
-    /// This includes builtin modules, statically configured extra modules,
+    /// This includes builtin modules, statically configured modules,
     /// and any dynamically declared modules attached to the context.
     pub async fn get_available_modules(&self) -> anyhow::Result<Vec<String>> {
         self.ctx

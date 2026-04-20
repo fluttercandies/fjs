@@ -229,7 +229,7 @@ impl JsBytecode {
     /// ```dart
     /// final script = JsBytecode.compileScriptSync(
     ///   name: 'bootstrap.js',
-    ///   source: JsCode.code('globalThis.version = "2.1.0";'),
+    ///   source: JsCode.code('globalThis.version = "2.2.0";'),
     /// );
     /// ```
     #[frb(sync)]

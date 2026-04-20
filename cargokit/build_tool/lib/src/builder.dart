@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 
 import 'android_environment.dart';
 import 'cargo.dart';
+import 'darwin_environment.dart';
 import 'environment.dart';
 import 'options.dart';
 import 'rustup.dart';
@@ -168,6 +169,13 @@ class RustBuilder {
 
   Future<Map<String, String>> _buildEnvironment() async {
     if (target.android == null) {
+      if (target.darwinPlatform == 'iphonesimulator' ||
+          target.darwinPlatform == 'iphoneos') {
+        return DarwinEnvironment(
+          target: target,
+          deploymentTarget: Environment.iosDeploymentTarget,
+        ).buildEnvironment();
+      }
       return {};
     } else {
       final sdkPath = environment.androidSdkPath;

@@ -19,16 +19,10 @@
 /// ```dart
 /// import 'package:fjs/fjs.dart';
 ///
-/// // Create an async runtime
-/// final runtime = await JsAsyncRuntime.withOptions(
-///   builtin: JsBuiltinOptions.all(),
-/// );
-///
-/// // Create a context
-/// final context = await JsAsyncContext.from(runtime: runtime);
-///
 /// // Create an engine
-/// final engine = JsEngine(context: context);
+/// final engine = await JsEngine.create(
+///   builtins: JsBuiltinOptions.all(),
+/// );
 ///
 /// // Initialize the engine
 /// await engine.initWithoutBridge();

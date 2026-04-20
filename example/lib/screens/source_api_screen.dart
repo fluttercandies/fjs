@@ -17,10 +17,6 @@ class SourceApiScreen extends StatefulWidget {
 
 class _SourceApiScreenState extends State<SourceApiScreen>
     with MountedStateMixin<SourceApiScreen> {
-  // ignore: unused_field - retained to keep the opaque runtime/context alive
-  JsAsyncRuntime? _runtime;
-  // ignore: unused_field - retained to keep the opaque runtime/context alive
-  JsAsyncContext? _context;
   JsEngine? _engine;
   // ignore: unused_field - used for internal state tracking
   bool _isInitialized = false;
@@ -39,32 +35,24 @@ class _SourceApiScreenState extends State<SourceApiScreen>
 
   Future<void> _initializeEngine() async {
     setStateIfMounted(() => _isLoading = true);
-    JsAsyncRuntime? runtime;
-    JsAsyncContext? context;
     JsEngine? engine;
 
     try {
-      runtime = await JsAsyncRuntime.withOptions(
-        builtin: JsBuiltinOptions.all(),
+      engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.all(),
       );
-      context = await JsAsyncContext.from(runtime: runtime);
-      engine = JsEngine(context: context);
       await engine.initWithoutBridge();
       if (!mounted) {
-        await engine.dispose();
+        await engine.close();
         return;
       }
 
-      _runtime = runtime;
-      _context = context;
       _engine = engine;
       setStateIfMounted(() => _isInitialized = true);
     } catch (e) {
-      _runtime = null;
-      _context = null;
       _engine = null;
       if (engine != null) {
-        await engine.dispose();
+        await engine.close();
       }
       if (kDebugMode) {
         debugPrint('Failed to initialize engine: $e');
@@ -75,14 +63,12 @@ class _SourceApiScreenState extends State<SourceApiScreen>
     }
   }
 
-  Future<void> _disposeCurrentEngine() async {
+  Future<void> _closeCurrentEngine() async {
     final engine = _engine;
-    _runtime = null;
-    _context = null;
     _engine = null;
 
     if (engine != null) {
-      await engine.dispose();
+      await engine.close();
     }
   }
 
@@ -113,7 +99,7 @@ class _SourceApiScreenState extends State<SourceApiScreen>
     final engine = _engine;
     _engine = null;
     if (engine != null) {
-      unawaited(engine.dispose());
+      unawaited(engine.close());
     }
     super.dispose();
   }
@@ -127,7 +113,7 @@ class _SourceApiScreenState extends State<SourceApiScreen>
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () async {
-              await _disposeCurrentEngine();
+              await _closeCurrentEngine();
               setStateIfMounted(() {
                 _isInitialized = false;
                 _testResults.clear();

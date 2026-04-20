@@ -504,16 +504,12 @@ class FjsService extends ChangeNotifier {
 
   Future<_FjsSession> _createSession() async {
     final assets = _moduleAssets ??= await _loadModuleAssets();
-    final runtime = await JsAsyncRuntime.withOptions(
-      builtin: _builtinOptions,
-      additional: assets.additionalModules(),
+    final engine = await JsEngine.create(
+      builtins: _builtinOptions,
+      modules: assets.additionalModules(),
     );
-    final context = await JsAsyncContext.from(runtime: runtime);
-    final engine = JsEngine(context: context);
     await engine.initWithoutBridge();
     return _FjsSession(
-      runtime: runtime,
-      context: context,
       engine: engine,
     );
   }
@@ -553,17 +549,13 @@ class FjsService extends ChangeNotifier {
 }
 
 final class _FjsSession {
-  final JsAsyncRuntime runtime;
-  final JsAsyncContext context;
   final JsEngine engine;
 
   const _FjsSession({
-    required this.runtime,
-    required this.context,
     required this.engine,
   });
 
-  Future<void> dispose() => engine.dispose();
+  Future<void> dispose() => engine.close();
 }
 
 final class _FjsModuleAssets {

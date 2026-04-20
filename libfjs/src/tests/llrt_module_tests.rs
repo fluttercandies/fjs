@@ -15,12 +15,14 @@ macro_rules! test_llrt_module {
     ($name:ident, $code:expr, $check:expr) => {
         #[tokio::test]
         async fn $name() {
-            // Use with_options to enable all builtin modules (fetch, buffer, etc.)
-            let runtime = JsAsyncRuntime::with_options(Some(JsBuiltinOptions::all()), None)
+            // Use create(...) to enable all builtin modules (fetch, buffer, etc.)
+            let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::all()), None)
                 .await
                 .unwrap();
-            let context = JsAsyncContext::from(&runtime).await.unwrap();
-            let engine = JsEngine::new(&context).unwrap();
+            let _context = JsAsyncContext::from(&runtime).await.unwrap();
+            let engine = JsEngine::create(Some(JsBuiltinOptions::all()), None, None)
+                .await
+                .unwrap();
             engine.init_without_bridge().await.unwrap();
 
             let result = engine.eval(JsCode::Code($code.to_string()), None).await;

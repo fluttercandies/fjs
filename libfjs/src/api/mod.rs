@@ -25,7 +25,7 @@ pub mod value;
 
 // Re-export main types for convenience
 pub use bytecode::JsBytecode;
-pub use engine::JsEngine;
+pub use engine::{JsEngine, JsEngineRuntimeOptions};
 pub use error::{JsError, JsResult};
 pub use module::{DynamicModuleLoader, DynamicModuleResolver, GlobalAttachment, ModuleBuilder};
 pub use runtime::{JsAsyncContext, JsAsyncRuntime, JsContext, JsRuntime, MemoryUsage};
