@@ -520,6 +520,7 @@ abstract class JsRuntime {
   bool isJobPending();
   bool executePendingJob();
   MemoryUsage memoryUsage();
+  void setDumpFlags({required BigInt flags});
   void setMemoryLimit({required BigInt limit});
   void setGcThreshold({required BigInt threshold});
   void setMaxStackSize({required BigInt limit});
@@ -541,7 +542,7 @@ abstract class JsContext {
 ### JsEngine
 
 ```dart
-class JsEngine {
+abstract class JsEngine {
   static Future<JsEngine> create({
     JsBuiltinOptions? builtins,
     List<JsModule>? modules,
@@ -568,9 +569,31 @@ class JsEngine {
   Future<JsValue> evaluateBytecodeModule({required JsModuleBytecode module});
   Future<JsValue> evaluateScriptBytecode({required JsScriptBytecode script});
 
+  Future<bool> executePendingJob();
+  Future<void> idle();
+  Future<bool> isJobPending();
+  Future<MemoryUsage> memoryUsage();
+  Future<void> runGc();
+  Future<void> setGcThreshold({required BigInt threshold});
+  Future<void> setInfo({required String info});
+  Future<void> setMaxStackSize({required BigInt limit});
+  Future<void> setMemoryLimit({required BigInt limit});
   Future<void> close(); // 会推进待处理的 runtime 工作，然后执行 GC
   bool get running;
   bool get closed;
+}
+```
+
+### JsEngineRuntimeOptions
+
+```dart
+sealed class JsEngineRuntimeOptions {
+  const factory JsEngineRuntimeOptions({
+    BigInt? memoryLimit,
+    BigInt? gcThreshold,
+    BigInt? maxStackSize,
+    String? info,
+  });
 }
 ```
 
@@ -578,11 +601,11 @@ class JsEngine {
 
 ```dart
 abstract class MemoryUsage {
-  int get totalMemory;
-  int get totalAllocations;
-  int get mallocSize;
-  int get objCount;
-  int get strCount;
+  PlatformInt64 get totalMemory;
+  PlatformInt64 get totalAllocations;
+  PlatformInt64 get mallocSize;
+  PlatformInt64 get objCount;
+  PlatformInt64 get strCount;
   String summary();
 }
 ```
@@ -615,6 +638,7 @@ sealed class JsValue {
 ```dart
 sealed class JsBuiltinOptions {
   const factory JsBuiltinOptions({
+    bool? assert_,
     bool? console,
     bool? fetch,
     bool? timers,
@@ -680,7 +704,7 @@ sealed class JsScriptBytecode {
   factory JsScriptBytecode({required String name, required List<int> bytes});
 }
 
-class JsBytecode {
+abstract class JsBytecode {
   static JsModuleBytecode compileSync({
     required JsModule module,
     JsModuleBytecodeOptions? options,
@@ -801,7 +825,7 @@ sealed class JsError {
 | 选项 | 描述 |
 |------|------|
 | `abort` | `AbortController` 及相关全局对象 |
-| `assert` | 断言辅助 |
+| `assert_` | 断言辅助 |
 | `asyncHooks` | 异步生命周期追踪 |
 | `buffer` | Buffer 二进制数据处理 |
 | `childProcess` | 子进程派生 |

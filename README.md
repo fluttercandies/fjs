@@ -520,6 +520,7 @@ abstract class JsRuntime {
   bool isJobPending();
   bool executePendingJob();
   MemoryUsage memoryUsage();
+  void setDumpFlags({required BigInt flags});
   void setMemoryLimit({required BigInt limit});
   void setGcThreshold({required BigInt threshold});
   void setMaxStackSize({required BigInt limit});
@@ -541,7 +542,7 @@ abstract class JsContext {
 ### JsEngine
 
 ```dart
-class JsEngine {
+abstract class JsEngine {
   static Future<JsEngine> create({
     JsBuiltinOptions? builtins,
     List<JsModule>? modules,
@@ -568,9 +569,31 @@ class JsEngine {
   Future<JsValue> evaluateBytecodeModule({required JsModuleBytecode module});
   Future<JsValue> evaluateScriptBytecode({required JsScriptBytecode script});
 
+  Future<bool> executePendingJob();
+  Future<void> idle();
+  Future<bool> isJobPending();
+  Future<MemoryUsage> memoryUsage();
+  Future<void> runGc();
+  Future<void> setGcThreshold({required BigInt threshold});
+  Future<void> setInfo({required String info});
+  Future<void> setMaxStackSize({required BigInt limit});
+  Future<void> setMemoryLimit({required BigInt limit});
   Future<void> close(); // drains pending runtime work, then runs GC
   bool get running;
   bool get closed;
+}
+```
+
+### JsEngineRuntimeOptions
+
+```dart
+sealed class JsEngineRuntimeOptions {
+  const factory JsEngineRuntimeOptions({
+    BigInt? memoryLimit,
+    BigInt? gcThreshold,
+    BigInt? maxStackSize,
+    String? info,
+  });
 }
 ```
 
@@ -578,11 +601,11 @@ class JsEngine {
 
 ```dart
 abstract class MemoryUsage {
-  int get totalMemory;
-  int get totalAllocations;
-  int get mallocSize;
-  int get objCount;
-  int get strCount;
+  PlatformInt64 get totalMemory;
+  PlatformInt64 get totalAllocations;
+  PlatformInt64 get mallocSize;
+  PlatformInt64 get objCount;
+  PlatformInt64 get strCount;
   String summary();
 }
 ```
@@ -615,6 +638,7 @@ sealed class JsValue {
 ```dart
 sealed class JsBuiltinOptions {
   const factory JsBuiltinOptions({
+    bool? assert_,
     bool? console,
     bool? fetch,
     bool? timers,
@@ -680,7 +704,7 @@ sealed class JsScriptBytecode {
   factory JsScriptBytecode({required String name, required List<int> bytes});
 }
 
-class JsBytecode {
+abstract class JsBytecode {
   static JsModuleBytecode compileSync({
     required JsModule module,
     JsModuleBytecodeOptions? options,
@@ -801,7 +825,7 @@ Some builtin options expose importable modules, and some install globals directl
 | Option | Description |
 |--------|-------------|
 | `abort` | `AbortController` and abort-related globals |
-| `assert` | Assertion helpers |
+| `assert_` | Assertion helpers |
 | `asyncHooks` | Async lifecycle tracking |
 | `buffer` | Buffer utilities for binary data |
 | `childProcess` | Child process spawning |

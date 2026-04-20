@@ -74,8 +74,6 @@ jobs:
         run: |
           export IPHONEOS_DEPLOYMENT_TARGET=12.0
           export MACOSX_DEPLOYMENT_TARGET=12.0
-          # Set environment variables that work for both iOS device and simulator builds
-          export BINDGEN_EXTRA_CLANG_ARGS="-target aarch64-apple-ios12.0"
           dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -43,6 +43,7 @@ jobs:
     outputs:
       release_tag: ${{ steps.tag.outputs.tag }}
       release_name: ${{ steps.tag.outputs.name }}
+      project_version: ${{ steps.version.outputs.project_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,6 +57,12 @@ jobs:
           SHORT_REF=$(git rev-parse --short HEAD)
           echo "tag=$DATE-$SHORT_REF" >> $GITHUB_OUTPUT
           echo "name=Release $DATE-$SHORT_REF" >> $GITHUB_OUTPUT
+
+      - name: Read project version
+        id: version
+        run: |
+          VERSION=$(grep '^version:' ${{ env.EXAMPLE_DIR }}/pubspec.yaml | head -n1 | awk '{print $2}' | cut -d'+' -f1)
+          echo "project_version=$VERSION" >> $GITHUB_OUTPUT
 
   #####################################
   # Android build (multi-architecture)
@@ -251,7 +258,7 @@ jobs:
           $script = @"
           [Setup]
           AppName=${{ env.PROJECT_NAME }}
-          AppVersion=1.0.0
+          AppVersion=${{ needs.prepare.outputs.project_version }}
           DefaultDirName={pf}\${{ env.PROJECT_NAME }}
           DefaultGroupName=${{ env.PROJECT_NAME }}
           OutputBaseFilename=${{ env.PROJECT_SLUG }}-windows-setup
