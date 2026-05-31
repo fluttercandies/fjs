@@ -252,6 +252,33 @@ async fn test_engine_init_with_bridge() {
     engine.close().await.unwrap();
 }
 
+/// Regression test for issue #8: dropping an engine that has a bridge, without
+/// calling `close()` (as Dart's GC does), must not crash. It used to abort in
+/// `JS_FreeRuntime` because the bridge kept its own context alive.
+///
+/// Note: a regression is a process abort (SIGABRT), not a normal test failure —
+/// the second engine below only runs if the first drop was clean.
+#[tokio::test]
+async fn test_engine_drop_with_bridge_without_close_does_not_abort() {
+    {
+        let engine = JsEngine::create(None, None, None).await.unwrap();
+        engine
+            .init(|value| Box::pin(async move { JsResult::Ok(value) }))
+            .await
+            .unwrap();
+        let result = engine.eval(JsCode::Code("1 + 1".to_string()), None).await;
+        assert!(matches!(result.unwrap(), JsValue::Integer(2)));
+        // Drop WITHOUT close(), mimicking Dart's GC finalizer / hot restart.
+        drop(engine);
+    }
+
+    // Reached only if the drop above did not abort the process.
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+    let result = engine.eval(JsCode::Code("2 + 3".to_string()), None).await;
+    assert!(matches!(result.unwrap(), JsValue::Integer(5)));
+}
+
 #[tokio::test]
 async fn test_engine_double_init_fails() {
     let engine = JsEngine::create(None, None, None).await.unwrap();

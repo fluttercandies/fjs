@@ -1260,10 +1260,15 @@ fn new_bridge_call<'js>(
     ctx: rquickjs::Ctx<'js>,
     bridge: Arc<BridgeCallback>,
 ) -> rquickjs::CaughtResult<'js, rquickjs::Function<'js>> {
-    let ctx_for_catch = ctx.clone();
     rquickjs::Function::new(
         ctx.clone(),
-        move |args: rquickjs::function::Rest<rquickjs::Value<'js>>| -> rquickjs::Result<Promise<'js>> {
+        // `ctx` is a parameter, not a capture: capturing it would keep this
+        // function's context alive forever (the function lives on the global),
+        // so dropping the runtime without `close()` would crash in
+        // `JS_FreeRuntime`. See issue #8.
+        move |ctx: rquickjs::Ctx<'js>,
+              args: rquickjs::function::Rest<rquickjs::Value<'js>>|
+              -> rquickjs::Result<Promise<'js>> {
             if args.0.len() > 1 {
                 return Err(rquickjs::Error::TooManyArgs {
                     expected: 1,
@@ -1297,5 +1302,5 @@ fn new_bridge_call<'js>(
             })
         },
     )
-    .catch(&ctx_for_catch)
+    .catch(&ctx)
 }
