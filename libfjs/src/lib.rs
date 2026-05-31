@@ -39,6 +39,7 @@
 pub mod api;
 mod bytecode_support;
 mod frb_generated;
+mod js_executor;
 
 #[cfg(test)]
 mod tests;

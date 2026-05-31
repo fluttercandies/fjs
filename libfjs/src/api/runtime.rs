@@ -16,26 +16,28 @@ use rquickjs::promise::MaybePromise;
 use rquickjs::{CatchResultExt, FromJs, Module, Promise};
 use std::sync::{Arc, RwLock};
 
-/// Native stack of the threads fjs runs JS on. flutter_rust_bridge's tokio
-/// workers default to 2 MB and fjs does not change it.
-pub(crate) const JS_THREAD_STACK_SIZE: usize = 2 * 1024 * 1024;
-
-/// Biggest `max_stack_size` we allow: 3/4 of the thread stack.
+/// Biggest `max_stack_size` for the async runtime: 3/4 of the dedicated JS
+/// thread stack, leaving 1/4 as headroom. Also the default budget.
 ///
 /// QuickJS's overflow check is a soft limit measured from a baseline on the
 /// running thread; it only fires after JS grows this many bytes past it and
 /// does not know the real native stack. If the budget reaches the thread
-/// stack, JS overflows it and the process aborts instead of throwing. The 1/4
-/// headroom keeps overflow a catchable RangeError. Deeper recursion needs a
-/// bigger thread stack, not a bigger budget.
-pub(crate) const MAX_SAFE_STACK_SIZE: usize = JS_THREAD_STACK_SIZE / 4 * 3;
+/// stack, JS overflows it and the process aborts instead of throwing. The
+/// async runtime runs JS on fjs's own big threads (see [`crate::js_executor`]),
+/// so this ceiling is generous. Deeper recursion needs a bigger thread stack,
+/// not a bigger budget.
+pub(crate) const MAX_SAFE_STACK_SIZE: usize = crate::js_executor::JS_THREAD_STACK_SIZE / 4 * 3;
 
-/// Clamps a requested stack budget to the safe ceiling. `0` means "no limit"
-/// to QuickJS, which on a fixed thread stack just means "crash", so it maps to
-/// the ceiling too.
-pub(crate) fn clamp_stack_size(limit: usize) -> usize {
-    if limit == 0 || limit > MAX_SAFE_STACK_SIZE {
-        MAX_SAFE_STACK_SIZE
+/// Ceiling for the sync runtime, which runs JS on the caller's thread (fjs does
+/// not control its stack). Kept conservative — assumes a 2 MB thread.
+const SYNC_MAX_STACK_SIZE: usize = 2 * 1024 * 1024 / 4 * 3;
+
+/// Clamps a requested stack budget to `ceiling`. `0` means "no limit" to
+/// QuickJS, which on a fixed thread stack just means "crash", so it maps to the
+/// ceiling too.
+fn clamp_stack_size(limit: usize, ceiling: usize) -> usize {
+    if limit == 0 || limit > ceiling {
+        ceiling
     } else {
         limit
     }
@@ -379,7 +381,8 @@ impl JsRuntime {
     ///   ("no limit") maps to that ceiling.
     #[frb(sync)]
     pub fn set_max_stack_size(&self, limit: usize) {
-        self.rt.set_max_stack_size(clamp_stack_size(limit));
+        self.rt
+            .set_max_stack_size(clamp_stack_size(limit, SYNC_MAX_STACK_SIZE));
     }
 
     /// Sets the garbage collection threshold.
@@ -801,6 +804,10 @@ impl JsAsyncRuntime {
         );
         runtime.set_loader(resolver, loader).await;
 
+        // Default to a generous budget that still leaves headroom under the
+        // dedicated JS thread stack (see MAX_SAFE_STACK_SIZE).
+        runtime.set_max_stack_size(MAX_SAFE_STACK_SIZE).await;
+
         Ok(Self {
             rt: runtime,
             global_attachment: Some(global_attachment),
@@ -836,7 +843,9 @@ impl JsAsyncRuntime {
     ///   the runtime thread stack so overflow throws instead of crashing; `0`
     ///   ("no limit") maps to that ceiling.
     pub async fn set_max_stack_size(&self, limit: usize) {
-        self.rt.set_max_stack_size(clamp_stack_size(limit)).await;
+        self.rt
+            .set_max_stack_size(clamp_stack_size(limit, MAX_SAFE_STACK_SIZE))
+            .await;
     }
 
     /// Sets the garbage collection threshold.
@@ -932,8 +941,8 @@ impl JsAsyncRuntime {
     /// }
     /// ```
     pub async fn execute_pending_job(&self) -> anyhow::Result<bool> {
-        self.rt
-            .execute_pending_job()
+        let rt = self.rt.clone();
+        crate::js_executor::run(async move { rt.execute_pending_job().await })
             .await
             .map_err(|e| anyhow::anyhow!(e))
     }
@@ -953,7 +962,8 @@ impl JsAsyncRuntime {
     /// await runtime.idle();
     /// ```
     pub async fn idle(&self) {
-        self.rt.idle().await;
+        let rt = self.rt.clone();
+        crate::js_executor::run(async move { rt.idle().await }).await;
     }
 
     /// Sets runtime info string.
@@ -995,6 +1005,21 @@ pub struct JsAsyncContext {
 }
 
 impl JsAsyncContext {
+    /// Runs `f` against this context on a dedicated big-stack JS thread.
+    ///
+    /// All user-facing JavaScript runs through here so it gets a browser-class
+    /// native stack (see [`crate::js_executor`]) instead of flutter_rust_bridge's
+    /// smaller worker stack, which deep JS (e.g. a recursive render) would
+    /// overflow. (Context setup in `from` is shallow and runs inline.)
+    pub(crate) async fn with_js<F, R>(&self, f: F) -> R
+    where
+        F: for<'js> AsyncFnOnce(rquickjs::Ctx<'js>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        let ctx = self.ctx.clone();
+        crate::js_executor::run(async move { ctx.async_with(f).await }).await
+    }
+
     /// Creates a new async context from a runtime.
     ///
     /// The context will inherit the runtime's module configuration
@@ -1091,19 +1116,19 @@ impl JsAsyncContext {
     /// - If code evaluation fails
     /// - If global attachment fails
     pub async fn eval_with_options(&self, code: String, options: JsEvalOptions) -> JsResult {
-        self.ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.global_attachment
-                    && let Err(e) = attachment.attach(&ctx)
-                {
-                    return JsResult::Err(JsError::context(e.to_string()));
-                }
-                let mut options = options;
-                options.promise = Some(true);
-                let res = ctx.eval_with_options(code, options.into());
-                result_from_promise(&ctx, res).await
-            })
-            .await
+        let attachment = self.global_attachment.clone();
+        self.with_js(async move |ctx| {
+            if let Some(attachment) = &attachment
+                && let Err(e) = attachment.attach(&ctx)
+            {
+                return JsResult::Err(JsError::context(e.to_string()));
+            }
+            let mut options = options;
+            options.promise = Some(true);
+            let res = ctx.eval_with_options(code, options.into());
+            result_from_promise(&ctx, res).await
+        })
+        .await
     }
 
     /// Evaluates JavaScript code from a file.
@@ -1153,19 +1178,19 @@ impl JsAsyncContext {
     /// - If file cannot be read
     /// - If code evaluation fails
     pub async fn eval_file_with_options(&self, path: String, options: JsEvalOptions) -> JsResult {
-        self.ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.global_attachment
-                    && let Err(e) = attachment.attach(&ctx)
-                {
-                    return JsResult::Err(JsError::context(e.to_string()));
-                }
-                let mut options = options;
-                options.promise = Some(true);
-                let res = ctx.eval_file_with_options(path, options.into());
-                result_from_promise(&ctx, res).await
-            })
-            .await
+        let attachment = self.global_attachment.clone();
+        self.with_js(async move |ctx| {
+            if let Some(attachment) = &attachment
+                && let Err(e) = attachment.attach(&ctx)
+            {
+                return JsResult::Err(JsError::context(e.to_string()));
+            }
+            let mut options = options;
+            options.promise = Some(true);
+            let res = ctx.eval_file_with_options(path, options.into());
+            result_from_promise(&ctx, res).await
+        })
+        .await
     }
 
     /// Evaluates a function from a module.
@@ -1205,19 +1230,19 @@ impl JsAsyncContext {
         params: Option<Vec<JsValue>>,
     ) -> JsResult {
         let params = params.unwrap_or_default();
-        self.ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.global_attachment
-                    && let Err(e) = attachment.attach(&ctx)
-                {
-                    return JsResult::Err(JsError::context(format!(
-                        "Failed to attach global context: {}",
-                        e
-                    )));
-                }
-                call_module_method(&ctx, module, method, params).await
-            })
-            .await
+        let attachment = self.global_attachment.clone();
+        self.with_js(async move |ctx| {
+            if let Some(attachment) = &attachment
+                && let Err(e) = attachment.attach(&ctx)
+            {
+                return JsResult::Err(JsError::context(format!(
+                    "Failed to attach global context: {}",
+                    e
+                )));
+            }
+            call_module_method(&ctx, module, method, params).await
+        })
+        .await
     }
 
     /// Returns all modules currently available in this context.
@@ -1225,16 +1250,16 @@ impl JsAsyncContext {
     /// This includes builtin modules, statically configured modules,
     /// and any dynamically declared modules attached to the context.
     pub async fn get_available_modules(&self) -> anyhow::Result<Vec<String>> {
-        self.ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.global_attachment {
-                    attachment
-                        .attach(&ctx)
-                        .map_err(|e| anyhow::anyhow!("Failed to attach global context: {e}"))?;
-                }
-                Ok(get_available_module_names(&ctx))
-            })
-            .await
+        let attachment = self.global_attachment.clone();
+        self.with_js(async move |ctx| {
+            if let Some(attachment) = &attachment {
+                attachment
+                    .attach(&ctx)
+                    .map_err(|e| anyhow::anyhow!("Failed to attach global context: {e}"))?;
+            }
+            Ok(get_available_module_names(&ctx))
+        })
+        .await
     }
 }
 
