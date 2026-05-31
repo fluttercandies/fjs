@@ -16,6 +16,31 @@ use rquickjs::promise::MaybePromise;
 use rquickjs::{CatchResultExt, FromJs, Module, Promise};
 use std::sync::{Arc, RwLock};
 
+/// Native stack of the threads fjs runs JS on. flutter_rust_bridge's tokio
+/// workers default to 2 MB and fjs does not change it.
+pub(crate) const JS_THREAD_STACK_SIZE: usize = 2 * 1024 * 1024;
+
+/// Biggest `max_stack_size` we allow: 3/4 of the thread stack.
+///
+/// QuickJS's overflow check is a soft limit measured from a baseline on the
+/// running thread; it only fires after JS grows this many bytes past it and
+/// does not know the real native stack. If the budget reaches the thread
+/// stack, JS overflows it and the process aborts instead of throwing. The 1/4
+/// headroom keeps overflow a catchable RangeError. Deeper recursion needs a
+/// bigger thread stack, not a bigger budget.
+pub(crate) const MAX_SAFE_STACK_SIZE: usize = JS_THREAD_STACK_SIZE / 4 * 3;
+
+/// Clamps a requested stack budget to the safe ceiling. `0` means "no limit"
+/// to QuickJS, which on a fixed thread stack just means "crash", so it maps to
+/// the ceiling too.
+pub(crate) fn clamp_stack_size(limit: usize) -> usize {
+    if limit == 0 || limit > MAX_SAFE_STACK_SIZE {
+        MAX_SAFE_STACK_SIZE
+    } else {
+        limit
+    }
+}
+
 /// Memory usage statistics for the JavaScript runtime.
 ///
 /// This struct provides detailed information about memory allocation
@@ -349,10 +374,12 @@ impl JsRuntime {
     ///
     /// ## Parameters
     ///
-    /// - `limit`: Maximum stack size in bytes
+    /// - `limit`: Maximum stack size in bytes. Clamped to a safe ceiling below
+    ///   the runtime thread stack so overflow throws instead of crashing; `0`
+    ///   ("no limit") maps to that ceiling.
     #[frb(sync)]
     pub fn set_max_stack_size(&self, limit: usize) {
-        self.rt.set_max_stack_size(limit);
+        self.rt.set_max_stack_size(clamp_stack_size(limit));
     }
 
     /// Sets the garbage collection threshold.
@@ -805,9 +832,11 @@ impl JsAsyncRuntime {
     ///
     /// ## Parameters
     ///
-    /// - `limit`: Maximum stack size in bytes
+    /// - `limit`: Maximum stack size in bytes. Clamped to a safe ceiling below
+    ///   the runtime thread stack so overflow throws instead of crashing; `0`
+    ///   ("no limit") maps to that ceiling.
     pub async fn set_max_stack_size(&self, limit: usize) {
-        self.rt.set_max_stack_size(limit).await;
+        self.rt.set_max_stack_size(clamp_stack_size(limit)).await;
     }
 
     /// Sets the garbage collection threshold.

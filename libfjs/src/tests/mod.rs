@@ -31,6 +31,9 @@ mod memory_tests;
 #[cfg(test)]
 mod llrt_module_tests;
 
+#[cfg(test)]
+mod stack_tests;
+
 /// Test helper utilities
 #[cfg(test)]
 pub mod test_utils {
