@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 202636287;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1608407051;
 
 // Section: executor
 
@@ -1078,6 +1078,121 @@ fn wire__crate__api__runtime__JsAsyncRuntime_set_memory_limit_impl(
                                 api_limit,
                             )
                             .await;
+                        })?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__runtime__JsAsyncRuntime_start_drive_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "JsAsyncRuntime_start_drive",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncRuntime>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_that_guard =
+                                        Some(api_that.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = Result::<_, ()>::Ok({
+                            crate::api::runtime::JsAsyncRuntime::start_drive(&*api_that_guard)
+                                .await;
+                        })?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__runtime__JsAsyncRuntime_stop_drive_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "JsAsyncRuntime_stop_drive",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncRuntime>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_that_guard =
+                                        Some(api_that.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = Result::<_, ()>::Ok({
+                            crate::api::runtime::JsAsyncRuntime::stop_drive(&*api_that_guard).await;
                         })?;
                         Ok(output_ok)
                     })()
@@ -3636,6 +3751,118 @@ fn wire__crate__api__engine__JsEngine_set_memory_limit_impl(
                             api_limit,
                         )
                         .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__engine__JsEngine_start_drive_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "JsEngine_start_drive",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngine>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_that_guard =
+                                        Some(api_that.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok =
+                            crate::api::engine::JsEngine::start_drive(&*api_that_guard).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__engine__JsEngine_stop_drive_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "JsEngine_stop_drive",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngine>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_that_guard =
+                                        Some(api_that.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok =
+                            crate::api::engine::JsEngine::stop_drive(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -7913,206 +8140,222 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        19 => {
+        19 => wire__crate__api__runtime__JsAsyncRuntime_start_drive_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        20 => wire__crate__api__runtime__JsAsyncRuntime_stop_drive_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        21 => {
             wire__crate__api__bytecode__JsBytecode_compile_impl(port, ptr, rust_vec_len, data_len)
         }
-        20 => wire__crate__api__bytecode__JsBytecode_compile_module_bundle_impl(
+        22 => wire__crate__api__bytecode__JsBytecode_compile_module_bundle_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        22 => wire__crate__api__bytecode__JsBytecode_compile_script_impl(
+        24 => wire__crate__api__bytecode__JsBytecode_compile_script_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => {
+        27 => {
             wire__crate__api__bytecode__JsBytecode_validate_impl(port, ptr, rust_vec_len, data_len)
         }
-        26 => wire__crate__api__bytecode__JsBytecode_validate_bundle_impl(
+        28 => wire__crate__api__bytecode__JsBytecode_validate_bundle_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => wire__crate__api__bytecode__JsBytecode_validate_script_impl(
+        30 => wire__crate__api__bytecode__JsBytecode_validate_script_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__engine__JsEngine_call_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__engine__JsEngine_clear_pending_modules_impl(
+        39 => wire__crate__api__engine__JsEngine_call_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__engine__JsEngine_clear_pending_modules_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__engine__JsEngine_close_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__engine__JsEngine_create_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__engine__JsEngine_declare_new_bytecode_bundle_impl(
+        41 => wire__crate__api__engine__JsEngine_close_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__engine__JsEngine_create_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__engine__JsEngine_declare_new_bytecode_bundle_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__engine__JsEngine_declare_new_bytecode_module_impl(
+        45 => wire__crate__api__engine__JsEngine_declare_new_bytecode_module_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__engine__JsEngine_declare_new_bytecode_modules_impl(
+        46 => wire__crate__api__engine__JsEngine_declare_new_bytecode_modules_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => wire__crate__api__engine__JsEngine_declare_new_module_impl(
+        47 => wire__crate__api__engine__JsEngine_declare_new_module_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        46 => wire__crate__api__engine__JsEngine_declare_new_modules_impl(
+        48 => wire__crate__api__engine__JsEngine_declare_new_modules_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__engine__JsEngine_eval_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__engine__JsEngine_evaluate_bytecode_bundle_impl(
+        49 => wire__crate__api__engine__JsEngine_eval_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__engine__JsEngine_evaluate_bytecode_bundle_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__engine__JsEngine_evaluate_bytecode_module_impl(
+        51 => wire__crate__api__engine__JsEngine_evaluate_bytecode_module_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__engine__JsEngine_evaluate_module_impl(
+        52 => wire__crate__api__engine__JsEngine_evaluate_module_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__engine__JsEngine_evaluate_script_bytecode_impl(
+        53 => wire__crate__api__engine__JsEngine_evaluate_script_bytecode_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => wire__crate__api__engine__JsEngine_execute_pending_job_impl(
+        54 => wire__crate__api__engine__JsEngine_execute_pending_job_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__engine__JsEngine_get_available_modules_impl(
+        55 => wire__crate__api__engine__JsEngine_get_available_modules_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__engine__JsEngine_get_declared_modules_impl(
+        56 => wire__crate__api__engine__JsEngine_get_declared_modules_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__engine__JsEngine_idle_impl(port, ptr, rust_vec_len, data_len),
-        56 => wire__crate__api__engine__JsEngine_init_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__engine__JsEngine_init_without_bridge_impl(
+        57 => wire__crate__api__engine__JsEngine_idle_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__engine__JsEngine_init_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__engine__JsEngine_init_without_bridge_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__engine__JsEngine_is_job_pending_impl(
+        60 => wire__crate__api__engine__JsEngine_is_job_pending_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        59 => wire__crate__api__engine__JsEngine_is_module_available_impl(
+        61 => wire__crate__api__engine__JsEngine_is_module_available_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => wire__crate__api__engine__JsEngine_is_module_declared_impl(
+        62 => wire__crate__api__engine__JsEngine_is_module_declared_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => {
+        63 => {
             wire__crate__api__engine__JsEngine_memory_usage_impl(port, ptr, rust_vec_len, data_len)
         }
-        62 => wire__crate__api__engine__JsEngine_run_gc_impl(port, ptr, rust_vec_len, data_len),
-        64 => wire__crate__api__engine__JsEngine_set_gc_threshold_impl(
+        64 => wire__crate__api__engine__JsEngine_run_gc_impl(port, ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__engine__JsEngine_set_gc_threshold_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        65 => wire__crate__api__engine__JsEngine_set_info_impl(port, ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__engine__JsEngine_set_max_stack_size_impl(
+        67 => wire__crate__api__engine__JsEngine_set_info_impl(port, ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__engine__JsEngine_set_max_stack_size_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        67 => wire__crate__api__engine__JsEngine_set_memory_limit_impl(
+        69 => wire__crate__api__engine__JsEngine_set_memory_limit_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__runtime__JsRuntime_create_impl(port, ptr, rust_vec_len, data_len),
-        108 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        110 => wire__crate__api__source__js_builtin_options_default_impl(
+        70 => {
+            wire__crate__api__engine__JsEngine_start_drive_impl(port, ptr, rust_vec_len, data_len)
+        }
+        71 => wire__crate__api__engine__JsEngine_stop_drive_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__runtime__JsRuntime_create_impl(port, ptr, rust_vec_len, data_len),
+        112 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        114 => wire__crate__api__source__js_builtin_options_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        115 => wire__crate__api__source__js_bytecode_endianness_default_impl(
+        119 => wire__crate__api__source__js_bytecode_endianness_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        119 => wire__crate__api__engine__js_engine_runtime_options_default_impl(
+        123 => wire__crate__api__engine__js_engine_runtime_options_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        123 => wire__crate__api__source__js_eval_options_default_impl(
+        127 => wire__crate__api__source__js_eval_options_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        130 => wire__crate__api__source__js_module_bytecode_options_default_impl(
+        134 => wire__crate__api__source__js_module_bytecode_options_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        137 => wire__crate__api__source__js_script_bytecode_options_default_impl(
+        141 => wire__crate__api__source__js_script_bytecode_options_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        139 => wire__crate__api__value__js_value_default_impl(port, ptr, rust_vec_len, data_len),
+        143 => wire__crate__api__value__js_value_default_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -8126,193 +8369,193 @@ fn pde_ffi_dispatcher_sync_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         13 => wire__crate__api__runtime__JsAsyncRuntime_new_impl(ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__bytecode__JsBytecode_compile_module_bundle_sync_impl(
+        23 => wire__crate__api__bytecode__JsBytecode_compile_module_bundle_sync_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__bytecode__JsBytecode_compile_script_sync_impl(
+        25 => wire__crate__api__bytecode__JsBytecode_compile_script_sync_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        24 => wire__crate__api__bytecode__JsBytecode_compile_sync_impl(ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__bytecode__JsBytecode_validate_bundle_sync_impl(
+        26 => wire__crate__api__bytecode__JsBytecode_compile_sync_impl(ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__bytecode__JsBytecode_validate_bundle_sync_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__api__bytecode__JsBytecode_validate_script_sync_impl(
+        31 => wire__crate__api__bytecode__JsBytecode_validate_script_sync_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => {
+        32 => {
             wire__crate__api__bytecode__JsBytecode_validate_sync_impl(ptr, rust_vec_len, data_len)
         }
-        31 => wire__crate__api__runtime__JsContext_eval_impl(ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__runtime__JsContext_eval_file_impl(ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__runtime__JsContext_eval_file_with_options_impl(
+        33 => wire__crate__api__runtime__JsContext_eval_impl(ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__runtime__JsContext_eval_file_impl(ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__runtime__JsContext_eval_file_with_options_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => {
+        36 => {
             wire__crate__api__runtime__JsContext_eval_with_options_impl(ptr, rust_vec_len, data_len)
         }
-        35 => wire__crate__api__runtime__JsContext_from_impl(ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__runtime__JsContext_get_available_modules_impl(
+        37 => wire__crate__api__runtime__JsContext_from_impl(ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__runtime__JsContext_get_available_modules_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__engine__JsEngine_closed_impl(ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__engine__JsEngine_running_impl(ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__runtime__JsRuntime_execute_pending_job_impl(
+        42 => wire__crate__api__engine__JsEngine_closed_impl(ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__engine__JsEngine_running_impl(ptr, rust_vec_len, data_len),
+        73 => wire__crate__api__runtime__JsRuntime_execute_pending_job_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__runtime__JsRuntime_is_job_pending_impl(ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__runtime__JsRuntime_memory_usage_impl(ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__runtime__JsRuntime_new_impl(ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__runtime__JsRuntime_run_gc_impl(ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__runtime__JsRuntime_set_dump_flags_impl(ptr, rust_vec_len, data_len),
-        75 => {
+        74 => wire__crate__api__runtime__JsRuntime_is_job_pending_impl(ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__runtime__JsRuntime_memory_usage_impl(ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__runtime__JsRuntime_new_impl(ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__runtime__JsRuntime_run_gc_impl(ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__runtime__JsRuntime_set_dump_flags_impl(ptr, rust_vec_len, data_len),
+        79 => {
             wire__crate__api__runtime__JsRuntime_set_gc_threshold_impl(ptr, rust_vec_len, data_len)
         }
-        76 => wire__crate__api__runtime__JsRuntime_set_info_impl(ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__runtime__JsRuntime_set_max_stack_size_impl(
+        80 => wire__crate__api__runtime__JsRuntime_set_info_impl(ptr, rust_vec_len, data_len),
+        81 => wire__crate__api__runtime__JsRuntime_set_max_stack_size_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => {
+        82 => {
             wire__crate__api__runtime__JsRuntime_set_memory_limit_impl(ptr, rust_vec_len, data_len)
         }
-        79 => wire__crate__api__runtime__MemoryUsage_array_count_impl(ptr, rust_vec_len, data_len),
-        80 => wire__crate__api__runtime__MemoryUsage_atom_count_impl(ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__runtime__MemoryUsage_atom_size_impl(ptr, rust_vec_len, data_len),
-        82 => wire__crate__api__runtime__MemoryUsage_binary_object_count_impl(
+        83 => wire__crate__api__runtime__MemoryUsage_array_count_impl(ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__runtime__MemoryUsage_atom_count_impl(ptr, rust_vec_len, data_len),
+        85 => wire__crate__api__runtime__MemoryUsage_atom_size_impl(ptr, rust_vec_len, data_len),
+        86 => wire__crate__api__runtime__MemoryUsage_binary_object_count_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__runtime__MemoryUsage_binary_object_size_impl(
+        87 => wire__crate__api__runtime__MemoryUsage_binary_object_size_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => wire__crate__api__runtime__MemoryUsage_c_func_count_impl(ptr, rust_vec_len, data_len),
-        85 => wire__crate__api__runtime__MemoryUsage_fast_array_count_impl(
+        88 => wire__crate__api__runtime__MemoryUsage_c_func_count_impl(ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__runtime__MemoryUsage_fast_array_count_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        86 => wire__crate__api__runtime__MemoryUsage_fast_array_elements_impl(
+        90 => wire__crate__api__runtime__MemoryUsage_fast_array_elements_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        87 => wire__crate__api__runtime__MemoryUsage_js_func_code_size_impl(
+        91 => wire__crate__api__runtime__MemoryUsage_js_func_code_size_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        88 => {
+        92 => {
             wire__crate__api__runtime__MemoryUsage_js_func_count_impl(ptr, rust_vec_len, data_len)
         }
-        89 => wire__crate__api__runtime__MemoryUsage_js_func_pc2line_count_impl(
+        93 => wire__crate__api__runtime__MemoryUsage_js_func_pc2line_count_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        90 => wire__crate__api__runtime__MemoryUsage_js_func_pc2line_size_impl(
+        94 => wire__crate__api__runtime__MemoryUsage_js_func_pc2line_size_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        91 => wire__crate__api__runtime__MemoryUsage_js_func_size_impl(ptr, rust_vec_len, data_len),
-        92 => wire__crate__api__runtime__MemoryUsage_malloc_count_impl(ptr, rust_vec_len, data_len),
-        93 => wire__crate__api__runtime__MemoryUsage_malloc_limit_impl(ptr, rust_vec_len, data_len),
-        94 => wire__crate__api__runtime__MemoryUsage_malloc_size_impl(ptr, rust_vec_len, data_len),
-        95 => wire__crate__api__runtime__MemoryUsage_memory_used_count_impl(
+        95 => wire__crate__api__runtime__MemoryUsage_js_func_size_impl(ptr, rust_vec_len, data_len),
+        96 => wire__crate__api__runtime__MemoryUsage_malloc_count_impl(ptr, rust_vec_len, data_len),
+        97 => wire__crate__api__runtime__MemoryUsage_malloc_limit_impl(ptr, rust_vec_len, data_len),
+        98 => wire__crate__api__runtime__MemoryUsage_malloc_size_impl(ptr, rust_vec_len, data_len),
+        99 => wire__crate__api__runtime__MemoryUsage_memory_used_count_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__runtime__MemoryUsage_memory_used_size_impl(
+        100 => wire__crate__api__runtime__MemoryUsage_memory_used_size_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__runtime__MemoryUsage_obj_count_impl(ptr, rust_vec_len, data_len),
-        98 => wire__crate__api__runtime__MemoryUsage_obj_size_impl(ptr, rust_vec_len, data_len),
-        99 => wire__crate__api__runtime__MemoryUsage_prop_count_impl(ptr, rust_vec_len, data_len),
-        100 => wire__crate__api__runtime__MemoryUsage_prop_size_impl(ptr, rust_vec_len, data_len),
-        101 => wire__crate__api__runtime__MemoryUsage_shape_count_impl(ptr, rust_vec_len, data_len),
-        102 => wire__crate__api__runtime__MemoryUsage_shape_size_impl(ptr, rust_vec_len, data_len),
-        103 => wire__crate__api__runtime__MemoryUsage_str_count_impl(ptr, rust_vec_len, data_len),
-        104 => wire__crate__api__runtime__MemoryUsage_str_size_impl(ptr, rust_vec_len, data_len),
-        105 => wire__crate__api__runtime__MemoryUsage_summary_impl(ptr, rust_vec_len, data_len),
-        106 => wire__crate__api__runtime__MemoryUsage_total_allocations_impl(
+        101 => wire__crate__api__runtime__MemoryUsage_obj_count_impl(ptr, rust_vec_len, data_len),
+        102 => wire__crate__api__runtime__MemoryUsage_obj_size_impl(ptr, rust_vec_len, data_len),
+        103 => wire__crate__api__runtime__MemoryUsage_prop_count_impl(ptr, rust_vec_len, data_len),
+        104 => wire__crate__api__runtime__MemoryUsage_prop_size_impl(ptr, rust_vec_len, data_len),
+        105 => wire__crate__api__runtime__MemoryUsage_shape_count_impl(ptr, rust_vec_len, data_len),
+        106 => wire__crate__api__runtime__MemoryUsage_shape_size_impl(ptr, rust_vec_len, data_len),
+        107 => wire__crate__api__runtime__MemoryUsage_str_count_impl(ptr, rust_vec_len, data_len),
+        108 => wire__crate__api__runtime__MemoryUsage_str_size_impl(ptr, rust_vec_len, data_len),
+        109 => wire__crate__api__runtime__MemoryUsage_summary_impl(ptr, rust_vec_len, data_len),
+        110 => wire__crate__api__runtime__MemoryUsage_total_allocations_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => {
+        111 => {
             wire__crate__api__runtime__MemoryUsage_total_memory_impl(ptr, rust_vec_len, data_len)
         }
-        109 => wire__crate__api__source__js_builtin_options_all_impl(ptr, rust_vec_len, data_len),
-        111 => {
+        113 => wire__crate__api__source__js_builtin_options_all_impl(ptr, rust_vec_len, data_len),
+        115 => {
             wire__crate__api__source__js_builtin_options_essential_impl(ptr, rust_vec_len, data_len)
         }
-        112 => wire__crate__api__source__js_builtin_options_node_impl(ptr, rust_vec_len, data_len),
-        113 => wire__crate__api__source__js_builtin_options_none_impl(ptr, rust_vec_len, data_len),
-        114 => wire__crate__api__source__js_builtin_options_web_impl(ptr, rust_vec_len, data_len),
-        116 => wire__crate__api__source__js_code_is_bytes_impl(ptr, rust_vec_len, data_len),
-        117 => wire__crate__api__source__js_code_is_code_impl(ptr, rust_vec_len, data_len),
-        118 => wire__crate__api__source__js_code_is_path_impl(ptr, rust_vec_len, data_len),
-        120 => wire__crate__api__error__js_error_code_impl(ptr, rust_vec_len, data_len),
-        121 => wire__crate__api__error__js_error_is_recoverable_impl(ptr, rust_vec_len, data_len),
-        122 => wire__crate__api__error__js_error_to_string_impl(ptr, rust_vec_len, data_len),
-        124 => wire__crate__api__source__js_eval_options_defaults_impl(ptr, rust_vec_len, data_len),
-        125 => wire__crate__api__source__js_eval_options_module_impl(ptr, rust_vec_len, data_len),
-        126 => wire__crate__api__source__js_eval_options_new_impl(ptr, rust_vec_len, data_len),
-        127 => {
+        116 => wire__crate__api__source__js_builtin_options_node_impl(ptr, rust_vec_len, data_len),
+        117 => wire__crate__api__source__js_builtin_options_none_impl(ptr, rust_vec_len, data_len),
+        118 => wire__crate__api__source__js_builtin_options_web_impl(ptr, rust_vec_len, data_len),
+        120 => wire__crate__api__source__js_code_is_bytes_impl(ptr, rust_vec_len, data_len),
+        121 => wire__crate__api__source__js_code_is_code_impl(ptr, rust_vec_len, data_len),
+        122 => wire__crate__api__source__js_code_is_path_impl(ptr, rust_vec_len, data_len),
+        124 => wire__crate__api__error__js_error_code_impl(ptr, rust_vec_len, data_len),
+        125 => wire__crate__api__error__js_error_is_recoverable_impl(ptr, rust_vec_len, data_len),
+        126 => wire__crate__api__error__js_error_to_string_impl(ptr, rust_vec_len, data_len),
+        128 => wire__crate__api__source__js_eval_options_defaults_impl(ptr, rust_vec_len, data_len),
+        129 => wire__crate__api__source__js_eval_options_module_impl(ptr, rust_vec_len, data_len),
+        130 => wire__crate__api__source__js_eval_options_new_impl(ptr, rust_vec_len, data_len),
+        131 => {
             wire__crate__api__source__js_eval_options_with_promise_impl(ptr, rust_vec_len, data_len)
         }
-        128 => wire__crate__api__source__js_module_bytecode_bundle_new_impl(
+        132 => wire__crate__api__source__js_module_bytecode_bundle_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        129 => wire__crate__api__source__js_module_bytecode_new_impl(ptr, rust_vec_len, data_len),
-        131 => wire__crate__api__source__js_module_bytecode_options_defaults_impl(
+        133 => wire__crate__api__source__js_module_bytecode_new_impl(ptr, rust_vec_len, data_len),
+        135 => wire__crate__api__source__js_module_bytecode_options_defaults_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        132 => wire__crate__api__source__js_module_bytes_impl(ptr, rust_vec_len, data_len),
-        133 => wire__crate__api__source__js_module_code_impl(ptr, rust_vec_len, data_len),
-        134 => wire__crate__api__source__js_module_new_impl(ptr, rust_vec_len, data_len),
-        135 => wire__crate__api__source__js_module_path_impl(ptr, rust_vec_len, data_len),
-        136 => wire__crate__api__source__js_script_bytecode_new_impl(ptr, rust_vec_len, data_len),
-        138 => wire__crate__api__source__js_script_bytecode_options_defaults_impl(
+        136 => wire__crate__api__source__js_module_bytes_impl(ptr, rust_vec_len, data_len),
+        137 => wire__crate__api__source__js_module_code_impl(ptr, rust_vec_len, data_len),
+        138 => wire__crate__api__source__js_module_new_impl(ptr, rust_vec_len, data_len),
+        139 => wire__crate__api__source__js_module_path_impl(ptr, rust_vec_len, data_len),
+        140 => wire__crate__api__source__js_script_bytecode_new_impl(ptr, rust_vec_len, data_len),
+        142 => wire__crate__api__source__js_script_bytecode_options_defaults_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        140 => wire__crate__api__value__js_value_is_array_impl(ptr, rust_vec_len, data_len),
-        141 => wire__crate__api__value__js_value_is_boolean_impl(ptr, rust_vec_len, data_len),
-        142 => wire__crate__api__value__js_value_is_bytes_impl(ptr, rust_vec_len, data_len),
-        143 => wire__crate__api__value__js_value_is_date_impl(ptr, rust_vec_len, data_len),
-        144 => wire__crate__api__value__js_value_is_none_impl(ptr, rust_vec_len, data_len),
-        145 => wire__crate__api__value__js_value_is_number_impl(ptr, rust_vec_len, data_len),
-        146 => wire__crate__api__value__js_value_is_object_impl(ptr, rust_vec_len, data_len),
-        147 => wire__crate__api__value__js_value_is_primitive_impl(ptr, rust_vec_len, data_len),
-        148 => wire__crate__api__value__js_value_is_string_impl(ptr, rust_vec_len, data_len),
-        149 => wire__crate__api__value__js_value_type_name_impl(ptr, rust_vec_len, data_len),
+        144 => wire__crate__api__value__js_value_is_array_impl(ptr, rust_vec_len, data_len),
+        145 => wire__crate__api__value__js_value_is_boolean_impl(ptr, rust_vec_len, data_len),
+        146 => wire__crate__api__value__js_value_is_bytes_impl(ptr, rust_vec_len, data_len),
+        147 => wire__crate__api__value__js_value_is_date_impl(ptr, rust_vec_len, data_len),
+        148 => wire__crate__api__value__js_value_is_none_impl(ptr, rust_vec_len, data_len),
+        149 => wire__crate__api__value__js_value_is_number_impl(ptr, rust_vec_len, data_len),
+        150 => wire__crate__api__value__js_value_is_object_impl(ptr, rust_vec_len, data_len),
+        151 => wire__crate__api__value__js_value_is_primitive_impl(ptr, rust_vec_len, data_len),
+        152 => wire__crate__api__value__js_value_is_string_impl(ptr, rust_vec_len, data_len),
+        153 => wire__crate__api__value__js_value_type_name_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

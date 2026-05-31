@@ -750,3 +750,45 @@ async fn test_context_async_eval_state_persistence() {
         _ => panic!("Expected 42"),
     }
 }
+
+// ============================================================================
+// Background Driver Tests
+// ============================================================================
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_start_stop_drive_lifecycle() {
+    let runtime = JsAsyncRuntime::new().unwrap();
+
+    // No driver before it is started.
+    assert!(runtime.driver.lock().unwrap().is_none());
+
+    // Starting spawns a live background task.
+    runtime.start_drive().await;
+    let first_id = {
+        let slot = runtime.driver.lock().unwrap();
+        let handle = slot.as_ref().expect("driver task should be present");
+        assert!(!handle.is_finished(), "driver task should be running");
+        handle.id()
+    };
+
+    // Idempotent: a second start does not replace the running task.
+    runtime.start_drive().await;
+    let second_id = runtime.driver.lock().unwrap().as_ref().unwrap().id();
+    assert_eq!(first_id, second_id, "start_drive should not re-spawn");
+
+    // Stopping aborts the task and clears the slot.
+    runtime.stop_drive().await;
+    assert!(runtime.driver.lock().unwrap().is_none());
+
+    // Stopping again is a harmless no-op.
+    runtime.stop_drive().await;
+    assert!(runtime.driver.lock().unwrap().is_none());
+
+    // The runtime is still usable after stopping the driver.
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let _ = context.eval("globalThis.y = 7".to_string()).await;
+    assert!(matches!(
+        context.eval("y".to_string()).await,
+        JsResult::Ok(JsValue::Integer(7))
+    ));
+}

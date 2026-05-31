@@ -14,7 +14,7 @@ use flutter_rust_bridge::frb;
 use rquickjs::loader::{BuiltinLoader, BuiltinResolver, FileResolver, NativeLoader, ScriptLoader};
 use rquickjs::promise::MaybePromise;
 use rquickjs::{CatchResultExt, FromJs, Module, Promise};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 /// Memory usage statistics for the JavaScript runtime.
 ///
@@ -703,6 +703,11 @@ impl JsContext {
 pub struct JsAsyncRuntime {
     pub(crate) rt: rquickjs::AsyncRuntime,
     pub(crate) global_attachment: Option<GlobalAttachment>,
+    /// Handle to the background task spawned by [`JsAsyncRuntime::start_drive`].
+    ///
+    /// Shared across clones so that starting/stopping the driver is coherent
+    /// regardless of which clone the call lands on.
+    pub(crate) driver: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl JsAsyncRuntime {
@@ -727,6 +732,7 @@ impl JsAsyncRuntime {
         Ok(Self {
             rt: runtime,
             global_attachment: None,
+            driver: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -777,6 +783,7 @@ impl JsAsyncRuntime {
         Ok(Self {
             rt: runtime,
             global_attachment: Some(global_attachment),
+            driver: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -925,6 +932,46 @@ impl JsAsyncRuntime {
     /// ```
     pub async fn idle(&self) {
         self.rt.idle().await;
+    }
+
+    /// Starts a background task that keeps the runtime's async work moving, so
+    /// timers, `fetch`, and other background work finish promptly without the
+    /// host having to keep checking. Unlike [`idle()`](Self::idle), which only
+    /// returns once all work is done, this keeps running — so it's fine to leave
+    /// on for the whole life of the app, and `eval` and other calls still run in
+    /// between.
+    ///
+    /// Calling it again while a driver is already running does nothing. The
+    /// driver runs until [`stop_drive()`](Self::stop_drive) is called or the
+    /// runtime is dropped.
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// await runtime.startDrive();
+    /// ```
+    pub async fn start_drive(&self) {
+        let mut slot = self.driver.lock().unwrap();
+        if slot.as_ref().is_some_and(|handle| !handle.is_finished()) {
+            return;
+        }
+        *slot = Some(tokio::spawn(self.rt.drive()));
+    }
+
+    /// Stops the background driver started by [`start_drive()`](Self::start_drive).
+    ///
+    /// Cancels the task if one is running, and does nothing if not. The runtime
+    /// is left usable — you can start a driver again or drain it by hand afterwards.
+    ///
+    /// ## Example
+    ///
+    /// ```dart
+    /// await runtime.stopDrive();
+    /// ```
+    pub async fn stop_drive(&self) {
+        if let Some(handle) = self.driver.lock().unwrap().take() {
+            handle.abort();
+        }
     }
 
     /// Sets runtime info string.

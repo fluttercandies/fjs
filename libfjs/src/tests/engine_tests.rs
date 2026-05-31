@@ -180,6 +180,7 @@ async fn test_engine_init_failure_rolls_back_state() {
         global_attachment: Some(
             GlobalAttachment::default().add_function(failing_global_attachment),
         ),
+        driver: std::sync::Arc::new(std::sync::Mutex::new(None)),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = JsEngine::new_for_test(runtime, context);
@@ -210,6 +211,7 @@ async fn test_engine_runtime_proxy_methods_fail_while_initializing() {
         global_attachment: Some(
             GlobalAttachment::default().add_function(blocking_global_attachment),
         ),
+        driver: std::sync::Arc::new(std::sync::Mutex::new(None)),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = std::sync::Arc::new(JsEngine::new_for_test(runtime, context));

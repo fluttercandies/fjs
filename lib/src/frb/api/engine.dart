@@ -489,6 +489,16 @@ abstract class JsEngine implements RustOpaqueInterface {
 
   /// Sets the memory limit on the engine-owned runtime.
   Future<void> setMemoryLimit({required BigInt limit});
+
+  /// Starts the background driver on the engine-owned runtime.
+  ///
+  /// See [`JsAsyncRuntime::start_drive`].
+  Future<void> startDrive();
+
+  /// Stops the background driver on the engine-owned runtime.
+  ///
+  /// See [`JsAsyncRuntime::stop_drive`]. Safe to call at any time.
+  Future<void> stopDrive();
 }
 
 /// Runtime configuration applied when constructing a high-level `JsEngine`.

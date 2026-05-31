@@ -220,6 +220,23 @@ impl JsEngine {
         Ok(())
     }
 
+    /// Starts the background driver on the engine-owned runtime.
+    ///
+    /// See [`JsAsyncRuntime::start_drive`].
+    pub async fn start_drive(&self) -> anyhow::Result<()> {
+        self.ensure_runtime_accessible()?;
+        self.runtime.start_drive().await;
+        Ok(())
+    }
+
+    /// Stops the background driver on the engine-owned runtime.
+    ///
+    /// See [`JsAsyncRuntime::stop_drive`]. Safe to call at any time.
+    pub async fn stop_drive(&self) -> anyhow::Result<()> {
+        self.runtime.stop_drive().await;
+        Ok(())
+    }
+
     /// Returns whether the engine-owned runtime still has work pending.
     pub async fn is_job_pending(&self) -> anyhow::Result<bool> {
         self.ensure_runtime_accessible()?;
@@ -437,6 +454,10 @@ impl JsEngine {
         let previous_state = self.begin_close()?;
 
         if previous_state == STATE_CREATED || previous_state == STATE_RUNNING {
+            // Stop the background driver (if any) before draining and freeing
+            // the runtime, so it cannot race teardown.
+            self.runtime.stop_drive().await;
+
             let _ = self
                 .context
                 .ctx

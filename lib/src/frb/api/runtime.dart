@@ -356,6 +356,36 @@ abstract class JsAsyncRuntime implements RustOpaqueInterface {
   /// await runtime.setMemoryLimit(limit: 16 * 1024 * 1024); // 16 MB
   /// ```
   Future<void> setMemoryLimit({required BigInt limit});
+
+  /// Starts a background task that keeps the runtime's async work moving, so
+  /// timers, `fetch`, and other background work finish promptly without the
+  /// host having to keep checking. Unlike [`idle()`](Self::idle), which only
+  /// returns once all work is done, this keeps running — so it's fine to leave
+  /// on for the whole life of the app, and `eval` and other calls still run in
+  /// between.
+  ///
+  /// Calling it again while a driver is already running does nothing. The
+  /// driver runs until [`stop_drive()`](Self::stop_drive) is called or the
+  /// runtime is dropped.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// await runtime.startDrive();
+  /// ```
+  Future<void> startDrive();
+
+  /// Stops the background driver started by [`start_drive()`](Self::start_drive).
+  ///
+  /// Cancels the task if one is running, and does nothing if not. The runtime
+  /// is left usable — you can start a driver again or drain it by hand afterwards.
+  ///
+  /// ## Example
+  ///
+  /// ```dart
+  /// await runtime.stopDrive();
+  /// ```
+  Future<void> stopDrive();
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsContext>>
