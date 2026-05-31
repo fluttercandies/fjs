@@ -13,7 +13,7 @@ use crate::api::value::{JsValue, install_value_intrinsics};
 use flutter_rust_bridge::frb;
 use rquickjs::loader::{BuiltinLoader, BuiltinResolver, FileResolver, NativeLoader, ScriptLoader};
 use rquickjs::promise::MaybePromise;
-use rquickjs::{CatchResultExt, FromJs, Module, Promise};
+use rquickjs::{CatchResultExt, Exception, FromJs, Module, Promise};
 use std::sync::{Arc, RwLock};
 
 /// Memory usage statistics for the JavaScript runtime.
@@ -903,10 +903,36 @@ impl JsAsyncRuntime {
     /// }
     /// ```
     pub async fn execute_pending_job(&self) -> anyhow::Result<bool> {
-        self.rt
-            .execute_pending_job()
-            .await
-            .map_err(|e| anyhow::anyhow!(e))
+        match self.rt.execute_pending_job().await {
+            Ok(progressed) => Ok(progressed),
+            Err(job_exc) => {
+                // rquickjs's `AsyncJobException` only renders as the opaque
+                // "Async job raised an exception" — the actual JS error/stack is
+                // left on the offending context for the caller to recover (see
+                // its docs). Pull it out so the host sees the real reason (e.g.
+                // an unhandled promise rejection) instead of a useless message.
+                let detail = job_exc
+                    .0
+                    .async_with(async |ctx| {
+                        let caught = ctx.catch();
+                        if let Some(ex) = caught
+                            .clone()
+                            .into_object()
+                            .and_then(Exception::from_object)
+                        {
+                            format!("{ex}")
+                        } else {
+                            caught
+                                .clone()
+                                .into_string()
+                                .and_then(|s| s.to_string().ok())
+                                .unwrap_or_else(|| format!("{caught:?}"))
+                        }
+                    })
+                    .await;
+                Err(anyhow::anyhow!("Async job raised an exception: {detail}"))
+            }
+        }
     }
 
     /// Runs the async runtime until no queued jobs or spawned futures remain.
