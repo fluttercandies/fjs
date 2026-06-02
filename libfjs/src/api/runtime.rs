@@ -209,6 +209,13 @@ fn install_default_async_loaders(runtime: &rquickjs::AsyncRuntime) -> anyhow::Re
     Ok(())
 }
 
+/// The default stack budget for every async runtime. `new()` and `create()` both
+/// call this so they can't disagree — without it, `new()` keeps QuickJS's tiny
+/// 256 KB default.
+async fn apply_default_async_stack_budget(runtime: &rquickjs::AsyncRuntime) {
+    runtime.set_max_stack_size(MAX_SAFE_STACK_SIZE).await;
+}
+
 /// A synchronous JavaScript runtime.
 ///
 /// `JsRuntime` provides a synchronous execution environment for JavaScript code.
@@ -754,6 +761,8 @@ impl JsAsyncRuntime {
     pub fn new() -> anyhow::Result<Self> {
         let runtime = rquickjs::AsyncRuntime::new()?;
         install_default_async_loaders(&runtime)?;
+        // block_on because new() is sync — same as the loader install above.
+        futures::executor::block_on(apply_default_async_stack_budget(&runtime));
         Ok(Self {
             rt: runtime,
             global_attachment: None,
@@ -803,10 +812,7 @@ impl JsAsyncRuntime {
             additional_loader,
         );
         runtime.set_loader(resolver, loader).await;
-
-        // Default to a generous budget that still leaves headroom under the
-        // dedicated JS thread stack (see MAX_SAFE_STACK_SIZE).
-        runtime.set_max_stack_size(MAX_SAFE_STACK_SIZE).await;
+        apply_default_async_stack_budget(&runtime).await;
 
         Ok(Self {
             rt: runtime,

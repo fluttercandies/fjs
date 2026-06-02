@@ -168,6 +168,34 @@ async fn default_budget_is_generous_and_routed() {
     }
 }
 
+/// `new()` and `create()` must give the same default budget. `new()` used to
+/// skip it and fall back to QuickJS's 256 KB default, so with no explicit budget
+/// it overflowed far shallower — caught here by comparing recursion depth.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn new_and_create_apply_the_same_default_budget() {
+    // No explicit `set_max_stack_size` on either — each must inherit the default.
+    let new_rt = JsAsyncRuntime::new().unwrap();
+    let new_ctx = JsAsyncContext::from(&new_rt).await.unwrap();
+    let (new_depth, _) = eval_and_job_depths(&new_rt, &new_ctx).await;
+
+    let create_rt = JsAsyncRuntime::create(None, None).await.unwrap();
+    let create_ctx = JsAsyncContext::from(&create_rt).await.unwrap();
+    let (create_depth, _) = eval_and_job_depths(&create_rt, &create_ctx).await;
+
+    assert!(
+        new_depth > 0 && create_depth > 0,
+        "both constructors must reach a catchable depth, got new={new_depth} create={create_depth}",
+    );
+    // Same default budget => ~same depth. Before the fix `new()` was the ~256 KB
+    // default and bottomed out many times shallower than `create()`.
+    let ratio = new_depth as f64 / create_depth as f64;
+    assert!(
+        ratio > 0.8,
+        "new() should reach ~the same depth as create() (shared default budget), \
+         got new={new_depth} create={create_depth} (ratio {ratio:.2})",
+    );
+}
+
 /// An over-large budget is clamped below the JS thread stack, so deep recursion
 /// throws instead of aborting the process.
 ///
