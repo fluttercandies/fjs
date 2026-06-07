@@ -263,7 +263,7 @@ use std::sync::{Arc, RwLock};
 fn test_dynamic_module_resolver_not_found() {
     test_with(|ctx| {
         let mut resolver = DynamicModuleResolver::default();
-        let result = resolver.resolve(&ctx, ".", "nonexistent");
+        let result = resolver.resolve(&ctx, ".", "nonexistent", None);
         assert!(result.is_err());
     });
 }
@@ -280,7 +280,7 @@ fn test_dynamic_module_resolver_found() {
         let _ = ctx.store_userdata(modules);
 
         let mut resolver = DynamicModuleResolver::default();
-        let result = resolver.resolve(&ctx, ".", "test-module");
+        let result = resolver.resolve(&ctx, ".", "test-module", None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "test-module");
     });
@@ -395,7 +395,7 @@ fn test_module_resolver_add_name() {
     let resolver = ModuleResolver::default().add_name("test-module");
     test_with(|ctx| {
         let mut resolver = resolver;
-        let result = resolver.resolve(&ctx, ".", "test-module");
+        let result = resolver.resolve(&ctx, ".", "test-module", None);
         assert!(result.is_ok());
     });
 }
@@ -405,7 +405,7 @@ fn test_module_resolver_not_found() {
     let resolver = ModuleResolver::default().add_name("existing");
     test_with(|ctx| {
         let mut resolver = resolver;
-        let result = resolver.resolve(&ctx, ".", "nonexistent");
+        let result = resolver.resolve(&ctx, ".", "nonexistent", None);
         assert!(result.is_err());
     });
 }
@@ -416,7 +416,7 @@ fn test_module_resolver_node_prefix() {
     test_with(|ctx| {
         let mut resolver = resolver;
         // Should handle node: prefix
-        let result = resolver.resolve(&ctx, ".", "node:fs");
+        let result = resolver.resolve(&ctx, ".", "node:fs", None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "fs");
     });

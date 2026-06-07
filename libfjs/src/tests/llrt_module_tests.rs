@@ -3,7 +3,6 @@
 //! Tests for LLRT builtin modules including console, buffer, URL, path, crypto, etc.
 
 use crate::api::engine::JsEngine;
-use crate::api::runtime::{JsAsyncContext, JsAsyncRuntime};
 use crate::api::source::{JsBuiltinOptions, JsCode};
 use crate::api::value::JsValue;
 
@@ -15,11 +14,6 @@ macro_rules! test_llrt_module {
     ($name:ident, $code:expr, $check:expr) => {
         #[tokio::test]
         async fn $name() {
-            // Use create(...) to enable all builtin modules (fetch, buffer, etc.)
-            let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::all()), None)
-                .await
-                .unwrap();
-            let _context = JsAsyncContext::from(&runtime).await.unwrap();
             let engine = JsEngine::create(Some(JsBuiltinOptions::all()), None, None)
                 .await
                 .unwrap();
@@ -1862,9 +1856,11 @@ test_llrt_module!(
 test_llrt_module!(
     test_blob_slice,
     r#"
-        const blob = new Blob(['hello world']);
-        const sliced = blob.slice(0, 5);
-        await sliced.text()
+        await (async () => {
+            const blob = new Blob(['hello world']);
+            const sliced = blob.slice(0, 5);
+            return await sliced.text();
+        })()
     "#,
     |result| {
         if let Ok(JsValue::String(s)) = result {

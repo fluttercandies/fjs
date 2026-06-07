@@ -45,6 +45,7 @@ impl Resolver for CompileOnlyResolver {
         _ctx: &Ctx<'js>,
         base: &str,
         name: &str,
+        _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<String> {
         Ok(normalize_compile_specifier(base, name))
     }
@@ -391,6 +392,7 @@ impl Resolver for BundleCompileResolver {
         _ctx: &Ctx<'js>,
         base: &str,
         name: &str,
+        _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<String> {
         if self.modules.contains_key(name) {
             return Ok(name.to_string());

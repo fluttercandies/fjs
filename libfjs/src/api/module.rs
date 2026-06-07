@@ -144,7 +144,13 @@ impl Resolver for DynamicModuleResolver {
     /// # Returns
     ///
     /// Returns the resolved module name if found in storage.
-    fn resolve<'js>(&mut self, ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
+    fn resolve<'js>(
+        &mut self,
+        ctx: &Ctx<'js>,
+        base: &str,
+        name: &str,
+        _attributes: Option<ImportAttributes<'js>>,
+    ) -> rquickjs::Result<String> {
         if let Some(modules_storage) = ctx.userdata::<DynamicModuleStorage>() {
             let modules = modules_storage.read().unwrap();
             if modules.contains_key(name) {
@@ -442,7 +448,13 @@ impl Resolver for ModuleResolver {
     /// # Returns
     ///
     /// Returns the resolved module name or an error if not found.
-    fn resolve(&mut self, _: &Ctx<'_>, base: &str, name: &str) -> rquickjs::Result<String> {
+    fn resolve<'js>(
+        &mut self,
+        _: &Ctx<'js>,
+        base: &str,
+        name: &str,
+        _attributes: Option<ImportAttributes<'js>>,
+    ) -> rquickjs::Result<String> {
         let name = name.trim_start_matches("node:");
         if self.modules.contains(name) {
             Ok(name.into())
