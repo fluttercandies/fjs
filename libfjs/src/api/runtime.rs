@@ -221,6 +221,7 @@ impl JsRuntime {
     #[frb(sync)]
     pub fn new() -> anyhow::Result<Self> {
         let runtime = rquickjs::Runtime::new()?;
+        runtime.set_max_stack_size(crate::runtime::stack::SYNC_MAX_STACK_SIZE);
         let (module_resolver, module_loader, _) = ModuleBuilder::new().build();
         let (resolver, loader) = make_loader_stack(
             module_resolver,
@@ -263,6 +264,7 @@ impl JsRuntime {
         modules: Option<Vec<JsModule>>,
     ) -> anyhow::Result<Self> {
         let runtime = rquickjs::Runtime::new()?;
+        runtime.set_max_stack_size(crate::runtime::stack::SYNC_MAX_STACK_SIZE);
         let (
             module_resolver,
             module_loader,
@@ -352,7 +354,8 @@ impl JsRuntime {
     /// - `limit`: Maximum stack size in bytes
     #[frb(sync)]
     pub fn set_max_stack_size(&self, limit: usize) {
-        self.rt.set_max_stack_size(limit);
+        self.rt
+            .set_max_stack_size(crate::runtime::stack::clamp_sync(limit));
     }
 
     /// Sets the garbage collection threshold.
@@ -449,7 +452,7 @@ impl JsRuntime {
     pub fn execute_pending_job(&self) -> anyhow::Result<bool> {
         self.rt
             .execute_pending_job()
-            .map_err(|e| anyhow::anyhow!(e))
+            .map_err(|error| crate::runtime::job_error::sync_job_context(error.0))
     }
 
     /// Sets dump flags for debugging.
@@ -703,9 +706,25 @@ impl JsContext {
 pub struct JsAsyncRuntime {
     pub(crate) rt: rquickjs::AsyncRuntime,
     pub(crate) global_attachment: Option<GlobalAttachment>,
+    pub(crate) driver: crate::runtime::driver::DriverController,
 }
 
 impl JsAsyncRuntime {
+    async fn install_error_tracker(
+        runtime: &rquickjs::AsyncRuntime,
+        driver: crate::runtime::driver::DriverController,
+    ) {
+        runtime
+            .set_host_promise_rejection_tracker(Some(Box::new(
+                move |ctx, _promise, reason, is_handled| {
+                    if !is_handled {
+                        driver.push_error(crate::runtime::job_error::format_value(&ctx, reason));
+                    }
+                },
+            )))
+            .await;
+    }
+
     /// Creates a new async runtime with default configuration.
     ///
     /// The runtime is created with no builtin modules. Use `create()`
@@ -723,10 +742,16 @@ impl JsAsyncRuntime {
     #[frb(sync)]
     pub fn new() -> anyhow::Result<Self> {
         let runtime = rquickjs::AsyncRuntime::new()?;
+        futures::executor::block_on(
+            runtime.set_max_stack_size(crate::runtime::stack::ASYNC_MAX_STACK_SIZE),
+        );
+        let driver = crate::runtime::driver::DriverController::default();
+        futures::executor::block_on(Self::install_error_tracker(&runtime, driver.clone()));
         install_default_async_loaders(&runtime)?;
         Ok(Self {
             rt: runtime,
             global_attachment: None,
+            driver,
         })
     }
 
@@ -758,6 +783,11 @@ impl JsAsyncRuntime {
         modules: Option<Vec<JsModule>>,
     ) -> anyhow::Result<Self> {
         let runtime = rquickjs::AsyncRuntime::new()?;
+        runtime
+            .set_max_stack_size(crate::runtime::stack::ASYNC_MAX_STACK_SIZE)
+            .await;
+        let driver = crate::runtime::driver::DriverController::default();
+        Self::install_error_tracker(&runtime, driver.clone()).await;
         let (
             module_resolver,
             module_loader,
@@ -777,6 +807,7 @@ impl JsAsyncRuntime {
         Ok(Self {
             rt: runtime,
             global_attachment: Some(global_attachment),
+            driver,
         })
     }
 
@@ -807,7 +838,9 @@ impl JsAsyncRuntime {
     ///
     /// - `limit`: Maximum stack size in bytes
     pub async fn set_max_stack_size(&self, limit: usize) {
-        self.rt.set_max_stack_size(limit).await;
+        self.rt
+            .set_max_stack_size(crate::runtime::stack::clamp_async(limit))
+            .await;
     }
 
     /// Sets the garbage collection threshold.
@@ -833,7 +866,11 @@ impl JsAsyncRuntime {
     /// await runtime.runGc();
     /// ```
     pub async fn run_gc(&self) {
-        self.rt.run_gc().await;
+        let runtime = self.rt.clone();
+        crate::runtime::executor::run_js(async move {
+            runtime.run_gc().await;
+        })
+        .await;
     }
 
     /// Returns memory usage statistics.
@@ -852,7 +889,9 @@ impl JsAsyncRuntime {
     /// print('Total: ${usage.totalMemory} bytes');
     /// ```
     pub async fn memory_usage(&self) -> MemoryUsage {
-        MemoryUsage(self.rt.memory_usage().await)
+        let runtime = self.rt.clone();
+        crate::runtime::executor::run_js(async move { MemoryUsage(runtime.memory_usage().await) })
+            .await
     }
 
     /// Checks whether the async runtime still has work to do.
@@ -903,10 +942,14 @@ impl JsAsyncRuntime {
     /// }
     /// ```
     pub async fn execute_pending_job(&self) -> anyhow::Result<bool> {
-        self.rt
-            .execute_pending_job()
-            .await
-            .map_err(|e| anyhow::anyhow!(e))
+        let runtime = self.rt.clone();
+        crate::runtime::executor::run_js(async move {
+            match runtime.execute_pending_job().await {
+                Ok(progressed) => Ok(progressed),
+                Err(error) => Err(crate::runtime::job_error::async_job_context(error.0).await),
+            }
+        })
+        .await
     }
 
     /// Runs the async runtime until no queued jobs or spawned futures remain.
@@ -924,7 +967,41 @@ impl JsAsyncRuntime {
     /// await runtime.idle();
     /// ```
     pub async fn idle(&self) {
-        self.rt.idle().await;
+        let runtime = self.rt.clone();
+        crate::runtime::executor::run_js(async move {
+            runtime.idle().await;
+        })
+        .await;
+    }
+
+    /// Starts the runtime background driver.
+    ///
+    /// The driver keeps timers, fetches, spawned futures, and queued Promise
+    /// work moving without requiring the host to poll `execute_pending_job()`.
+    /// Starting an already-running driver is a no-op.
+    pub async fn start_driver(&self) {
+        self.driver.start(self.rt.clone());
+    }
+
+    /// Stops the runtime background driver.
+    ///
+    /// Stopping is idempotent. The runtime remains usable afterwards; callers
+    /// can still evaluate code or restart the driver later.
+    pub async fn stop_driver(&self) {
+        self.driver.stop();
+    }
+
+    /// Returns whether the runtime background driver is currently running.
+    pub async fn driver_running(&self) -> bool {
+        self.driver.running()
+    }
+
+    /// Drains unhandled asynchronous JavaScript errors captured by the runtime.
+    ///
+    /// The queue is bounded and stores formatted strings, so draining never
+    /// exposes live JavaScript values or keeps QuickJS objects alive.
+    pub async fn drain_unhandled_job_errors(&self) -> Vec<String> {
+        self.driver.drain_errors()
     }
 
     /// Sets runtime info string.
@@ -966,6 +1043,15 @@ pub struct JsAsyncContext {
 }
 
 impl JsAsyncContext {
+    pub(crate) async fn with_js<F, R>(&self, f: F) -> R
+    where
+        F: for<'js> AsyncFnOnce(rquickjs::Ctx<'js>) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        let context = self.ctx.clone();
+        crate::runtime::executor::run_js(async move { context.async_with(f).await }).await
+    }
+
     /// Creates a new async context from a runtime.
     ///
     /// The context will inherit the runtime's module configuration
@@ -991,7 +1077,11 @@ impl JsAsyncContext {
     /// final context = await JsAsyncContext.from(runtime: runtime);
     /// ```
     pub async fn from(runtime: &JsAsyncRuntime) -> anyhow::Result<Self> {
-        let context = rquickjs::AsyncContext::full(&runtime.rt).await?;
+        let runtime_handle = runtime.rt.clone();
+        let context = crate::runtime::executor::run_js(async move {
+            rquickjs::AsyncContext::full(&runtime_handle).await
+        })
+        .await?;
         let dynamic_modules: DynamicModuleStorage =
             Arc::new(RwLock::new(std::collections::HashMap::<
                 String,
@@ -999,19 +1089,28 @@ impl JsAsyncContext {
             >::new()));
         let loaded_dynamic_modules = LoadedDynamicModules::default();
 
-        context
-            .async_with(async |ctx| {
-                ctx.store_userdata(dynamic_modules.clone())
-                    .map_err(|e| anyhow::anyhow!("Failed to store dynamic modules: {:?}", e))?;
-                ctx.store_userdata(loaded_dynamic_modules).map_err(|e| {
-                    anyhow::anyhow!("Failed to store loaded dynamic modules: {:?}", e)
-                })?;
-                Ok::<(), anyhow::Error>(())
-            })
-            .await?;
-        context
-            .async_with(async |ctx| install_value_intrinsics(&ctx))
-            .await?;
+        let context_for_userdata = context.clone();
+        crate::runtime::executor::run_js(async move {
+            context_for_userdata
+                .async_with(async |ctx| {
+                    ctx.store_userdata(dynamic_modules.clone())
+                        .map_err(|e| anyhow::anyhow!("Failed to store dynamic modules: {:?}", e))?;
+                    ctx.store_userdata(loaded_dynamic_modules).map_err(|e| {
+                        anyhow::anyhow!("Failed to store loaded dynamic modules: {:?}", e)
+                    })?;
+                    Ok::<(), anyhow::Error>(())
+                })
+                .await
+        })
+        .await?;
+
+        let context_for_intrinsics = context.clone();
+        crate::runtime::executor::run_js(async move {
+            context_for_intrinsics
+                .async_with(async |ctx| install_value_intrinsics(&ctx))
+                .await
+        })
+        .await?;
 
         Ok(Self {
             ctx: context,
@@ -1062,19 +1161,19 @@ impl JsAsyncContext {
     /// - If code evaluation fails
     /// - If global attachment fails
     pub async fn eval_with_options(&self, code: String, options: JsEvalOptions) -> JsResult {
-        self.ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.global_attachment
-                    && let Err(e) = attachment.attach(&ctx)
-                {
-                    return JsResult::Err(JsError::context(e.to_string()));
-                }
-                let mut options = options;
-                options.promise = Some(true);
-                let res = ctx.eval_with_options(code, options.into());
-                result_from_promise(&ctx, res).await
-            })
-            .await
+        let attachment = self.global_attachment.clone();
+        self.with_js(async move |ctx| {
+            if let Some(attachment) = &attachment
+                && let Err(e) = attachment.attach(&ctx)
+            {
+                return JsResult::Err(JsError::context(e.to_string()));
+            }
+            let mut options = options;
+            options.promise = Some(true);
+            let res = ctx.eval_with_options(code, options.into());
+            result_from_promise(&ctx, res).await
+        })
+        .await
     }
 
     /// Evaluates JavaScript code from a file.
@@ -1124,19 +1223,19 @@ impl JsAsyncContext {
     /// - If file cannot be read
     /// - If code evaluation fails
     pub async fn eval_file_with_options(&self, path: String, options: JsEvalOptions) -> JsResult {
-        self.ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.global_attachment
-                    && let Err(e) = attachment.attach(&ctx)
-                {
-                    return JsResult::Err(JsError::context(e.to_string()));
-                }
-                let mut options = options;
-                options.promise = Some(true);
-                let res = ctx.eval_file_with_options(path, options.into());
-                result_from_promise(&ctx, res).await
-            })
-            .await
+        let attachment = self.global_attachment.clone();
+        self.with_js(async move |ctx| {
+            if let Some(attachment) = &attachment
+                && let Err(e) = attachment.attach(&ctx)
+            {
+                return JsResult::Err(JsError::context(e.to_string()));
+            }
+            let mut options = options;
+            options.promise = Some(true);
+            let res = ctx.eval_file_with_options(path, options.into());
+            result_from_promise(&ctx, res).await
+        })
+        .await
     }
 
     /// Evaluates a function from a module.
@@ -1176,19 +1275,19 @@ impl JsAsyncContext {
         params: Option<Vec<JsValue>>,
     ) -> JsResult {
         let params = params.unwrap_or_default();
-        self.ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.global_attachment
-                    && let Err(e) = attachment.attach(&ctx)
-                {
-                    return JsResult::Err(JsError::context(format!(
-                        "Failed to attach global context: {}",
-                        e
-                    )));
-                }
-                call_module_method(&ctx, module, method, params).await
-            })
-            .await
+        let attachment = self.global_attachment.clone();
+        self.with_js(async move |ctx| {
+            if let Some(attachment) = &attachment
+                && let Err(e) = attachment.attach(&ctx)
+            {
+                return JsResult::Err(JsError::context(format!(
+                    "Failed to attach global context: {}",
+                    e
+                )));
+            }
+            call_module_method(&ctx, module, method, params).await
+        })
+        .await
     }
 
     /// Returns all modules currently available in this context.
@@ -1196,16 +1295,16 @@ impl JsAsyncContext {
     /// This includes builtin modules, statically configured modules,
     /// and any dynamically declared modules attached to the context.
     pub async fn get_available_modules(&self) -> anyhow::Result<Vec<String>> {
-        self.ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.global_attachment {
-                    attachment
-                        .attach(&ctx)
-                        .map_err(|e| anyhow::anyhow!("Failed to attach global context: {e}"))?;
-                }
-                Ok(get_available_module_names(&ctx))
-            })
-            .await
+        let attachment = self.global_attachment.clone();
+        self.with_js(async move |ctx| {
+            if let Some(attachment) = &attachment {
+                attachment
+                    .attach(&ctx)
+                    .map_err(|e| anyhow::anyhow!("Failed to attach global context: {e}"))?;
+            }
+            Ok(get_available_module_names(&ctx))
+        })
+        .await
     }
 }
 
@@ -1358,7 +1457,13 @@ async fn result_from_value<'js>(
         }
     }
 
-    while ctx.execute_pending_job() {}
+    while ctx.execute_pending_job() {
+        if ctx.has_exception() {
+            return JsResult::Err(JsError::runtime(
+                crate::runtime::job_error::format_caught_exception(ctx),
+            ));
+        }
+    }
 
     match JsValue::from_js(ctx, value).catch(ctx) {
         Ok(v) => JsResult::Ok(v),

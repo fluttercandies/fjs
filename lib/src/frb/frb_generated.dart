@@ -75,7 +75,7 @@ class LibFjs extends BaseEntrypoint<LibFjsApi, LibFjsApiImpl, LibFjsWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 202636287;
+  int get rustContentHash => 373869327;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -118,6 +118,12 @@ abstract class LibFjsApi extends BaseApi {
   Future<JsAsyncRuntime> crateApiRuntimeJsAsyncRuntimeCreate(
       {JsBuiltinOptions? builtins, List<JsModule>? modules});
 
+  Future<List<String>> crateApiRuntimeJsAsyncRuntimeDrainUnhandledJobErrors(
+      {required JsAsyncRuntime that});
+
+  Future<bool> crateApiRuntimeJsAsyncRuntimeDriverRunning(
+      {required JsAsyncRuntime that});
+
   Future<bool> crateApiRuntimeJsAsyncRuntimeExecutePendingJob(
       {required JsAsyncRuntime that});
 
@@ -146,6 +152,12 @@ abstract class LibFjsApi extends BaseApi {
 
   Future<void> crateApiRuntimeJsAsyncRuntimeSetMemoryLimit(
       {required JsAsyncRuntime that, required BigInt limit});
+
+  Future<void> crateApiRuntimeJsAsyncRuntimeStartDriver(
+      {required JsAsyncRuntime that});
+
+  Future<void> crateApiRuntimeJsAsyncRuntimeStopDriver(
+      {required JsAsyncRuntime that});
 
   Future<JsModuleBytecode> crateApiBytecodeJsBytecodeCompile(
       {required JsModule module, JsModuleBytecodeOptions? options});
@@ -244,6 +256,11 @@ abstract class LibFjsApi extends BaseApi {
 
   Future<void> crateApiEngineJsEngineDeclareNewModules(
       {required JsEngine that, required List<JsModule> modules});
+
+  Future<List<String>> crateApiEngineJsEngineDrainUnhandledJobErrors(
+      {required JsEngine that});
+
+  Future<bool> crateApiEngineJsEngineDriverRunning({required JsEngine that});
 
   Future<JsValue> crateApiEngineJsEngineEval(
       {required JsEngine that, required JsCode source, JsEvalOptions? options});
@@ -811,7 +828,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       );
 
   @override
-  Future<bool> crateApiRuntimeJsAsyncRuntimeExecutePendingJob(
+  Future<List<String>> crateApiRuntimeJsAsyncRuntimeDrainUnhandledJobErrors(
       {required JsAsyncRuntime that}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -820,6 +837,61 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 9, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiRuntimeJsAsyncRuntimeDrainUnhandledJobErrorsConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiRuntimeJsAsyncRuntimeDrainUnhandledJobErrorsConstMeta =>
+          const TaskConstMeta(
+            debugName: "JsAsyncRuntime_drain_unhandled_job_errors",
+            argNames: ["that"],
+          );
+
+  @override
+  Future<bool> crateApiRuntimeJsAsyncRuntimeDriverRunning(
+      {required JsAsyncRuntime that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 10, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_bool,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiRuntimeJsAsyncRuntimeDriverRunningConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiRuntimeJsAsyncRuntimeDriverRunningConstMeta =>
+      const TaskConstMeta(
+        debugName: "JsAsyncRuntime_driver_running",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<bool> crateApiRuntimeJsAsyncRuntimeExecutePendingJob(
+      {required JsAsyncRuntime that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 11, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -846,7 +918,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 10, port: port_);
+            funcId: 12, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -873,7 +945,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 11, port: port_);
+            funcId: 13, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -900,7 +972,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 12, port: port_);
+            funcId: 14, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -924,7 +996,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -952,7 +1024,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 14, port: port_);
+            funcId: 16, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -980,7 +1052,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_usize(threshold, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 15, port: port_);
+            funcId: 17, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1008,7 +1080,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_String(info, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 16, port: port_);
+            funcId: 18, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1036,7 +1108,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_usize(limit, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 17, port: port_);
+            funcId: 19, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1064,7 +1136,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_usize(limit, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 18, port: port_);
+            funcId: 20, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1083,6 +1155,60 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       );
 
   @override
+  Future<void> crateApiRuntimeJsAsyncRuntimeStartDriver(
+      {required JsAsyncRuntime that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 21, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiRuntimeJsAsyncRuntimeStartDriverConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiRuntimeJsAsyncRuntimeStartDriverConstMeta =>
+      const TaskConstMeta(
+        debugName: "JsAsyncRuntime_start_driver",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiRuntimeJsAsyncRuntimeStopDriver(
+      {required JsAsyncRuntime that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsAsyncRuntime(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 22, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiRuntimeJsAsyncRuntimeStopDriverConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiRuntimeJsAsyncRuntimeStopDriverConstMeta =>
+      const TaskConstMeta(
+        debugName: "JsAsyncRuntime_stop_driver",
+        argNames: ["that"],
+      );
+
+  @override
   Future<JsModuleBytecode> crateApiBytecodeJsBytecodeCompile(
       {required JsModule module, JsModuleBytecodeOptions? options}) {
     return handler.executeNormal(NormalTask(
@@ -1092,7 +1218,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_opt_box_autoadd_js_module_bytecode_options(
             options, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 19, port: port_);
+            funcId: 23, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module_bytecode,
@@ -1123,7 +1249,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_opt_box_autoadd_js_module_bytecode_options(
             options, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 20, port: port_);
+            funcId: 24, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module_bytecode_bundle,
@@ -1153,7 +1279,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_opt_String(entry, serializer);
         sse_encode_opt_box_autoadd_js_module_bytecode_options(
             options, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module_bytecode_bundle,
@@ -1185,7 +1311,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_opt_box_autoadd_js_script_bytecode_options(
             options, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 22, port: port_);
+            funcId: 26, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_script_bytecode,
@@ -1215,7 +1341,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_box_autoadd_js_code(source, serializer);
         sse_encode_opt_box_autoadd_js_script_bytecode_options(
             options, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_script_bytecode,
@@ -1242,7 +1368,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_box_autoadd_js_module(module, serializer);
         sse_encode_opt_box_autoadd_js_module_bytecode_options(
             options, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module_bytecode,
@@ -1268,7 +1394,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_module_bytecode(module, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 25, port: port_);
+            funcId: 29, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1294,7 +1420,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_module_bytecode_bundle(bundle, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 26, port: port_);
+            funcId: 30, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1319,7 +1445,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_module_bytecode_bundle(bundle, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1345,7 +1471,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_script_bytecode(script, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 28, port: port_);
+            funcId: 32, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1370,7 +1496,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_script_bytecode(script, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1395,7 +1521,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_module_bytecode(module, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1422,7 +1548,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsContext(
             that, serializer);
         sse_encode_String(code, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_result,
@@ -1449,7 +1575,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsContext(
             that, serializer);
         sse_encode_String(path, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_result,
@@ -1479,7 +1605,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_String(path, serializer);
         sse_encode_box_autoadd_js_eval_options(options, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_result,
@@ -1509,7 +1635,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_String(code, serializer);
         sse_encode_box_autoadd_js_eval_options(options, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_result,
@@ -1534,7 +1660,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             runtime, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -1561,7 +1687,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsContext(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_String,
@@ -1594,7 +1720,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_String(method, serializer);
         sse_encode_opt_list_js_value(params, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 37, port: port_);
+            funcId: 41, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_value,
@@ -1620,7 +1746,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 38, port: port_);
+            funcId: 42, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1646,7 +1772,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 39, port: port_);
+            funcId: 43, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1671,7 +1797,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -1702,7 +1828,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_opt_box_autoadd_js_engine_runtime_options(
             runtimeOptions, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 41, port: port_);
+            funcId: 45, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -1731,7 +1857,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_box_autoadd_js_module_bytecode_bundle(bundle, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 42, port: port_);
+            funcId: 46, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1759,7 +1885,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_box_autoadd_js_module_bytecode(module, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 43, port: port_);
+            funcId: 47, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1787,7 +1913,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_list_js_module_bytecode(modules, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 44, port: port_);
+            funcId: 48, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1815,7 +1941,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_box_autoadd_js_module(module, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 45, port: port_);
+            funcId: 49, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1843,7 +1969,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_list_js_module(modules, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 46, port: port_);
+            funcId: 50, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1862,6 +1988,59 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       );
 
   @override
+  Future<List<String>> crateApiEngineJsEngineDrainUnhandledJobErrors(
+      {required JsEngine that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 51, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_String,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateApiEngineJsEngineDrainUnhandledJobErrorsConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiEngineJsEngineDrainUnhandledJobErrorsConstMeta =>
+      const TaskConstMeta(
+        debugName: "JsEngine_drain_unhandled_job_errors",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<bool> crateApiEngineJsEngineDriverRunning({required JsEngine that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 52, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_bool,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateApiEngineJsEngineDriverRunningConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiEngineJsEngineDriverRunningConstMeta =>
+      const TaskConstMeta(
+        debugName: "JsEngine_driver_running",
+        argNames: ["that"],
+      );
+
+  @override
   Future<JsValue> crateApiEngineJsEngineEval(
       {required JsEngine that,
       required JsCode source,
@@ -1874,7 +2053,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_box_autoadd_js_code(source, serializer);
         sse_encode_opt_box_autoadd_js_eval_options(options, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 47, port: port_);
+            funcId: 53, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_value,
@@ -1901,7 +2080,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_box_autoadd_js_module_bytecode_bundle(bundle, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 48, port: port_);
+            funcId: 54, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_value,
@@ -1929,7 +2108,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_box_autoadd_js_module_bytecode(module, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 49, port: port_);
+            funcId: 55, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_value,
@@ -1957,7 +2136,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_box_autoadd_js_module(module, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 50, port: port_);
+            funcId: 56, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_value,
@@ -1985,7 +2164,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_box_autoadd_js_script_bytecode(script, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 51, port: port_);
+            funcId: 57, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_value,
@@ -2012,7 +2191,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 52, port: port_);
+            funcId: 58, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -2039,7 +2218,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 53, port: port_);
+            funcId: 59, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_String,
@@ -2066,7 +2245,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 54, port: port_);
+            funcId: 60, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_String,
@@ -2092,7 +2271,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 55, port: port_);
+            funcId: 61, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2121,7 +2300,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_DartFn_Inputs_js_value_Output_js_result_AnyhowException(
             bridge, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 56, port: port_);
+            funcId: 62, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2147,7 +2326,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 57, port: port_);
+            funcId: 63, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2173,7 +2352,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 58, port: port_);
+            funcId: 64, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -2201,7 +2380,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_String(moduleName, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 59, port: port_);
+            funcId: 65, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -2229,7 +2408,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_String(moduleName, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 60, port: port_);
+            funcId: 66, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -2256,7 +2435,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 61, port: port_);
+            funcId: 67, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2283,7 +2462,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 62, port: port_);
+            funcId: 68, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2308,7 +2487,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsEngine(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 63)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 69)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -2336,7 +2515,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_usize(threshold, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 64, port: port_);
+            funcId: 70, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2364,7 +2543,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_String(info, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 65, port: port_);
+            funcId: 71, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2392,7 +2571,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_usize(limit, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 66, port: port_);
+            funcId: 72, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2420,7 +2599,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
             that, serializer);
         sse_encode_usize(limit, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 67, port: port_);
+            funcId: 73, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2447,7 +2626,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_opt_box_autoadd_js_builtin_options(builtins, serializer);
         sse_encode_opt_list_js_module(modules, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 68, port: port_);
+            funcId: 74, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2473,7 +2652,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 69)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 75)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -2498,7 +2677,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 70)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 76)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -2523,7 +2702,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 71)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 77)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2547,7 +2726,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 72)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 78)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2573,7 +2752,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 73)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 79)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2600,7 +2779,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             that, serializer);
         sse_encode_u_64(flags, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 74)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 80)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2627,7 +2806,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             that, serializer);
         sse_encode_usize(threshold, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 75)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 81)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2654,7 +2833,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             that, serializer);
         sse_encode_String(info, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 76)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 82)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2681,7 +2860,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             that, serializer);
         sse_encode_usize(limit, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 77)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 83)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2708,7 +2887,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerJsRuntime(
             that, serializer);
         sse_encode_usize(limit, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 78)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 84)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2734,7 +2913,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 79)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 85)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2760,7 +2939,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 80)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 86)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2786,7 +2965,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 81)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 87)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2812,7 +2991,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 82)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 88)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2838,7 +3017,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 83)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 89)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2864,7 +3043,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 84)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 90)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2890,7 +3069,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 85)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 91)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2916,7 +3095,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 86)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 92)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2942,7 +3121,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 87)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 93)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2968,7 +3147,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 88)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 94)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -2994,7 +3173,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 89)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 95)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3020,7 +3199,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 90)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 96)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3046,7 +3225,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 91)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 97)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3072,7 +3251,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 92)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 98)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3098,7 +3277,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 93)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 99)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3124,7 +3303,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 94)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 100)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3150,7 +3329,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 95)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 101)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3176,7 +3355,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 96)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 102)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3202,7 +3381,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 97)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 103)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3227,7 +3406,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 98)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 104)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3253,7 +3432,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 99)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 105)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3279,7 +3458,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 100)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 106)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3305,7 +3484,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 101)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 107)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3331,7 +3510,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 102)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 108)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3357,7 +3536,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 103)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 109)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3382,7 +3561,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 104)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 110)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3407,7 +3586,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 105)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 111)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -3433,7 +3612,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 106)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 112)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3459,7 +3638,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMemoryUsage(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 107)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 113)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_i_64,
@@ -3483,7 +3662,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 108, port: port_);
+            funcId: 114, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -3505,7 +3684,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 109)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 115)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_builtin_options,
@@ -3529,7 +3708,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 110, port: port_);
+            funcId: 116, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_builtin_options,
@@ -3552,7 +3731,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 111)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 117)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_builtin_options,
@@ -3575,7 +3754,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 112)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 118)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_builtin_options,
@@ -3598,7 +3777,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 113)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 119)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_builtin_options,
@@ -3621,7 +3800,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 114)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 120)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_builtin_options,
@@ -3645,7 +3824,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 115, port: port_);
+            funcId: 121, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_bytecode_endianness,
@@ -3669,7 +3848,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_code(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 116)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 122)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -3693,7 +3872,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_code(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 117)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 123)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -3716,7 +3895,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_code(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 118)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 124)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -3739,7 +3918,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 119, port: port_);
+            funcId: 125, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_engine_runtime_options,
@@ -3763,7 +3942,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_error(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 120)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 126)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -3786,7 +3965,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_error(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 121)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 127)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -3810,7 +3989,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_error(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 122)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 128)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -3834,7 +4013,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 123, port: port_);
+            funcId: 129, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_eval_options,
@@ -3857,7 +4036,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 124)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 130)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_eval_options,
@@ -3880,7 +4059,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 125)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 131)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_eval_options,
@@ -3908,7 +4087,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         sse_encode_opt_box_autoadd_bool(strict, serializer);
         sse_encode_opt_box_autoadd_bool(backtraceBarrier, serializer);
         sse_encode_opt_box_autoadd_bool(promise, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 126)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 132)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_eval_options,
@@ -3931,7 +4110,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 127)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 133)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_eval_options,
@@ -3957,7 +4136,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_opt_String(entry, serializer);
         sse_encode_list_js_module_bytecode(modules, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 128)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 134)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module_bytecode_bundle,
@@ -3983,7 +4162,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(name, serializer);
         sse_encode_list_prim_u_8_loose(bytes, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 129)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 135)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module_bytecode,
@@ -4008,7 +4187,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 130, port: port_);
+            funcId: 136, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module_bytecode_options,
@@ -4031,7 +4210,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 131)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 137)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module_bytecode_options,
@@ -4057,7 +4236,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(module, serializer);
         sse_encode_list_prim_u_8_loose(bytes, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 132)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 138)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module,
@@ -4083,7 +4262,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(module, serializer);
         sse_encode_String(code, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 133)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 139)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module,
@@ -4108,7 +4287,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(name, serializer);
         sse_encode_box_autoadd_js_code(source, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 134)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 140)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module,
@@ -4133,7 +4312,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(module, serializer);
         sse_encode_String(path, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 135)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 141)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_module,
@@ -4158,7 +4337,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(name, serializer);
         sse_encode_list_prim_u_8_loose(bytes, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 136)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 142)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_script_bytecode,
@@ -4183,7 +4362,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 137, port: port_);
+            funcId: 143, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_script_bytecode_options,
@@ -4206,7 +4385,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 138)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 144)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_script_bytecode_options,
@@ -4230,7 +4409,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 139, port: port_);
+            funcId: 145, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_js_value,
@@ -4254,7 +4433,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 140)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 146)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -4278,7 +4457,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 141)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 147)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -4302,7 +4481,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 142)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 148)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -4326,7 +4505,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 143)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 149)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -4349,7 +4528,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 144)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 150)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -4372,7 +4551,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 145)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 151)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -4396,7 +4575,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 146)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 152)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -4420,7 +4599,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 147)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 153)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -4444,7 +4623,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 148)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 154)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -4468,7 +4647,7 @@ class LibFjsApiImpl extends LibFjsApiImplPlatform implements LibFjsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_js_value(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 149)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 155)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -7369,6 +7548,21 @@ class JsAsyncRuntimeImpl extends RustOpaque implements JsAsyncRuntime {
         LibFjs.instance.api.rust_arc_decrement_strong_count_JsAsyncRuntimePtr,
   );
 
+  /// Drains unhandled asynchronous JavaScript errors captured by the runtime.
+  ///
+  /// The queue is bounded and stores formatted strings, so draining never
+  /// exposes live JavaScript values or keeps QuickJS objects alive.
+  Future<List<String>> drainUnhandledJobErrors() =>
+      LibFjs.instance.api.crateApiRuntimeJsAsyncRuntimeDrainUnhandledJobErrors(
+        that: this,
+      );
+
+  /// Returns whether the runtime background driver is currently running.
+  Future<bool> driverRunning() =>
+      LibFjs.instance.api.crateApiRuntimeJsAsyncRuntimeDriverRunning(
+        that: this,
+      );
+
   /// Advances the async runtime by one scheduler step.
   ///
   /// This may execute one queued QuickJS job or make progress on background
@@ -7528,6 +7722,25 @@ class JsAsyncRuntimeImpl extends RustOpaque implements JsAsyncRuntime {
   /// ```
   Future<void> setMemoryLimit({required BigInt limit}) => LibFjs.instance.api
       .crateApiRuntimeJsAsyncRuntimeSetMemoryLimit(that: this, limit: limit);
+
+  /// Starts the runtime background driver.
+  ///
+  /// The driver keeps timers, fetches, spawned futures, and queued Promise
+  /// work moving without requiring the host to poll `execute_pending_job()`.
+  /// Starting an already-running driver is a no-op.
+  Future<void> startDriver() =>
+      LibFjs.instance.api.crateApiRuntimeJsAsyncRuntimeStartDriver(
+        that: this,
+      );
+
+  /// Stops the runtime background driver.
+  ///
+  /// Stopping is idempotent. The runtime remains usable afterwards; callers
+  /// can still evaluate code or restart the driver later.
+  Future<void> stopDriver() =>
+      LibFjs.instance.api.crateApiRuntimeJsAsyncRuntimeStopDriver(
+        that: this,
+      );
 }
 
 @sealed
@@ -7761,11 +7974,10 @@ class JsEngineImpl extends RustOpaque implements JsEngine {
   /// release the underlying runtime or context objects.
   ///
   /// Pending timers, Promise callbacks, and other runtime tasks may run during
-  /// this drain step. Errors raised by those drained jobs are handled by the
-  /// underlying runtime and are not surfaced through this method.
+  /// this drain step. Unhandled Promise errors collected by the runtime can be
+  /// read with `drain_unhandled_job_errors()`.
   ///
   /// ## Throws
-  /// - If the engine is already closed
   /// - If initialization is still in progress
   ///
   /// ## Example
@@ -7894,6 +8106,23 @@ class JsEngineImpl extends RustOpaque implements JsEngine {
   Future<void> declareNewModules({required List<JsModule> modules}) => LibFjs
       .instance.api
       .crateApiEngineJsEngineDeclareNewModules(that: this, modules: modules);
+
+  /// Drains unhandled asynchronous JavaScript errors captured by the engine runtime.
+  ///
+  /// This is useful for logging failures from detached Promise chains, timers,
+  /// and other background work that cannot return an error to the original Dart call.
+  Future<List<String>> drainUnhandledJobErrors() =>
+      LibFjs.instance.api.crateApiEngineJsEngineDrainUnhandledJobErrors(
+        that: this,
+      );
+
+  /// Returns whether the engine-owned runtime background driver is running.
+  ///
+  /// Engine initialization starts the driver automatically. `close()` stops it.
+  Future<bool> driverRunning() =>
+      LibFjs.instance.api.crateApiEngineJsEngineDriverRunning(
+        that: this,
+      );
 
   /// Evaluates JavaScript code and returns the result.
   ///

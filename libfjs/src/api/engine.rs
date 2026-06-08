@@ -294,7 +294,7 @@ impl JsEngine {
         loop {
             let current = self.state.load(Ordering::Acquire);
             match current {
-                STATE_CLOSED => return Err(anyhow!("Engine is already closed")),
+                STATE_CLOSED => return Ok(STATE_CLOSED),
                 STATE_INITIALIZING => return Err(anyhow!("Engine is initializing")),
                 STATE_CREATED | STATE_RUNNING => {
                     if self
@@ -343,12 +343,12 @@ impl JsEngine {
         self.begin_init()?;
 
         let bridge = Arc::new(bridge);
+        let attachment = self.context.global_attachment.clone();
 
         let init_result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.context.global_attachment
+            .with_js(async move |ctx| {
+                if let Some(attachment) = &attachment
                     && let Err(e) = attachment.attach(&ctx)
                 {
                     return Err(anyhow!("Failed to attach global context: {}", e));
@@ -369,6 +369,7 @@ impl JsEngine {
             self.rollback_init();
             return Err(error);
         }
+        self.runtime.start_driver().await;
         Ok(())
     }
 
@@ -389,11 +390,11 @@ impl JsEngine {
     pub async fn init_without_bridge(&self) -> anyhow::Result<()> {
         self.begin_init()?;
 
+        let attachment = self.context.global_attachment.clone();
         let init_result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
-                if let Some(attachment) = &self.context.global_attachment
+            .with_js(async move |ctx| {
+                if let Some(attachment) = &attachment
                     && let Err(e) = attachment.attach(&ctx)
                 {
                     return Err(anyhow!("Failed to attach global context: {}", e));
@@ -411,6 +412,7 @@ impl JsEngine {
             self.rollback_init();
             return Err(error);
         }
+        self.runtime.start_driver().await;
         Ok(())
     }
 
@@ -422,11 +424,10 @@ impl JsEngine {
     /// release the underlying runtime or context objects.
     ///
     /// Pending timers, Promise callbacks, and other runtime tasks may run during
-    /// this drain step. Errors raised by those drained jobs are handled by the
-    /// underlying runtime and are not surfaced through this method.
+    /// this drain step. Unhandled Promise errors collected by the runtime can be
+    /// read with `drain_unhandled_job_errors()`.
     ///
     /// ## Throws
-    /// - If the engine is already closed
     /// - If initialization is still in progress
     ///
     /// ## Example
@@ -437,23 +438,25 @@ impl JsEngine {
         let previous_state = self.begin_close()?;
 
         if previous_state == STATE_CREATED || previous_state == STATE_RUNNING {
-            let _ = self
-                .context
-                .ctx
-                .async_with(async |ctx| {
-                    let globals = ctx.globals();
-                    let _ = globals.remove("fjs");
-                    Ok::<(), anyhow::Error>(())
-                })
-                .await;
-
-            if self.runtime.is_job_pending().await {
-                self.runtime.idle().await;
-            }
-            self.runtime.run_gc().await;
+            crate::runtime::teardown::cleanup_async_engine(&self.context, &self.runtime).await;
         }
 
         Ok(())
+    }
+
+    /// Returns whether the engine-owned runtime background driver is running.
+    ///
+    /// Engine initialization starts the driver automatically. `close()` stops it.
+    pub async fn driver_running(&self) -> anyhow::Result<bool> {
+        Ok(self.runtime.driver_running().await)
+    }
+
+    /// Drains unhandled asynchronous JavaScript errors captured by the engine runtime.
+    ///
+    /// This is useful for logging failures from detached Promise chains, timers,
+    /// and other background work that cannot return an error to the original Dart call.
+    pub async fn drain_unhandled_job_errors(&self) -> anyhow::Result<Vec<String>> {
+        Ok(self.runtime.drain_unhandled_job_errors().await)
     }
 
     /// Evaluates JavaScript code and returns the result.
@@ -500,8 +503,7 @@ impl JsEngine {
 
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async |ctx| {
                 let res = ctx.eval_with_options(source_code, options.into());
                 result_from_promise(&ctx, res).await
             })
@@ -539,8 +541,7 @@ impl JsEngine {
 
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async |ctx| {
                 if is_dynamic_module_loaded(&ctx, &module.name) {
                     return JsResult::Err(JsError::module(
                         Some(module.name),
@@ -591,8 +592,7 @@ impl JsEngine {
 
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async |ctx| {
                 let conflicts: Vec<_> = modules
                     .iter()
                     .filter(|module| is_dynamic_module_loaded(&ctx, &module.name))
@@ -682,8 +682,7 @@ impl JsEngine {
 
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async |ctx| {
                 if is_dynamic_module_loaded(&ctx, &module_name) {
                     return JsResult::Err(JsError::module(
                         Some(module_name),
@@ -746,8 +745,7 @@ impl JsEngine {
 
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async |ctx| {
                 let conflicts: Vec<_> = resolved_modules
                     .iter()
                     .filter(|(name, _)| is_dynamic_module_loaded(&ctx, name))
@@ -828,8 +826,7 @@ impl JsEngine {
 
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async |ctx| {
                 if is_dynamic_module_loaded(&ctx, &module_name) {
                     return JsResult::Err(JsError::module(
                         Some(module_name),
@@ -890,8 +887,7 @@ impl JsEngine {
 
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async |ctx| {
                 if is_dynamic_module_loaded(&ctx, &module_name) {
                     return JsResult::Err(JsError::module(
                         Some(module_name),
@@ -1015,8 +1011,7 @@ impl JsEngine {
         let bytecode = script.bytes;
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async move |ctx| {
                 let res = eval_script_bytecode(&ctx, &script_name, &bytecode);
                 result_from_maybe_promise(&ctx, res).await
             })
@@ -1044,8 +1039,7 @@ impl JsEngine {
 
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async |ctx| {
                 if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
                     let loaded: HashSet<_> =
                         get_loaded_dynamic_module_names(&ctx).into_iter().collect();
@@ -1083,8 +1077,7 @@ impl JsEngine {
         self.ensure_running()?;
 
         self.context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async |ctx| {
                 if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
                     let mut modules: Vec<_> = storage.read().unwrap().keys().cloned().collect();
                     modules.sort();
@@ -1140,8 +1133,7 @@ impl JsEngine {
         self.ensure_running()?;
 
         self.context
-            .ctx
-            .async_with(async |ctx| {
+            .with_js(async move |ctx| {
                 if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
                     Ok(storage.read().unwrap().contains_key(&module_name))
                 } else {
@@ -1225,8 +1217,7 @@ impl JsEngine {
         let params = params.unwrap_or_default();
         let result = self
             .context
-            .ctx
-            .async_with(async |ctx| call_module_method(&ctx, module, method, params).await)
+            .with_js(async |ctx| call_module_method(&ctx, module, method, params).await)
             .await;
 
         result.into_result()
@@ -1263,7 +1254,9 @@ fn new_bridge_call<'js>(
     let ctx_for_catch = ctx.clone();
     rquickjs::Function::new(
         ctx.clone(),
-        move |args: rquickjs::function::Rest<rquickjs::Value<'js>>| -> rquickjs::Result<Promise<'js>> {
+        move |call_ctx: rquickjs::Ctx<'js>,
+              args: rquickjs::function::Rest<rquickjs::Value<'js>>|
+              -> rquickjs::Result<Promise<'js>> {
             if args.0.len() > 1 {
                 return Err(rquickjs::Error::TooManyArgs {
                     expected: 1,
@@ -1282,10 +1275,10 @@ fn new_bridge_call<'js>(
                 given: 0,
             })?;
 
-            let js_value = JsValue::from_js(&ctx, arg.clone())?;
+            let js_value = JsValue::from_js(&call_ctx, arg.clone())?;
             let bridge_ref = bridge.clone();
 
-            Promise::wrap_future(&ctx, async move {
+            Promise::wrap_future(&call_ctx, async move {
                 match bridge_ref(js_value).await {
                     JsResult::Ok(value) => Ok::<JsValue, rquickjs::Error>(value),
                     JsResult::Err(err) => Err(rquickjs::Error::new_from_js_message(

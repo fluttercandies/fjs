@@ -180,6 +180,7 @@ async fn test_engine_init_failure_rolls_back_state() {
         global_attachment: Some(
             GlobalAttachment::default().add_function(failing_global_attachment),
         ),
+        driver: crate::runtime::driver::DriverController::default(),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = JsEngine::new_for_test(runtime, context);
@@ -210,6 +211,7 @@ async fn test_engine_runtime_proxy_methods_fail_while_initializing() {
         global_attachment: Some(
             GlobalAttachment::default().add_function(blocking_global_attachment),
         ),
+        driver: crate::runtime::driver::DriverController::default(),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = std::sync::Arc::new(JsEngine::new_for_test(runtime, context));
@@ -276,14 +278,16 @@ async fn test_engine_close() {
 }
 
 #[tokio::test]
-async fn test_engine_double_close_fails() {
+async fn test_engine_double_close_is_idempotent() {
     let engine = JsEngine::create(None, None, None).await.unwrap();
 
     engine.init_without_bridge().await.unwrap();
     engine.close().await.unwrap();
 
     let result = engine.close().await;
-    assert!(result.is_err());
+    assert!(result.is_ok());
+    assert!(engine.closed());
+    assert!(!engine.running());
 }
 
 #[tokio::test]

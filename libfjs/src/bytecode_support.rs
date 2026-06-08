@@ -69,7 +69,7 @@ pub(crate) fn validate_module_bytecode_impl(
     module_name: &str,
     bytecode: &[u8],
 ) -> anyhow::Result<()> {
-    let runtime = rquickjs::Runtime::new()?;
+    let runtime = compile_runtime()?;
     runtime.set_loader(CompileOnlyResolver, CompileOnlyLoader);
     let context = rquickjs::Context::full(&runtime)?;
 
@@ -106,7 +106,7 @@ pub(crate) fn compile_module_bytecode_impl(
     source_code: Vec<u8>,
     options: JsModuleBytecodeOptions,
 ) -> anyhow::Result<JsModuleBytecode> {
-    let runtime = rquickjs::Runtime::new()?;
+    let runtime = compile_runtime()?;
     runtime.set_loader(CompileOnlyResolver, CompileOnlyLoader);
     let context = rquickjs::Context::full(&runtime)?;
 
@@ -125,7 +125,7 @@ pub(crate) fn compile_script_bytecode_impl(
     source_code: Vec<u8>,
     options: JsScriptBytecodeOptions,
 ) -> anyhow::Result<JsScriptBytecode> {
-    let runtime = rquickjs::Runtime::new()?;
+    let runtime = compile_runtime()?;
     let context = rquickjs::Context::full(&runtime)?;
 
     context.with(|ctx| {
@@ -143,7 +143,7 @@ pub(crate) fn validate_script_bytecode_impl(
     script_name: &str,
     bytecode: &[u8],
 ) -> anyhow::Result<()> {
-    let runtime = rquickjs::Runtime::new()?;
+    let runtime = compile_runtime()?;
     let context = rquickjs::Context::full(&runtime)?;
 
     context.with(|ctx| {
@@ -187,7 +187,7 @@ pub(crate) fn compile_module_bundle_impl(
         }
     }
 
-    let runtime = rquickjs::Runtime::new()?;
+    let runtime = compile_runtime()?;
     let shared_modules = Arc::new(unique);
     runtime.set_loader(
         BundleCompileResolver::new(shared_modules.clone()),
@@ -211,6 +211,12 @@ pub(crate) fn compile_module_bundle_impl(
         compiled.sort_by(|left, right| left.name.cmp(&right.name));
         Ok(JsModuleBytecodeBundle::new(entry, compiled))
     })
+}
+
+fn compile_runtime() -> anyhow::Result<rquickjs::Runtime> {
+    let runtime = rquickjs::Runtime::new()?;
+    runtime.set_max_stack_size(crate::runtime::stack::SYNC_MAX_STACK_SIZE);
+    Ok(runtime)
 }
 
 pub(crate) fn validate_module_bundle_impl(bundle: &JsModuleBytecodeBundle) -> anyhow::Result<()> {

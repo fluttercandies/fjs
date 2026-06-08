@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'source.dart';
 import 'value.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `install_default_async_loaders`, `make_loader_stack`, `result_from_maybe_promise`, `result_from_promise`, `result_from_sync`, `result_from_value`, `unwrap_async_eval_value`
+// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `install_default_async_loaders`, `install_error_tracker`, `make_loader_stack`, `result_from_maybe_promise`, `result_from_promise`, `result_from_sync`, `result_from_value`, `unwrap_async_eval_value`, `with_js`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncContext>>
@@ -199,6 +199,15 @@ abstract class JsAsyncRuntime implements RustOpaqueInterface {
       LibFjs.instance.api.crateApiRuntimeJsAsyncRuntimeCreate(
           builtins: builtins, modules: modules);
 
+  /// Drains unhandled asynchronous JavaScript errors captured by the runtime.
+  ///
+  /// The queue is bounded and stores formatted strings, so draining never
+  /// exposes live JavaScript values or keeps QuickJS objects alive.
+  Future<List<String>> drainUnhandledJobErrors();
+
+  /// Returns whether the runtime background driver is currently running.
+  Future<bool> driverRunning();
+
   /// Advances the async runtime by one scheduler step.
   ///
   /// This may execute one queued QuickJS job or make progress on background
@@ -356,6 +365,19 @@ abstract class JsAsyncRuntime implements RustOpaqueInterface {
   /// await runtime.setMemoryLimit(limit: 16 * 1024 * 1024); // 16 MB
   /// ```
   Future<void> setMemoryLimit({required BigInt limit});
+
+  /// Starts the runtime background driver.
+  ///
+  /// The driver keeps timers, fetches, spawned futures, and queued Promise
+  /// work moving without requiring the host to poll `execute_pending_job()`.
+  /// Starting an already-running driver is a no-op.
+  Future<void> startDriver();
+
+  /// Stops the runtime background driver.
+  ///
+  /// Stopping is idempotent. The runtime remains usable afterwards; callers
+  /// can still evaluate code or restart the driver later.
+  Future<void> stopDriver();
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsContext>>
