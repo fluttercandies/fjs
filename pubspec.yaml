@@ -39,9 +39,11 @@ flutter:
         ffiPlugin: true
       ios:
         ffiPlugin: true
+        sharedDarwinSource: true
       linux:
         ffiPlugin: true
       macos:
         ffiPlugin: true
+        sharedDarwinSource: true
       windows:
         ffiPlugin: true
