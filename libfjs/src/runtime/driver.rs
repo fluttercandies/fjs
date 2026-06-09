@@ -1,8 +1,9 @@
 use crate::runtime::executor;
 use std::collections::VecDeque;
 use std::future::Future;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use tokio::sync::Notify;
 
 const MAX_ERRORS: usize = 32;
 
@@ -13,10 +14,23 @@ pub(crate) struct DriverController {
 
 #[derive(Default)]
 struct DriverState {
-    running: AtomicBool,
-    stopping: AtomicBool,
-    handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    next_task_id: AtomicU64,
+    lifecycle: Mutex<DriverLifecycle>,
     errors: Mutex<VecDeque<String>>,
+    stop_finished: Notify,
+}
+
+#[derive(Default)]
+enum DriverLifecycle {
+    #[default]
+    Idle,
+    Running {
+        task_id: u64,
+        handle: tokio::task::JoinHandle<()>,
+    },
+    Stopping {
+        task_id: u64,
+    },
 }
 
 impl DriverController {
@@ -28,35 +42,72 @@ impl DriverController {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let mut handle_slot = self.inner.handle.lock().unwrap();
-        if handle_slot.is_some() || self.inner.stopping.load(Ordering::Acquire) {
+        let mut lifecycle = self.inner.lifecycle.lock().unwrap();
+        if !matches!(*lifecycle, DriverLifecycle::Idle) {
             return;
         }
 
+        let task_id = self.inner.next_task_id.fetch_add(1, Ordering::AcqRel);
         let state = self.inner.clone();
-        self.inner.running.store(true, Ordering::Release);
         let handle = executor::spawn_js(async move {
+            let _guard = DriverTaskGuard {
+                state: state.clone(),
+                task_id,
+            };
             future.await;
-            state.running.store(false, Ordering::Release);
-            let _ = state.handle.lock().unwrap().take();
         });
 
-        *handle_slot = Some(handle);
+        *lifecycle = DriverLifecycle::Running { task_id, handle };
     }
 
     pub(crate) async fn stop(&self) {
-        let handle = self.inner.handle.lock().unwrap().take();
-        self.inner.stopping.store(true, Ordering::Release);
-        self.inner.running.store(false, Ordering::Release);
-        if let Some(handle) = handle {
+        match self.stop_action() {
+            StopAction::Wait => self.wait_until_idle().await,
+            StopAction::Done => {}
+        }
+    }
+
+    fn stop_action(&self) -> StopAction {
+        let mut lifecycle = self.inner.lifecycle.lock().unwrap();
+        match std::mem::take(&mut *lifecycle) {
+            DriverLifecycle::Running { task_id, handle } => {
+                *lifecycle = DriverLifecycle::Stopping { task_id };
+                self.spawn_abort_watcher(task_id, handle);
+                StopAction::Wait
+            }
+            DriverLifecycle::Stopping { task_id } => {
+                *lifecycle = DriverLifecycle::Stopping { task_id };
+                StopAction::Wait
+            }
+            DriverLifecycle::Idle => StopAction::Done,
+        }
+    }
+
+    fn spawn_abort_watcher(&self, task_id: u64, handle: tokio::task::JoinHandle<()>) {
+        let state = self.inner.clone();
+        // Keep teardown moving even if the caller cancels the stop() future.
+        executor::spawn_js(async move {
             handle.abort();
             let _ = handle.await;
+            state.mark_idle(task_id);
+        });
+    }
+
+    async fn wait_until_idle(&self) {
+        loop {
+            let notified = self.inner.stop_finished.notified();
+            if matches!(*self.inner.lifecycle.lock().unwrap(), DriverLifecycle::Idle) {
+                return;
+            }
+            notified.await;
         }
-        self.inner.stopping.store(false, Ordering::Release);
     }
 
     pub(crate) fn running(&self) -> bool {
-        self.inner.running.load(Ordering::Acquire)
+        matches!(
+            *self.inner.lifecycle.lock().unwrap(),
+            DriverLifecycle::Running { .. }
+        )
     }
 
     pub(crate) fn push_error(&self, error: String) {
@@ -69,6 +120,40 @@ impl DriverController {
 
     pub(crate) fn drain_errors(&self) -> Vec<String> {
         self.inner.errors.lock().unwrap().drain(..).collect()
+    }
+}
+
+enum StopAction {
+    Wait,
+    Done,
+}
+
+struct DriverTaskGuard {
+    state: Arc<DriverState>,
+    task_id: u64,
+}
+
+impl Drop for DriverTaskGuard {
+    fn drop(&mut self) {
+        self.state.mark_idle(self.task_id);
+    }
+}
+
+impl DriverState {
+    fn mark_idle(&self, task_id: u64) {
+        let mut lifecycle = self.lifecycle.lock().unwrap();
+        let matches_current_task = match &*lifecycle {
+            DriverLifecycle::Running {
+                task_id: current, ..
+            }
+            | DriverLifecycle::Stopping { task_id: current } => *current == task_id,
+            DriverLifecycle::Idle => false,
+        };
+
+        if matches_current_task {
+            *lifecycle = DriverLifecycle::Idle;
+            self.stop_finished.notify_waiters();
+        }
     }
 }
 
@@ -143,6 +228,88 @@ mod tests {
 
         stop_task.await.unwrap();
         assert!(!driver.running());
+    }
+
+    #[tokio::test]
+    async fn overlapping_stops_keep_start_blocked_until_old_task_finishes() {
+        let driver = DriverController::default();
+        let (started_tx, started_rx) = oneshot::channel::<()>();
+        let (_tx, rx) = oneshot::channel::<()>();
+
+        driver.start_task(async move {
+            let _guard = SlowDropFlag;
+            let _ = started_tx.send(());
+            let _ = rx.await;
+        });
+        started_rx.await.unwrap();
+
+        let stopping_driver = driver.clone();
+        let first_stop = tokio::spawn(async move {
+            stopping_driver.stop().await;
+        });
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        let second_stop_driver = driver.clone();
+        let second_stop = tokio::spawn(async move {
+            second_stop_driver.stop().await;
+        });
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        driver.start_task(async {});
+
+        assert!(
+            !driver.running(),
+            "driver restarted while an earlier stop was still awaiting the old task"
+        );
+
+        first_stop.await.unwrap();
+        second_stop.await.unwrap();
+        assert!(!driver.running());
+    }
+
+    #[tokio::test]
+    async fn cancelled_stop_does_not_leave_driver_permanently_stopping() {
+        let driver = DriverController::default();
+        let (started_tx, started_rx) = oneshot::channel::<()>();
+        let (_tx, rx) = oneshot::channel::<()>();
+
+        driver.start_task(async move {
+            let _guard = SlowDropFlag;
+            let _ = started_tx.send(());
+            let _ = rx.await;
+        });
+        started_rx.await.unwrap();
+
+        let stopping_driver = driver.clone();
+        let stop_task = tokio::spawn(async move {
+            stopping_driver.stop().await;
+        });
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        stop_task.abort();
+        let _ = stop_task.await;
+
+        driver.start_task(async {
+            std::future::pending::<()>().await;
+        });
+        assert!(
+            !driver.running(),
+            "driver restarted while a cancelled stop was still cleaning up the old task"
+        );
+
+        tokio::time::timeout(Duration::from_secs(2), driver.wait_until_idle())
+            .await
+            .expect("cancelled stop should eventually finish driver teardown");
+
+        driver.start_task(async {
+            std::future::pending::<()>().await;
+        });
+
+        assert!(
+            driver.running(),
+            "driver stayed permanently blocked after a cancelled stop"
+        );
+        driver.stop().await;
     }
 
     struct DriverDropFlag(Arc<AtomicBool>);
