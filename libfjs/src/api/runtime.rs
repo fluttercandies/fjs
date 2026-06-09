@@ -714,14 +714,21 @@ impl JsAsyncRuntime {
         runtime: &rquickjs::AsyncRuntime,
         driver: crate::runtime::driver::DriverController,
     ) {
+        let rejection_driver = driver.clone();
         runtime
             .set_host_promise_rejection_tracker(Some(Box::new(
                 move |ctx, _promise, reason, is_handled| {
                     if !is_handled {
-                        driver.push_error(crate::runtime::job_error::format_value(&ctx, reason));
+                        rejection_driver
+                            .push_error(crate::runtime::job_error::format_value(&ctx, reason));
                     }
                 },
             )))
+            .await;
+        runtime
+            .set_job_error_handler(Some(Box::new(move |ctx| {
+                driver.push_error(crate::runtime::job_error::format_caught_exception(&ctx));
+            })))
             .await;
     }
 
@@ -742,6 +749,7 @@ impl JsAsyncRuntime {
     #[frb(sync)]
     pub fn new() -> anyhow::Result<Self> {
         let runtime = rquickjs::AsyncRuntime::new()?;
+        crate::runtime::error_sink::install_llrt_spawn_error_handler();
         futures::executor::block_on(
             runtime.set_max_stack_size(crate::runtime::stack::ASYNC_MAX_STACK_SIZE),
         );
@@ -783,6 +791,7 @@ impl JsAsyncRuntime {
         modules: Option<Vec<JsModule>>,
     ) -> anyhow::Result<Self> {
         let runtime = rquickjs::AsyncRuntime::new()?;
+        crate::runtime::error_sink::install_llrt_spawn_error_handler();
         runtime
             .set_max_stack_size(crate::runtime::stack::ASYNC_MAX_STACK_SIZE)
             .await;
@@ -1090,9 +1099,13 @@ impl JsAsyncContext {
         let loaded_dynamic_modules = LoadedDynamicModules::default();
 
         let context_for_userdata = context.clone();
+        let error_sink = crate::runtime::error_sink::RuntimeErrorSink::new(runtime.driver.clone());
         crate::runtime::executor::run_js(async move {
             context_for_userdata
                 .async_with(async |ctx| {
+                    ctx.store_userdata(error_sink).map_err(|e| {
+                        anyhow::anyhow!("Failed to store runtime error sink: {:?}", e)
+                    })?;
                     ctx.store_userdata(dynamic_modules.clone())
                         .map_err(|e| anyhow::anyhow!("Failed to store dynamic modules: {:?}", e))?;
                     ctx.store_userdata(loaded_dynamic_modules).map_err(|e| {

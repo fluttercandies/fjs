@@ -271,6 +271,81 @@ async fn background_driver_errors_are_drainable() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn background_driver_timer_callback_errors_are_drainable() {
+    let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+        .await
+        .unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .eval(
+            JsCode::Code(
+                r#"
+                setTimeout(() => {
+                  throw new Error('fjs timer callback failure');
+                }, 10);
+                'scheduled'
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let errors = engine.drain_unhandled_job_errors().await.unwrap();
+        if errors
+            .iter()
+            .any(|error| error.contains("fjs timer callback failure"))
+        {
+            break;
+        }
+        assert!(Instant::now() < deadline, "timer error was not queued");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    engine.close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn background_driver_raw_quickjs_job_errors_are_drainable() {
+    let runtime = JsAsyncRuntime::new().unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    context
+        .with_js(async |ctx| {
+            let failing_job: rquickjs::Function = ctx
+                .eval("() => { throw new Error('fjs raw background job failure'); }")
+                .catch(&ctx)
+                .unwrap();
+            failing_job.defer(()).catch(&ctx).unwrap();
+        })
+        .await;
+
+    runtime.start_driver().await;
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let errors = runtime.drain_unhandled_job_errors().await;
+        if errors
+            .iter()
+            .any(|error| error.contains("fjs raw background job failure"))
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "raw QuickJS job error was not queued"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    runtime.stop_driver().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn background_driver_does_not_keep_runtime_alive_after_drop() {
     let runtime = JsAsyncRuntime::new().unwrap();
     runtime.start_driver().await;
@@ -309,6 +384,44 @@ async fn dropping_initialized_bridge_engine_without_close_does_not_abort() {
         .init(|value| Box::pin(async move { JsResult::Ok(value) }))
         .await
         .unwrap();
+
+    drop(engine);
+
+    tokio::task::yield_now().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dropping_essential_bridge_engine_with_loaded_module_without_close_does_not_abort() {
+    let engine = Arc::new(
+        JsEngine::create(
+            Some(JsBuiltinOptions::essential()),
+            Some(vec![crate::api::source::JsModule::code(
+                "drop-fixture".to_string(),
+                "export const value = 42;".to_string(),
+            )]),
+            None,
+        )
+        .await
+        .unwrap(),
+    );
+    engine
+        .init(|value| Box::pin(async move { JsResult::Ok(value) }))
+        .await
+        .unwrap();
+
+    engine
+        .evaluate_module(crate::api::source::JsModule::code(
+            "/drop-test".to_string(),
+            "import { value } from 'drop-fixture'; export async function run() { return await fjs.bridge_call(value); }".to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let value = engine
+        .call("/drop-test".to_string(), "run".to_string(), None)
+        .await
+        .unwrap();
+    assert!(matches!(value, JsValue::Integer(42)));
 
     drop(engine);
 

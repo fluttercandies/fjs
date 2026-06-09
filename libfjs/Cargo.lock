@@ -571,6 +571,7 @@ dependencies = [
  "llrt_child_process",
  "llrt_compression",
  "llrt_console",
+ "llrt_context",
  "llrt_crypto",
  "llrt_dgram",
  "llrt_dns",
@@ -2270,7 +2271,6 @@ dependencies = [
 [[package]]
 name = "rquickjs-core"
 version = "0.12.0"
-source = "git+https://github.com/DelSkayn/rquickjs.git?rev=144ad6472cd85b472b816c8fe5a166e74059cff5#144ad6472cd85b472b816c8fe5a166e74059cff5"
 dependencies = [
  "async-lock",
  "chrono",

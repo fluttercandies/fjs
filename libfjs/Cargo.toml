@@ -19,6 +19,7 @@ llrt_async_hooks = { git = "https://github.com/awslabs/llrt", rev = "80c113d" }
 llrt_buffer = { git = "https://github.com/awslabs/llrt", rev = "80c113d" }
 llrt_child_process = { git = "https://github.com/awslabs/llrt", rev = "80c113d" }
 llrt_console = { git = "https://github.com/awslabs/llrt", rev = "80c113d" }
+llrt_context = { git = "https://github.com/awslabs/llrt", rev = "80c113d" }
 llrt_crypto = { git = "https://github.com/awslabs/llrt", rev = "80c113d", default-features = false, features = ["crypto-ring"] }
 llrt_dgram = { git = "https://github.com/awslabs/llrt", rev = "80c113d" }
 llrt_dns = { git = "https://github.com/awslabs/llrt", rev = "80c113d" }
@@ -59,6 +60,9 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 [patch.crates-io]
 # Force llrt modules to use the same rquickjs version as libfjs
 rquickjs = { git = "https://github.com/DelSkayn/rquickjs.git", rev = "144ad6472cd85b472b816c8fe5a166e74059cff5", version = "0.12.0" }
+
+[patch."https://github.com/DelSkayn/rquickjs.git"]
+rquickjs-core = { path = "vendor/rquickjs-core" }
 
 [profile.release]
 strip = true  # Automatically strip symbols from the binary.
