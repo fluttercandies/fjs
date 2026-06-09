@@ -900,6 +900,12 @@ The script builds the XCFramework, creates `fjs.xcframework.zip`, computes the
 SwiftPM checksum, validates the podspec, validates SwiftPM consumption, and runs
 `flutter pub publish --dry-run`.
 
+Cargokit builds locally when Rustup is available, and falls back to signed
+precompiled binaries when Rustup is missing or when the user opts in through
+`cargokit_options.yaml`. Release builds force local compilation before packaging
+the XCFramework so CocoaPods and SwiftPM consume binaries from the same Rust
+inputs.
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file.

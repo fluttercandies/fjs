@@ -900,6 +900,11 @@ tool/prepare_darwin_release.sh --configuration Release
 checksum，验证 podspec，验证 SwiftPM 可消费性，并运行
 `flutter pub publish --dry-run`。
 
+当 Rustup 可用时，Cargokit 默认在本地构建；当 Rustup 缺失，或用户通过
+`cargokit_options.yaml` 显式选择时，才会回退到已签名的预编译二进制。发布构建会
+强制本地编译后再打包 XCFramework，确保 CocoaPods 和 SwiftPM 消费的是同一组 Rust
+输入生成的二进制。
+
 ## 📄 许可证
 
 MIT License - 详见 [LICENSE](LICENSE) 文件。
