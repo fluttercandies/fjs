@@ -112,9 +112,11 @@ pub(crate) fn compile_module_bytecode_impl(
 
     context.with(|ctx| {
         let module = Module::declare(ctx.clone(), module_name, source_code)
+            .catch(&ctx)
             .map_err(|e| anyhow!("Failed to compile module '{}': {}", module_name, e))?;
         let bytes = module
             .write(options.into())
+            .catch(&ctx)
             .map_err(|e| anyhow!("Failed to serialize module '{}': {}", module_name, e))?;
         Ok(JsModuleBytecode::new(module_name.to_string(), bytes))
     })
