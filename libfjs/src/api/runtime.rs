@@ -997,7 +997,7 @@ impl JsAsyncRuntime {
     /// Stopping is idempotent. The runtime remains usable afterwards; callers
     /// can still evaluate code or restart the driver later.
     pub async fn stop_driver(&self) {
-        self.driver.stop();
+        self.driver.stop().await;
     }
 
     /// Returns whether the runtime background driver is currently running.

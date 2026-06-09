@@ -126,6 +126,9 @@ impl Drop for RawRuntime {
             let ptr = qjs::JS_GetRuntimeOpaque(self.rt.as_ptr());
             let mut opaque: Box<Opaque> = Box::from_raw(ptr as *mut _);
             opaque.clear();
+            // Dart FFI finalizers may reach runtime drop without an explicit close path.
+            // Collect QuickJS cycles before JS_FreeRuntime checks its GC object list.
+            qjs::JS_RunGC(self.rt.as_ptr());
             qjs::JS_FreeRuntime(self.rt.as_ptr());
             mem::drop(opaque);
         }

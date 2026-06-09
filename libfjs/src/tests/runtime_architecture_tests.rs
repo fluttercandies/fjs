@@ -346,6 +346,46 @@ async fn background_driver_raw_quickjs_job_errors_are_drainable() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dropping_pumped_runtime_and_context_without_close_does_not_abort() {
+    let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::essential()), None)
+        .await
+        .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    let scheduled = context
+        .eval(
+            r#"
+            setTimeout(() => {
+              globalThis.__fjsDropTimerDone = true;
+            }, 10);
+            "scheduled";
+            "#
+            .to_string(),
+        )
+        .await;
+    assert!(scheduled.is_ok());
+
+    runtime.stop_driver().await;
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        runtime.execute_pending_job().await.unwrap();
+        let result = context
+            .eval("globalThis.__fjsDropTimerDone === true".to_string())
+            .await;
+        if matches!(result, JsResult::Ok(JsValue::Boolean(true))) {
+            break;
+        }
+        assert!(Instant::now() < deadline, "manual pump timer did not fire");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    drop(context);
+    drop(runtime);
+    tokio::task::yield_now().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn background_driver_does_not_keep_runtime_alive_after_drop() {
     let runtime = JsAsyncRuntime::new().unwrap();
     runtime.start_driver().await;
