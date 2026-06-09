@@ -1,7 +1,3 @@
-/// This is copied from Cargokit (which is the official way to use it currently)
-/// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
-
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
@@ -151,20 +147,7 @@ class AndroidEnvironment {
     final toolTempDir =
         Platform.environment['CARGOKIT_TOOL_TEMP_DIR'] ?? targetTempDir;
 
-    final sysroot = path.join(
-      ndkPath,
-      'toolchains',
-      'llvm',
-      'prebuilt',
-      hostArch,
-      'sysroot',
-    );
-
-    final bindgenKey = "BINDGEN_EXTRA_CLANG_ARGS_${target.rust}";
-    final bindgenValue =
-        "--sysroot=$sysroot -I${path.join(sysroot, 'usr', 'include', target.rust)}";
-
-    final env = {
+    return {
       arKey: arValue,
       ccKey: ccValue,
       cfFlagsKey: cFlagsValue,
@@ -173,15 +156,11 @@ class AndroidEnvironment {
       ranlibKey: ranlibValue,
       rustFlagsKey: rustFlagsValue,
       linkerKey: selfPath,
-      bindgenKey: bindgenValue,
       // Recognized by main() so we know when we're acting as a wrapper
       '_CARGOKIT_NDK_LINK_TARGET': targetArg,
       '_CARGOKIT_NDK_LINK_CLANG': ccValue,
       'CARGOKIT_TOOL_TEMP_DIR': toolTempDir,
     };
-
-    log.info(JsonEncoder.withIndent('  ').convert(env));
-    return env;
   }
 
   // Workaround for libgcc missing in NDK23, inspired by cargo-ndk
@@ -207,22 +186,7 @@ class AndroidEnvironment {
     if (rustFlags.isNotEmpty) {
       rustFlags = '$rustFlags\x1f';
     }
-
-    if (["arm64-v8a", "x86_64"].contains(target.android)) {
-      rustFlags = '$rustFlags-L\x1f$workaroundDir\x1f';
-
-      const pageSizeArgs = [
-        "-C",
-        "link-arg=-Wl,--hash-style=both",
-        "-C",
-        "link-arg=-Wl,-z,max-page-size=16384"
-      ];
-      final pageSizeArgsString = pageSizeArgs.join("\x1f");
-
-      rustFlags = '$rustFlags$pageSizeArgsString';
-    } else {
-      rustFlags = '$rustFlags-L\x1f$workaroundDir';
-    }
+    rustFlags = '$rustFlags-L\x1f$workaroundDir';
     return rustFlags;
   }
 }

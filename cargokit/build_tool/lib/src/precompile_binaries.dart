@@ -1,6 +1,3 @@
-/// This is copied from Cargokit (which is the official way to use it currently)
-/// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
-
 import 'dart:io';
 
 import 'package:ed25519_edwards/ed25519_edwards.dart';
@@ -29,6 +26,7 @@ class PrecompileBinaries {
     this.androidNdkVersion,
     this.androidMinSdkVersion,
     this.tempDir,
+    this.glibcVersion,
   });
 
   final PrivateKey privateKey;
@@ -40,6 +38,7 @@ class PrecompileBinaries {
   final String? androidNdkVersion;
   final int? androidMinSdkVersion;
   final String? tempDir;
+  final String? glibcVersion;
 
   static String fileName(Target target, String name) {
     return '${target.rust}_$name';
@@ -96,6 +95,7 @@ class PrecompileBinaries {
       androidSdkPath: androidSdkLocation,
       androidNdkVersion: androidNdkVersion,
       androidMinSdkVersion: androidMinSdkVersion,
+      glibcVersion: glibcVersion,
     );
 
     final rustup = Rustup();

@@ -1,6 +1,3 @@
-/// This is copied from Cargokit (which is the official way to use it currently)
-/// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
-
 import 'dart:io';
 
 import 'package:collection/collection.dart';
@@ -36,14 +33,27 @@ class Rustup {
     required String toolchain,
   }) {
     log.info("Installing Rust target: $target");
-    runCommand("rustup", [
-      'target',
-      'add',
-      '--toolchain',
-      toolchain,
-      target,
-    ]);
+    runCommand("rustup", ['target', 'add', '--toolchain', toolchain, target]);
     _installedTargets(toolchain)?.add(target);
+  }
+
+  bool _didInstallZigBuild = false;
+
+  void installZigBuild(String toolchain) {
+    if (_didInstallZigBuild) {
+      return;
+    }
+
+    log.info("Installing Zig build");
+    runCommand("rustup", [
+      'run',
+      toolchain,
+      'cargo',
+      'install',
+      '--locked',
+      'cargo-zigbuild',
+    ]);
+    _didInstallZigBuild = true;
   }
 
   final List<_Toolchain> _installedToolchains;

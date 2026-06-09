@@ -1,6 +1,3 @@
-/// This is copied from Cargokit (which is the official way to use it currently)
-/// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
-
 import 'dart:io';
 
 extension on String {
@@ -38,9 +35,6 @@ class Environment {
   static List<String> get darwinArchs =>
       _getEnv("CARGOKIT_DARWIN_ARCHS").split(' ');
 
-  static String get iosDeploymentTarget =>
-      Platform.environment['IPHONEOS_DEPLOYMENT_TARGET'] ?? '12.0';
-
   // Gradle
   static String get minSdkVersion => _getEnv("CARGOKIT_MIN_SDK_VERSION");
   static String get ndkVersion => _getEnv("CARGOKIT_NDK_VERSION");
@@ -54,7 +48,6 @@ class Environment {
 
   static String _getEnv(String key) {
     final res = Platform.environment[key];
-    print("Environment variable $key: $res");
     if (res == null) {
       throw Exception("Missing environment variable $key");
     }

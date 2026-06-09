@@ -1,13 +1,9 @@
-/// This is copied from Cargokit (which is the official way to use it currently)
-/// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
-
 import 'package:collection/collection.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
 import 'android_environment.dart';
 import 'cargo.dart';
-import 'darwin_environment.dart';
 import 'environment.dart';
 import 'options.dart';
 import 'rustup.dart';
@@ -55,6 +51,8 @@ class BuildEnvironment {
   final int? androidMinSdkVersion;
   final String? javaHome;
 
+  final String? glibcVersion;
+
   BuildEnvironment({
     required this.configuration,
     required this.crateOptions,
@@ -66,6 +64,7 @@ class BuildEnvironment {
     this.androidNdkVersion,
     this.androidMinSdkVersion,
     this.javaHome,
+    this.glibcVersion,
   });
 
   static BuildConfiguration parseBuildConfiguration(String value) {
@@ -129,6 +128,9 @@ class RustBuilder {
     if (!rustup.installedTargets(toolchain)!.contains(target.rust)) {
       rustup.installTarget(target.rust, toolchain: toolchain);
     }
+    if (environment.glibcVersion != null) {
+      rustup.installZigBuild(toolchain);
+    }
   }
 
   CargoBuildOptions? get _buildOptions =>
@@ -146,7 +148,9 @@ class RustBuilder {
         'run',
         _toolchain,
         'cargo',
-        'build',
+        (target.android == null && environment.glibcVersion != null)
+            ? 'zigbuild'
+            : 'build',
         ...extraArgs,
         '--manifest-path',
         manifestPath,
@@ -154,7 +158,10 @@ class RustBuilder {
         environment.crateInfo.packageName,
         if (!environment.configuration.isDebug) '--release',
         '--target',
-        target.rust,
+        target.rust +
+            ((target.android == null && environment.glibcVersion != null)
+                ? '.${environment.glibcVersion!}'
+                : ""),
         '--target-dir',
         environment.targetTempDir,
       ],
@@ -169,13 +176,6 @@ class RustBuilder {
 
   Future<Map<String, String>> _buildEnvironment() async {
     if (target.android == null) {
-      if (target.darwinPlatform == 'iphonesimulator' ||
-          target.darwinPlatform == 'iphoneos') {
-        return DarwinEnvironment(
-          target: target,
-          deploymentTarget: Environment.iosDeploymentTarget,
-        ).buildEnvironment();
-      }
       return {};
     } else {
       final sdkPath = environment.androidSdkPath;
