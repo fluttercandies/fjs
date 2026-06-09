@@ -886,6 +886,20 @@ JsBuiltinOptions(
 3. **使用源码字节** - 当 JavaScript 源码本来就是 UTF-8 字节时，优先使用 `JsCode.bytes()` / `JsModule.bytes()`
 4. **批量操作** - 将相关操作分组执行
 
+## Darwin 发布产物
+
+fjs 在 iOS 和 macOS 上同时支持 CocoaPods 与 Swift Package Manager。CocoaPods
+通过 Cargokit 构建 Rust 库；SwiftPM 使用
+`darwin/fjs/Binaries/fjs.xcframework`，该产物在发布阶段生成：
+
+```sh
+tool/prepare_darwin_release.sh --configuration Release
+```
+
+该脚本会构建 XCFramework，生成 `fjs.xcframework.zip`，计算 SwiftPM
+checksum，验证 podspec，验证 SwiftPM 可消费性，并运行
+`flutter pub publish --dry-run`。
+
 ## 📄 许可证
 
 MIT License - 详见 [LICENSE](LICENSE) 文件。

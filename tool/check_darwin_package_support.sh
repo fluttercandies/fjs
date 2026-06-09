@@ -1,6 +1,35 @@
 #!/bin/sh
 set -eu
 
+REQUIRE_XCFRAMEWORK=0
+
+usage() {
+  cat <<'USAGE'
+Usage: tool/check_darwin_package_support.sh [--require-xcframework]
+
+Checks the shared Darwin CocoaPods and Swift Package Manager package structure.
+Pass --require-xcframework in release validation after generating
+darwin/fjs/Binaries/fjs.xcframework.
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --require-xcframework)
+      REQUIRE_XCFRAMEWORK=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
 fail() {
   echo "error: $*" >&2
   exit 1
@@ -13,7 +42,7 @@ require_file() {
 require_contains() {
   file="$1"
   text="$2"
-  grep -F "$text" "$file" >/dev/null || fail "$file does not contain: $text"
+  grep -F -- "$text" "$file" >/dev/null || fail "$file does not contain: $text"
 }
 
 require_file "darwin/fjs/Package.swift"
@@ -21,6 +50,7 @@ require_file "darwin/fjs.podspec"
 require_file "darwin/fjs/Binaries/.gitkeep"
 require_file ".pubignore"
 require_file "tool/build_fjs_xcframework.sh"
+require_file "tool/prepare_darwin_release.sh"
 
 require_contains "pubspec.yaml" "sharedDarwinSource: true"
 require_contains "darwin/fjs/Package.swift" ".package(name: \"FlutterFramework\", path: \"../FlutterFramework\")"
@@ -36,6 +66,9 @@ require_contains "tool/build_fjs_xcframework.sh" "CARGOKIT_DARWIN_PLATFORM_NAME"
 require_contains "tool/build_fjs_xcframework.sh" "libfjs.dylib"
 require_contains "tool/build_fjs_xcframework.sh" "CFBundlePackageType"
 require_contains "tool/build_fjs_xcframework.sh" "MACOSX_DEPLOYMENT_TARGET"
+require_contains "tool/build_fjs_xcframework.sh" "swift package compute-checksum"
+require_contains "tool/prepare_darwin_release.sh" "--require-xcframework"
+require_contains "tool/prepare_darwin_release.sh" "flutter pub publish --dry-run"
 require_contains ".gitignore" "/darwin/fjs/Binaries/fjs.xcframework/"
 require_contains ".pubignore" "/docs/superpowers/"
 if grep -F "/release/release" tool/build_fjs_xcframework.sh >/dev/null; then
@@ -46,4 +79,18 @@ if grep -F "fjs.xcframework" .pubignore >/dev/null; then
 fi
 require_contains "macos/fjs.podspec" "s.version          = '2.2.0'"
 
-echo "Darwin package support structure is present."
+if [ "$REQUIRE_XCFRAMEWORK" -eq 1 ]; then
+  [ -d "darwin/fjs/Binaries/fjs.xcframework" ] ||
+    fail "missing SwiftPM binary artifact: darwin/fjs/Binaries/fjs.xcframework"
+fi
+
+if [ -d "darwin/fjs/Binaries/fjs.xcframework" ]; then
+  (cd darwin/fjs && swift package dump-package >/dev/null) ||
+    fail "darwin/fjs/Package.swift cannot consume Binaries/fjs.xcframework"
+fi
+
+if [ "$REQUIRE_XCFRAMEWORK" -eq 1 ]; then
+  echo "Darwin package support and SwiftPM binary artifact are present."
+else
+  echo "Darwin package support structure is present."
+fi

@@ -3,7 +3,7 @@ set -eu
 
 usage() {
   cat <<'USAGE'
-Usage: tool/build_fjs_xcframework.sh [--configuration Debug|Release] [--output PATH]
+Usage: tool/build_fjs_xcframework.sh [--configuration Debug|Release] [--output PATH] [--zip-output PATH]
 
 Builds the fjs Rust dynamic libraries for iOS, iOS Simulator, and macOS, then
 packages them as an XCFramework for Swift Package Manager:
@@ -11,12 +11,14 @@ packages them as an XCFramework for Swift Package Manager:
   darwin/fjs/Binaries/fjs.xcframework
 
 The script uses the existing Cargokit build tool so CocoaPods and SwiftPM share
-the same Rust build inputs.
+the same Rust build inputs. When --zip-output is provided, it also writes a
+SwiftPM release zip and a sidecar .checksum file.
 USAGE
 }
 
 CONFIGURATION=Release
 OUTPUT_DIR=""
+ZIP_OUTPUT=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -34,6 +36,14 @@ while [ "$#" -gt 0 ]; do
         exit 2
       }
       OUTPUT_DIR="$2"
+      shift 2
+      ;;
+    --zip-output)
+      [ "$#" -ge 2 ] || {
+        usage >&2
+        exit 2
+      }
+      ZIP_OUTPUT="$2"
       shift 2
       ;;
     -h|--help)
@@ -192,3 +202,16 @@ xcodebuild -create-xcframework \
   -output "$XCFRAMEWORK"
 
 echo "Created $XCFRAMEWORK"
+
+if [ -n "$ZIP_OUTPUT" ]; then
+  ZIP_OUTPUT_DIR="$(dirname -- "$ZIP_OUTPUT")"
+  mkdir -p "$ZIP_OUTPUT_DIR"
+  rm -f "$ZIP_OUTPUT" "$ZIP_OUTPUT.checksum"
+  (
+    cd "$OUTPUT_DIR"
+    zip -qry "$ZIP_OUTPUT" fjs.xcframework
+  )
+  swift package compute-checksum "$ZIP_OUTPUT" > "$ZIP_OUTPUT.checksum"
+  echo "Created $ZIP_OUTPUT"
+  echo "Created $ZIP_OUTPUT.checksum"
+fi

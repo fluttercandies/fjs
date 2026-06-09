@@ -886,6 +886,20 @@ JsBuiltinOptions(
 3. **Use Source Bytes** - Prefer `JsCode.bytes()` / `JsModule.bytes()` when your JavaScript source is already in UTF-8 bytes
 4. **Batch Operations** - Group related operations
 
+## Darwin Release Artifacts
+
+fjs supports CocoaPods and Swift Package Manager on iOS and macOS. CocoaPods
+builds the Rust library through Cargokit. SwiftPM consumes
+`darwin/fjs/Binaries/fjs.xcframework`, which is generated during release:
+
+```sh
+tool/prepare_darwin_release.sh --configuration Release
+```
+
+The script builds the XCFramework, creates `fjs.xcframework.zip`, computes the
+SwiftPM checksum, validates the podspec, validates SwiftPM consumption, and runs
+`flutter pub publish --dry-run`.
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file.
