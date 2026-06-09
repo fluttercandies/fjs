@@ -60,3 +60,23 @@ impl DriverController {
         self.inner.errors.lock().unwrap().drain(..).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::DriverController;
+
+    #[test]
+    fn error_queue_keeps_newest_entries_when_full() {
+        let driver = DriverController::default();
+
+        for index in 0..40 {
+            driver.push_error(format!("error {index}"));
+        }
+
+        let errors = driver.drain_errors();
+        assert_eq!(errors.len(), 32);
+        assert_eq!(errors.first().unwrap(), "error 8");
+        assert_eq!(errors.last().unwrap(), "error 39");
+        assert!(driver.drain_errors().is_empty());
+    }
+}
