@@ -81,6 +81,7 @@ void main() {
       final runtime = await JsAsyncRuntime.create(
         builtins: JsBuiltinOptions.essential(),
       );
+      addTearDown(runtime.stopDriver);
       final context = await JsAsyncContext.from(runtime: runtime);
 
       final scheduled = await context.eval(
@@ -112,6 +113,7 @@ void main() {
       final runtime = await JsAsyncRuntime.create(
         builtins: JsBuiltinOptions.essential(),
       );
+      addTearDown(runtime.stopDriver);
       final context = await JsAsyncContext.from(runtime: runtime);
 
       await runtime.startDriver();
@@ -146,6 +148,7 @@ void main() {
 
     testWidgets('runtime drains unhandled promise rejections', (_) async {
       final runtime = await JsAsyncRuntime.create();
+      addTearDown(runtime.stopDriver);
       final context = await JsAsyncContext.from(runtime: runtime);
 
       final scheduled = await context.eval(
