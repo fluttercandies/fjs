@@ -14,6 +14,7 @@ pub(crate) struct DriverController {
 #[derive(Default)]
 struct DriverState {
     running: AtomicBool,
+    stopping: AtomicBool,
     handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
     errors: Mutex<VecDeque<String>>,
 }
@@ -28,7 +29,7 @@ impl DriverController {
         F: Future<Output = ()> + Send + 'static,
     {
         let mut handle_slot = self.inner.handle.lock().unwrap();
-        if handle_slot.is_some() {
+        if handle_slot.is_some() || self.inner.stopping.load(Ordering::Acquire) {
             return;
         }
 
@@ -45,11 +46,13 @@ impl DriverController {
 
     pub(crate) async fn stop(&self) {
         let handle = self.inner.handle.lock().unwrap().take();
+        self.inner.stopping.store(true, Ordering::Release);
         self.inner.running.store(false, Ordering::Release);
         if let Some(handle) = handle {
             handle.abort();
             let _ = handle.await;
         }
+        self.inner.stopping.store(false, Ordering::Release);
     }
 
     pub(crate) fn running(&self) -> bool {
@@ -74,6 +77,7 @@ mod tests {
     use super::DriverController;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Duration;
     use tokio::sync::oneshot;
 
     #[test]
@@ -112,11 +116,48 @@ mod tests {
         assert!(!driver.running());
     }
 
+    #[tokio::test]
+    async fn start_during_stop_does_not_restart_until_stop_finishes() {
+        let driver = DriverController::default();
+        let (started_tx, started_rx) = oneshot::channel::<()>();
+        let (_tx, rx) = oneshot::channel::<()>();
+
+        driver.start_task(async move {
+            let _guard = SlowDropFlag;
+            let _ = started_tx.send(());
+            let _ = rx.await;
+        });
+        started_rx.await.unwrap();
+
+        let stopping_driver = driver.clone();
+        let stop_task = tokio::spawn(async move {
+            stopping_driver.stop().await;
+        });
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        driver.start_task(async {});
+        assert!(
+            !driver.running(),
+            "driver restarted while stop was still waiting for the old task"
+        );
+
+        stop_task.await.unwrap();
+        assert!(!driver.running());
+    }
+
     struct DriverDropFlag(Arc<AtomicBool>);
 
     impl Drop for DriverDropFlag {
         fn drop(&mut self) {
             self.0.store(true, Ordering::Release);
+        }
+    }
+
+    struct SlowDropFlag;
+
+    impl Drop for SlowDropFlag {
+        fn drop(&mut self) {
+            std::thread::sleep(Duration::from_millis(100));
         }
     }
 }
