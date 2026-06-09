@@ -113,10 +113,20 @@ EOF
 create_framework() {
   platform_output_name="$1"
   minimum_os_version="$2"
-  shift 2
+  framework_style="$3"
+  shift 3
 
   framework_dir="$FRAMEWORK_BUILD_DIR/$platform_output_name/fjs.framework"
-  framework_binary="$framework_dir/fjs"
+  framework_contents_dir="$framework_dir"
+  framework_resources_dir="$framework_dir"
+  if [ "$framework_style" = "versioned" ]; then
+    framework_contents_dir="$framework_dir/Versions/A"
+    framework_resources_dir="$framework_contents_dir/Resources"
+  elif [ "$framework_style" != "shallow" ]; then
+    echo "error: framework style must be shallow or versioned" >&2
+    exit 2
+  fi
+  framework_binary="$framework_contents_dir/fjs"
   source_dylibs=""
   first_dylib=""
 
@@ -133,7 +143,7 @@ create_framework() {
   done
 
   rm -rf "$framework_dir"
-  mkdir -p "$framework_dir/Headers" "$framework_dir/Modules"
+  mkdir -p "$framework_contents_dir/Headers" "$framework_contents_dir/Modules" "$framework_resources_dir"
 
   # shellcheck disable=SC2086
   if [ "$#" -eq 1 ]; then
@@ -145,7 +155,7 @@ create_framework() {
 
   install_name_tool -id "@rpath/fjs.framework/fjs" "$framework_binary"
 
-  cat > "$framework_dir/Info.plist" <<EOF
+  cat > "$framework_resources_dir/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -170,17 +180,25 @@ create_framework() {
 </plist>
 EOF
 
-  cat > "$framework_dir/Headers/fjs.h" <<'EOF'
+  cat > "$framework_contents_dir/Headers/fjs.h" <<'EOF'
 #pragma once
 EOF
 
-  cat > "$framework_dir/Modules/module.modulemap" <<'EOF'
+  cat > "$framework_contents_dir/Modules/module.modulemap" <<'EOF'
 framework module fjs {
   umbrella header "fjs.h"
   export *
   module * { export * }
 }
 EOF
+
+  if [ "$framework_style" = "versioned" ]; then
+    ln -s A "$framework_dir/Versions/Current"
+    ln -s Versions/Current/fjs "$framework_dir/fjs"
+    ln -s Versions/Current/Headers "$framework_dir/Headers"
+    ln -s Versions/Current/Modules "$framework_dir/Modules"
+    ln -s Versions/Current/Resources "$framework_dir/Resources"
+  fi
 }
 
 build_platform iphoneos arm64 ios 12.0
@@ -191,9 +209,9 @@ rm -rf "$XCFRAMEWORK"
 mkdir -p "$OUTPUT_DIR"
 rm -rf "$FRAMEWORK_BUILD_DIR"
 
-create_framework ios 12.0 aarch64-apple-ios
-create_framework ios-simulator 12.0 aarch64-apple-ios-sim x86_64-apple-ios
-create_framework macos 10.14 aarch64-apple-darwin x86_64-apple-darwin
+create_framework ios 12.0 shallow aarch64-apple-ios
+create_framework ios-simulator 12.0 shallow aarch64-apple-ios-sim x86_64-apple-ios
+create_framework macos 10.14 versioned aarch64-apple-darwin x86_64-apple-darwin
 
 xcodebuild -create-xcframework \
   -framework "$FRAMEWORK_BUILD_DIR/ios/fjs.framework" \

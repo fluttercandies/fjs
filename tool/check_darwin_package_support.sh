@@ -85,6 +85,16 @@ if [ "$REQUIRE_XCFRAMEWORK" -eq 1 ]; then
 fi
 
 if [ -d "darwin/fjs/Binaries/fjs.xcframework" ]; then
+  require_file "darwin/fjs/Binaries/fjs.xcframework/ios-arm64/fjs.framework/fjs"
+  require_file "darwin/fjs/Binaries/fjs.xcframework/ios-arm64/fjs.framework/Info.plist"
+  require_file "darwin/fjs/Binaries/fjs.xcframework/ios-arm64_x86_64-simulator/fjs.framework/fjs"
+  require_file "darwin/fjs/Binaries/fjs.xcframework/ios-arm64_x86_64-simulator/fjs.framework/Info.plist"
+  require_file "darwin/fjs/Binaries/fjs.xcframework/macos-arm64_x86_64/fjs.framework/Versions/A/fjs"
+  require_file "darwin/fjs/Binaries/fjs.xcframework/macos-arm64_x86_64/fjs.framework/Versions/A/Resources/Info.plist"
+  [ -L "darwin/fjs/Binaries/fjs.xcframework/macos-arm64_x86_64/fjs.framework/Versions/Current" ] ||
+    fail "macOS fjs.framework must be versioned with Versions/Current symlink"
+  [ -L "darwin/fjs/Binaries/fjs.xcframework/macos-arm64_x86_64/fjs.framework/fjs" ] ||
+    fail "macOS fjs.framework binary must be a symlink to Versions/Current/fjs"
   (cd darwin/fjs && swift package dump-package >/dev/null) ||
     fail "darwin/fjs/Package.swift cannot consume Binaries/fjs.xcframework"
 fi
