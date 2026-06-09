@@ -405,6 +405,29 @@ async fn background_driver_does_not_keep_runtime_alive_after_drop() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn runtime_driver_stop_returns_and_allows_restart() {
+    let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::essential()), None)
+        .await
+        .unwrap();
+
+    runtime.start_driver().await;
+    assert!(runtime.driver_running().await);
+
+    tokio::time::timeout(Duration::from_secs(2), runtime.stop_driver())
+        .await
+        .expect("stop_driver should not hang");
+    assert!(!runtime.driver_running().await);
+
+    runtime.start_driver().await;
+    assert!(runtime.driver_running().await);
+
+    tokio::time::timeout(Duration::from_secs(2), runtime.stop_driver())
+        .await
+        .expect("restarted driver should stop cleanly");
+    assert!(!runtime.driver_running().await);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn engine_close_is_idempotent_and_stops_driver() {
     let engine = JsEngine::create(None, None, None).await.unwrap();
     engine.init_without_bridge().await.unwrap();
