@@ -123,9 +123,37 @@ if (await runtime.isJobPending()) {
   await runtime.executePendingJob();
 }
 await runtime.idle();
+
+// 如果需要让游离 Promise、timer、fetch 或其他后台异步任务自动推进，
+// 可以启动后台 driver，避免宿主侧手动轮询。
+await runtime.startDriver();
+
+// JS 自己负责的后台任务，优先在 JavaScript 里使用 .catch() 处理失败。
+await context.evalWithOptions(
+  code: '''
+    Promise.resolve()
+      .then(() => 'background result')
+      .catch((error) => console.log(String(error)));
+    undefined
+  ''',
+  options: JsEvalOptions.withPromise(),
+);
+
+// 对没有被 JS .catch() 捕获的游离 Promise 或 timer 错误，
+// Dart 侧可以 drain 运行时的兜底错误队列。
+final unhandledErrors = await runtime.drainUnhandledJobErrors();
+for (final error in unhandledErrors) {
+  print(error);
+}
+
+await runtime.stopDriver();
 ```
 
 底层 context API 返回的是 `JsResult`，适合你需要结构化成功/失败结果，而不是直接依赖异常的场景。
+`JsEngine.init()` 和 `JsEngine.initWithoutBridge()` 会自动启动 runtime
+driver；`JsEngine.close()` 会在 drain 待处理任务后停止 driver。预期内的后台 JS
+任务失败应优先用 JavaScript `.catch()` 处理，`drainUnhandledJobErrors()` 是 Dart
+侧的兜底通道，用来收集无法通过原始 `eval()` 或 `call()` 返回的未处理异步错误。
 
 ### 同步 Runtime 与 Context
 
@@ -482,6 +510,10 @@ abstract class JsAsyncRuntime {
   Future<bool> isJobPending();
   Future<bool> executePendingJob();
   Future<void> idle();
+  Future<void> startDriver();
+  Future<void> stopDriver();
+  Future<bool> driverRunning();
+  Future<List<String>> drainUnhandledJobErrors();
   Future<MemoryUsage> memoryUsage();
   Future<void> setMemoryLimit({required BigInt limit});
   Future<void> setGcThreshold({required BigInt threshold});
@@ -572,6 +604,8 @@ abstract class JsEngine {
   Future<bool> executePendingJob();
   Future<void> idle();
   Future<bool> isJobPending();
+  Future<bool> driverRunning();
+  Future<List<String>> drainUnhandledJobErrors();
   Future<MemoryUsage> memoryUsage();
   Future<void> runGc();
   Future<void> setGcThreshold({required BigInt threshold});
@@ -886,24 +920,65 @@ JsBuiltinOptions(
 3. **使用源码字节** - 当 JavaScript 源码本来就是 UTF-8 字节时，优先使用 `JsCode.bytes()` / `JsModule.bytes()`
 4. **批量操作** - 将相关操作分组执行
 
-## Darwin 发布产物
+## Darwin 打包与发布
 
-fjs 在 iOS 和 macOS 上同时支持 CocoaPods 与 Swift Package Manager。CocoaPods
-通过 Cargokit 构建 Rust 库；SwiftPM 使用
-`darwin/fjs/Binaries/fjs.xcframework`，该产物在发布阶段生成：
+fjs 在 iOS 和 macOS 上同时支持 CocoaPods 与 Swift Package Manager。Flutter 会从
+`pubspec.yaml` 发现共享 Darwin 包；应用开发者通常只需要在 `pubspec.yaml` 加入
+`fjs`，然后使用常规 Flutter 构建流程。
+
+### CocoaPods
+
+CocoaPods 的共享 Darwin 构建使用 `darwin/fjs.podspec`，`ios/fjs.podspec` 和
+`macos/fjs.podspec` 保留给旧版 Flutter 目录布局。podspec 会执行：
+
+```sh
+sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../libfjs fjs
+```
+
+该 Cargokit 脚本会为当前 Xcode 平台构建 `libfjs.a`，并通过 `-force_load` 链接。
+Rustup 可用时默认从本地 Rust 源码构建；Rustup 缺失，或应用通过
+`cargokit_options.yaml` 显式选择时，会从 `libfjs/cargokit.yaml` 配置的 GitHub
+Release 下载已签名预编译产物。
+
+```yaml
+use_precompiled_binaries: true
+verbose_logging: false
+```
+
+### Swift Package Manager
+
+SwiftPM 使用 `darwin/fjs/Package.swift`。该 package 暴露一个很小的 Swift target，
+并链接下面的 binary target：
+
+```text
+darwin/fjs/Binaries/fjs.xcframework
+```
+
+XCFramework 是发布产物，不应手工编辑。如果你在源码仓库中需要本地刷新它，运行：
+
+```sh
+tool/build_fjs_xcframework.sh --configuration Release
+```
+
+### 发布检查清单
+
+发布支持 Darwin 的版本前，运行：
 
 ```sh
 tool/prepare_darwin_release.sh --configuration Release
 ```
 
-该脚本会构建 XCFramework，生成 `fjs.xcframework.zip`，计算 SwiftPM
-checksum，验证 podspec，验证 SwiftPM 可消费性，并运行
-`flutter pub publish --dry-run`。
+该脚本会用 CocoaPods 相同的 Rust/Cargokit 输入构建 XCFramework，写入
+`darwin/fjs/Binaries/fjs.xcframework`，生成
+`build/darwin-release/fjs.xcframework.zip`，计算
+`build/darwin-release/fjs.xcframework.zip.checksum`，验证 Darwin 包元数据，
+验证 SwiftPM 可消费性，并运行 `flutter pub publish --dry-run`。
 
-当 Rustup 可用时，Cargokit 默认在本地构建；当 Rustup 缺失，或用户通过
-`cargokit_options.yaml` 显式选择时，才会回退到已签名的预编译二进制。发布构建会
-强制本地编译后再打包 XCFramework，确保 CocoaPods 和 SwiftPM 消费的是同一组 Rust
-输入生成的二进制。
+发布时将 `build/darwin-release/fjs.xcframework.zip` 上传到对应版本的 GitHub
+Release。checksum 建议和产物一起保留，用于校验，或未来切换到远程
+`binaryTarget(url:checksum:)` manifest。发布脚本会强制本地编译后再打包
+XCFramework，确保 CocoaPods、SwiftPM 和 Cargokit 预编译 release 都可以追溯到同一组
+Rust 输入。
 
 ## 📄 许可证
 

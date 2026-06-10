@@ -123,9 +123,37 @@ if (await runtime.isJobPending()) {
   await runtime.executePendingJob();
 }
 await runtime.idle();
+
+// Start the background driver when detached Promises, timers, fetches,
+// or spawned async work should keep moving without manual polling.
+await runtime.startDriver();
+
+// Prefer JavaScript .catch() for failures owned by detached JS work.
+await context.evalWithOptions(
+  code: '''
+    Promise.resolve()
+      .then(() => 'background result')
+      .catch((error) => console.log(String(error)));
+    undefined
+  ''',
+  options: JsEvalOptions.withPromise(),
+);
+
+// Drain the runtime safety net for unhandled detached Promise or timer errors.
+final unhandledErrors = await runtime.drainUnhandledJobErrors();
+for (final error in unhandledErrors) {
+  print(error);
+}
+
+await runtime.stopDriver();
 ```
 
 Low-level context APIs return `JsResult`, which is useful when you want structured success or error handling instead of exceptions.
+`JsEngine.init()` and `JsEngine.initWithoutBridge()` start the runtime driver
+automatically; `JsEngine.close()` stops it after draining pending work. Use
+JavaScript `.catch()` for expected detached work, and use
+`drainUnhandledJobErrors()` as the Dart-side safety net for failures that cannot
+return through the original `eval()` or `call()`.
 
 ### Synchronous Runtime & Context
 
@@ -482,6 +510,10 @@ abstract class JsAsyncRuntime {
   Future<bool> isJobPending();
   Future<bool> executePendingJob();
   Future<void> idle();
+  Future<void> startDriver();
+  Future<void> stopDriver();
+  Future<bool> driverRunning();
+  Future<List<String>> drainUnhandledJobErrors();
   Future<MemoryUsage> memoryUsage();
   Future<void> setMemoryLimit({required BigInt limit});
   Future<void> setGcThreshold({required BigInt threshold});
@@ -572,6 +604,8 @@ abstract class JsEngine {
   Future<bool> executePendingJob();
   Future<void> idle();
   Future<bool> isJobPending();
+  Future<bool> driverRunning();
+  Future<List<String>> drainUnhandledJobErrors();
   Future<MemoryUsage> memoryUsage();
   Future<void> runGc();
   Future<void> setGcThreshold({required BigInt threshold});
@@ -886,25 +920,69 @@ JsBuiltinOptions(
 3. **Use Source Bytes** - Prefer `JsCode.bytes()` / `JsModule.bytes()` when your JavaScript source is already in UTF-8 bytes
 4. **Batch Operations** - Group related operations
 
-## Darwin Release Artifacts
+## Darwin Packaging and Release
 
-fjs supports CocoaPods and Swift Package Manager on iOS and macOS. CocoaPods
-builds the Rust library through Cargokit. SwiftPM consumes
-`darwin/fjs/Binaries/fjs.xcframework`, which is generated during release:
+fjs supports both CocoaPods and Swift Package Manager on iOS and macOS. Flutter
+discovers the shared Darwin package from `pubspec.yaml`; application developers
+normally only add `fjs` to `pubspec.yaml` and run the usual Flutter build.
+
+### CocoaPods
+
+CocoaPods consumes `darwin/fjs.podspec` for shared Darwin builds, with
+`ios/fjs.podspec` and `macos/fjs.podspec` kept for older Flutter layouts. The
+podspec runs:
+
+```sh
+sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../libfjs fjs
+```
+
+That Cargokit script builds `libfjs.a` for the current Xcode platform and links
+it with `-force_load`. When Rustup is installed, it builds from local Rust
+source by default. When Rustup is missing, or when the application opts in with
+`cargokit_options.yaml`, it downloads signed precompiled artifacts from the
+GitHub Release configured in `libfjs/cargokit.yaml`.
+
+```yaml
+use_precompiled_binaries: true
+verbose_logging: false
+```
+
+### Swift Package Manager
+
+SwiftPM consumes `darwin/fjs/Package.swift`. The package exposes a small Swift
+target and links the binary target at:
+
+```text
+darwin/fjs/Binaries/fjs.xcframework
+```
+
+The XCFramework is a release artifact, not a file edited by hand. If you are
+working from source and need to refresh it locally, run:
+
+```sh
+tool/build_fjs_xcframework.sh --configuration Release
+```
+
+### Release Checklist
+
+Before publishing a Darwin-capable release, run:
 
 ```sh
 tool/prepare_darwin_release.sh --configuration Release
 ```
 
-The script builds the XCFramework, creates `fjs.xcframework.zip`, computes the
-SwiftPM checksum, validates the podspec, validates SwiftPM consumption, and runs
+The script builds the XCFramework from the same Rust/Cargokit inputs used by
+CocoaPods, writes it to `darwin/fjs/Binaries/fjs.xcframework`, creates
+`build/darwin-release/fjs.xcframework.zip`, computes
+`build/darwin-release/fjs.xcframework.zip.checksum`, validates the Darwin
+package metadata, validates SwiftPM consumption, and runs
 `flutter pub publish --dry-run`.
 
-Cargokit builds locally when Rustup is available, and falls back to signed
-precompiled binaries when Rustup is missing or when the user opts in through
-`cargokit_options.yaml`. Release builds force local compilation before packaging
-the XCFramework so CocoaPods and SwiftPM consume binaries from the same Rust
-inputs.
+Upload `build/darwin-release/fjs.xcframework.zip` to the GitHub Release for the
+package version. Keep the checksum next to the artifact for verification or for
+a future remote `binaryTarget(url:checksum:)` manifest. The release script
+forces local compilation before packaging the XCFramework so CocoaPods, SwiftPM,
+and Cargokit precompiled releases are traceable to the same Rust inputs.
 
 ## 📄 License
 
