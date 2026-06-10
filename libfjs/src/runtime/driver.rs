@@ -3,9 +3,11 @@ use std::collections::VecDeque;
 use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tokio::sync::Notify;
 
 const MAX_ERRORS: usize = 32;
+const IDLE_POLL_INTERVAL: Duration = Duration::from_millis(5);
 
 #[derive(Clone, Default)]
 pub(crate) struct DriverController {
@@ -35,7 +37,11 @@ enum DriverLifecycle {
 
 impl DriverController {
     pub(crate) fn start(&self, runtime: rquickjs::AsyncRuntime) {
-        self.start_task(runtime.drive());
+        let weak_runtime = runtime.weak();
+        let driver = self.clone();
+        self.start_task(async move {
+            drive_runtime(weak_runtime, driver).await;
+        });
     }
 
     fn start_task<F>(&self, future: F)
@@ -121,6 +127,44 @@ impl DriverController {
     pub(crate) fn drain_errors(&self) -> Vec<String> {
         self.inner.errors.lock().unwrap().drain(..).collect()
     }
+}
+
+async fn drive_runtime(runtime: rquickjs::runtime::AsyncWeakRuntime, driver: DriverController) {
+    loop {
+        let Some(runtime) = runtime.try_ref() else {
+            return;
+        };
+
+        let step = execute_driver_step(&runtime, &driver).await;
+        drop(runtime);
+
+        match step {
+            DriverStep::Progressed | DriverStep::Pending => continue,
+            DriverStep::Idle => tokio::time::sleep(IDLE_POLL_INTERVAL).await,
+        }
+    }
+}
+
+async fn execute_driver_step(
+    runtime: &rquickjs::AsyncRuntime,
+    driver: &DriverController,
+) -> DriverStep {
+    match tokio::time::timeout(IDLE_POLL_INTERVAL, runtime.execute_pending_job()).await {
+        Ok(Ok(true)) => DriverStep::Progressed,
+        Ok(Ok(false)) => DriverStep::Idle,
+        Ok(Err(error)) => {
+            let error = crate::runtime::job_error::async_job_context(error.0).await;
+            driver.push_error(error.to_string());
+            DriverStep::Progressed
+        }
+        Err(_) => DriverStep::Pending,
+    }
+}
+
+enum DriverStep {
+    Progressed,
+    Pending,
+    Idle,
 }
 
 enum StopAction {

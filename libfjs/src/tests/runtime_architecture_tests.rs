@@ -178,9 +178,8 @@ async fn engine_background_driver_progresses_detached_timers_without_manual_pump
             ),
             None,
         )
-        .await
-        .unwrap();
-    assert!(matches!(scheduled, JsValue::String(ref value) if value == "scheduled"));
+        .await;
+    assert!(matches!(scheduled, Ok(JsValue::String(ref value)) if value == "scheduled"));
 
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
@@ -425,6 +424,49 @@ async fn runtime_driver_stop_returns_and_allows_restart() {
         .await
         .expect("restarted driver should stop cleanly");
     assert!(!runtime.driver_running().await);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn restarted_runtime_driver_progresses_timer_scheduled_while_stopped() {
+    let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::essential()), None)
+        .await
+        .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    runtime.start_driver().await;
+    runtime.stop_driver().await;
+
+    let scheduled = context
+        .eval(
+            r#"
+            setTimeout(() => {
+              globalThis.__fjsRestartedDriverTimerDone = true;
+            }, 10);
+            "scheduled";
+            "#
+            .to_string(),
+        )
+        .await;
+    assert!(matches!(scheduled, JsResult::Ok(JsValue::String(ref value)) if value == "scheduled"));
+
+    runtime.start_driver().await;
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let result = context
+            .eval("globalThis.__fjsRestartedDriverTimerDone === true".to_string())
+            .await;
+        if matches!(result, JsResult::Ok(JsValue::Boolean(true))) {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "restarted background driver did not fire stopped timer"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    runtime.stop_driver().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -14,6 +14,7 @@ use flutter_rust_bridge::frb;
 use rquickjs::loader::{BuiltinLoader, BuiltinResolver, FileResolver, NativeLoader, ScriptLoader};
 use rquickjs::promise::MaybePromise;
 use rquickjs::{CatchResultExt, FromJs, Module, Promise};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
 /// Memory usage statistics for the JavaScript runtime.
@@ -707,6 +708,8 @@ pub struct JsAsyncRuntime {
     pub(crate) rt: rquickjs::AsyncRuntime,
     pub(crate) global_attachment: Option<GlobalAttachment>,
     pub(crate) driver: crate::runtime::driver::DriverController,
+    pub(crate) cleaned: Arc<AtomicBool>,
+    pub(crate) runtime_lifetime: Arc<()>,
 }
 
 impl JsAsyncRuntime {
@@ -724,11 +727,6 @@ impl JsAsyncRuntime {
                     }
                 },
             )))
-            .await;
-        runtime
-            .set_job_error_handler(Some(Box::new(move |ctx| {
-                driver.push_error(crate::runtime::job_error::format_caught_exception(&ctx));
-            })))
             .await;
     }
 
@@ -760,6 +758,8 @@ impl JsAsyncRuntime {
             rt: runtime,
             global_attachment: None,
             driver,
+            cleaned: Arc::new(AtomicBool::new(false)),
+            runtime_lifetime: Arc::new(()),
         })
     }
 
@@ -817,7 +817,26 @@ impl JsAsyncRuntime {
             rt: runtime,
             global_attachment: Some(global_attachment),
             driver,
+            cleaned: Arc::new(AtomicBool::new(false)),
+            runtime_lifetime: Arc::new(()),
         })
+    }
+
+    pub(crate) async fn cleanup_once(
+        runtime: rquickjs::AsyncRuntime,
+        driver: crate::runtime::driver::DriverController,
+        cleaned: Arc<AtomicBool>,
+    ) {
+        if cleaned.swap(true, Ordering::AcqRel) {
+            return;
+        }
+
+        driver.stop().await;
+        runtime.run_gc().await;
+    }
+
+    pub(crate) async fn cleanup_after_context_drop(runtime: rquickjs::AsyncRuntime) {
+        runtime.run_gc().await;
     }
 
     /// Sets the memory limit.
@@ -1030,6 +1049,21 @@ impl JsAsyncRuntime {
     }
 }
 
+impl Drop for JsAsyncRuntime {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.runtime_lifetime) != 1 {
+            return;
+        }
+
+        let runtime = self.rt.clone();
+        let driver = self.driver.clone();
+        let cleaned = self.cleaned.clone();
+        crate::runtime::executor::spawn_js(async move {
+            JsAsyncRuntime::cleanup_once(runtime, driver, cleaned).await;
+        });
+    }
+}
+
 /// An asynchronous JavaScript execution context.
 ///
 /// `JsAsyncContext` provides an asynchronous execution environment for JavaScript code.
@@ -1047,7 +1081,12 @@ impl JsAsyncRuntime {
 #[frb(opaque)]
 #[derive(Clone)]
 pub struct JsAsyncContext {
-    pub(crate) ctx: rquickjs::AsyncContext,
+    pub(crate) ctx: Option<rquickjs::AsyncContext>,
+    pub(crate) runtime: rquickjs::AsyncRuntime,
+    pub(crate) driver: crate::runtime::driver::DriverController,
+    pub(crate) cleaned: Arc<AtomicBool>,
+    pub(crate) runtime_lifetime: Arc<()>,
+    pub(crate) context_lifetime: Arc<()>,
     pub(crate) global_attachment: Option<GlobalAttachment>,
 }
 
@@ -1057,7 +1096,11 @@ impl JsAsyncContext {
         F: for<'js> AsyncFnOnce(rquickjs::Ctx<'js>) -> R + Send + 'static,
         R: Send + 'static,
     {
-        let context = self.ctx.clone();
+        let context = self
+            .ctx
+            .as_ref()
+            .expect("JavaScript async context was already dropped")
+            .clone();
         crate::runtime::executor::run_js(async move { context.async_with(f).await }).await
     }
 
@@ -1126,7 +1169,12 @@ impl JsAsyncContext {
         .await?;
 
         Ok(Self {
-            ctx: context,
+            ctx: Some(context),
+            runtime: runtime.rt.clone(),
+            driver: runtime.driver.clone(),
+            cleaned: runtime.cleaned.clone(),
+            runtime_lifetime: runtime.runtime_lifetime.clone(),
+            context_lifetime: Arc::new(()),
             global_attachment: runtime.global_attachment.clone(),
         })
     }
@@ -1318,6 +1366,29 @@ impl JsAsyncContext {
             Ok(get_available_module_names(&ctx))
         })
         .await
+    }
+}
+
+impl Drop for JsAsyncContext {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.context_lifetime) != 1 {
+            return;
+        }
+
+        let Some(context) = self.ctx.take() else {
+            return;
+        };
+        let runtime = self.runtime.clone();
+        let driver = self.driver.clone();
+        let cleaned = self.cleaned.clone();
+        let is_last_runtime_owner = Arc::strong_count(&self.runtime_lifetime) == 1;
+        crate::runtime::executor::spawn_js(async move {
+            drop(context);
+            JsAsyncRuntime::cleanup_after_context_drop(runtime.clone()).await;
+            if is_last_runtime_owner {
+                JsAsyncRuntime::cleanup_once(runtime, driver, cleaned).await;
+            }
+        });
     }
 }
 

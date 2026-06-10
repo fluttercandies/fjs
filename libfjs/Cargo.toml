@@ -61,9 +61,6 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 # Force llrt modules to use the same rquickjs version as libfjs
 rquickjs = { git = "https://github.com/DelSkayn/rquickjs.git", rev = "144ad6472cd85b472b816c8fe5a166e74059cff5", version = "0.12.0" }
 
-[patch."https://github.com/DelSkayn/rquickjs.git"]
-rquickjs-core = { path = "vendor/rquickjs-core" }
-
 [profile.release]
 strip = true  # Automatically strip symbols from the binary.
 opt-level = "z"  # Optimize for size.

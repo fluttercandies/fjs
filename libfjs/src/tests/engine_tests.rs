@@ -12,7 +12,8 @@ use crate::api::source::{
     JsBuiltinOptions, JsCode, JsModule, JsModuleBytecode, JsScriptBytecode, JsScriptBytecodeOptions,
 };
 use crate::api::value::JsValue;
-use std::sync::{Condvar, Mutex, OnceLock};
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 
 fn failing_global_attachment(_ctx: &rquickjs::Ctx<'_>) -> rquickjs::Result<()> {
     Err(rquickjs::Error::new_from_js_message(
@@ -181,6 +182,8 @@ async fn test_engine_init_failure_rolls_back_state() {
             GlobalAttachment::default().add_function(failing_global_attachment),
         ),
         driver: crate::runtime::driver::DriverController::default(),
+        cleaned: Arc::new(AtomicBool::new(false)),
+        runtime_lifetime: Arc::new(()),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = JsEngine::new_for_test(runtime, context);
@@ -212,6 +215,8 @@ async fn test_engine_runtime_proxy_methods_fail_while_initializing() {
             GlobalAttachment::default().add_function(blocking_global_attachment),
         ),
         driver: crate::runtime::driver::DriverController::default(),
+        cleaned: Arc::new(AtomicBool::new(false)),
+        runtime_lifetime: Arc::new(()),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = std::sync::Arc::new(JsEngine::new_for_test(runtime, context));
