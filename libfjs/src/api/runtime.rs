@@ -839,6 +839,32 @@ impl JsAsyncRuntime {
         runtime.run_gc().await;
     }
 
+    fn finalize_runtime_drop(
+        runtime: rquickjs::AsyncRuntime,
+        driver: crate::runtime::driver::DriverController,
+        cleaned: Arc<AtomicBool>,
+    ) {
+        crate::runtime::executor::block_on_js(async move {
+            JsAsyncRuntime::cleanup_once(runtime, driver, cleaned).await;
+        });
+    }
+
+    fn finalize_context_drop(
+        context: rquickjs::AsyncContext,
+        runtime: rquickjs::AsyncRuntime,
+        driver: crate::runtime::driver::DriverController,
+        cleaned: Arc<AtomicBool>,
+        is_last_runtime_owner: bool,
+    ) {
+        crate::runtime::executor::block_on_js(async move {
+            drop(context);
+            JsAsyncRuntime::cleanup_after_context_drop(runtime.clone()).await;
+            if is_last_runtime_owner {
+                JsAsyncRuntime::cleanup_once(runtime, driver, cleaned).await;
+            }
+        });
+    }
+
     /// Sets the memory limit.
     ///
     /// Once the memory limit is reached, JavaScript execution will fail
@@ -1058,9 +1084,7 @@ impl Drop for JsAsyncRuntime {
         let runtime = self.rt.clone();
         let driver = self.driver.clone();
         let cleaned = self.cleaned.clone();
-        crate::runtime::executor::spawn_js(async move {
-            JsAsyncRuntime::cleanup_once(runtime, driver, cleaned).await;
-        });
+        JsAsyncRuntime::finalize_runtime_drop(runtime, driver, cleaned);
     }
 }
 
@@ -1382,13 +1406,13 @@ impl Drop for JsAsyncContext {
         let driver = self.driver.clone();
         let cleaned = self.cleaned.clone();
         let is_last_runtime_owner = Arc::strong_count(&self.runtime_lifetime) == 1;
-        crate::runtime::executor::spawn_js(async move {
-            drop(context);
-            JsAsyncRuntime::cleanup_after_context_drop(runtime.clone()).await;
-            if is_last_runtime_owner {
-                JsAsyncRuntime::cleanup_once(runtime, driver, cleaned).await;
-            }
-        });
+        JsAsyncRuntime::finalize_context_drop(
+            context,
+            runtime,
+            driver,
+            cleaned,
+            is_last_runtime_owner,
+        );
     }
 }
 

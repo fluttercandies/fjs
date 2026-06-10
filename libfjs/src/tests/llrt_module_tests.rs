@@ -5,6 +5,9 @@
 use crate::api::engine::JsEngine;
 use crate::api::source::{JsBuiltinOptions, JsCode};
 use crate::api::value::JsValue;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::task::JoinHandle;
 
 // ============================================================================
 // Helper Macro
@@ -14,16 +17,137 @@ macro_rules! test_llrt_module {
     ($name:ident, $code:expr, $check:expr) => {
         #[tokio::test]
         async fn $name() {
-            let engine = JsEngine::create(Some(JsBuiltinOptions::all()), None, None)
-                .await
-                .unwrap();
-            engine.init_without_bridge().await.unwrap();
-
-            let result = engine.eval(JsCode::Code($code.to_string()), None).await;
+            let result = eval_llrt_module($code.to_string()).await;
             let check_fn: fn(Result<JsValue, anyhow::Error>) = $check;
             check_fn(result);
         }
     };
+}
+
+async fn eval_llrt_module(code: String) -> Result<JsValue, anyhow::Error> {
+    let engine = JsEngine::create(Some(JsBuiltinOptions::all()), None, None).await?;
+    engine.init_without_bridge().await?;
+
+    let result = engine.eval(JsCode::Code(code), None).await;
+    engine.close().await?;
+    result
+}
+
+struct LocalFetchServer {
+    base_url: String,
+    handle: JoinHandle<()>,
+}
+
+impl LocalFetchServer {
+    async fn start() -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let handle = tokio::spawn(async move {
+            while let Ok((stream, _)) = listener.accept().await {
+                tokio::spawn(handle_fetch_request(stream));
+            }
+        });
+
+        Self {
+            base_url: format!("http://{address}"),
+            handle,
+        }
+    }
+
+    fn url(&self, path: &str) -> String {
+        format!("{}{}", self.base_url, path)
+    }
+}
+
+impl Drop for LocalFetchServer {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
+}
+
+async fn handle_fetch_request(mut stream: TcpStream) {
+    let mut request = Vec::new();
+    let mut buffer = [0_u8; 1024];
+
+    loop {
+        let Ok(read) = stream.read(&mut buffer).await else {
+            return;
+        };
+        if read == 0 {
+            return;
+        }
+        request.extend_from_slice(&buffer[..read]);
+        if request.windows(4).any(|window| window == b"\r\n\r\n") {
+            break;
+        }
+    }
+
+    let header_end = request
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .map(|index| index + 4)
+        .unwrap_or(request.len());
+    let headers = String::from_utf8_lossy(&request[..header_end]).into_owned();
+    let content_length = headers
+        .lines()
+        .find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim().parse::<usize>().ok())
+                .flatten()
+        })
+        .unwrap_or(0);
+
+    while request.len().saturating_sub(header_end) < content_length {
+        let Ok(read) = stream.read(&mut buffer).await else {
+            return;
+        };
+        if read == 0 {
+            return;
+        }
+        request.extend_from_slice(&buffer[..read]);
+    }
+
+    let request_line = headers.lines().next().unwrap_or_default();
+    let mut request_parts = request_line.split_whitespace();
+    let method = request_parts.next().unwrap_or_default();
+    let path = request_parts.next().unwrap_or_default();
+    let body = String::from_utf8_lossy(&request[header_end..]);
+
+    let (status, response_body) = match (method, path) {
+        ("GET", "/get") => (200, r#"{"ok":true,"url":"/get"}"#.to_string()),
+        ("POST", "/post") if body.contains(r#""test":"data""#) => {
+            (200, r#"{"json":{"test":"data"}}"#.to_string())
+        }
+        ("GET", "/headers") if has_header(&headers, "x-test-header", "test-value") => (
+            200,
+            r#"{"headers":{"X-Test-Header":"test-value"}}"#.to_string(),
+        ),
+        ("GET", "/status/201") => (201, String::new()),
+        ("GET", "/json") => (200, r#"{"slideshow":{"title":"Sample"}}"#.to_string()),
+        _ => (404, r#"{"error":"not found"}"#.to_string()),
+    };
+
+    let reason = match status {
+        200 => "OK",
+        201 => "Created",
+        404 => "Not Found",
+        _ => "Unknown",
+    };
+    let response = format!(
+        "HTTP/1.1 {status} {reason}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{response_body}",
+        response_body.len()
+    );
+    let _ = stream.write_all(response.as_bytes()).await;
+}
+
+fn has_header(headers: &str, expected_name: &str, expected_value: &str) -> bool {
+    headers.lines().any(|line| {
+        let Some((name, value)) = line.split_once(':') else {
+            return false;
+        };
+        name.eq_ignore_ascii_case(expected_name) && value.trim() == expected_value
+    })
 }
 
 // ============================================================================
@@ -1506,102 +1630,103 @@ test_llrt_module!(
 );
 
 // ============================================================================
-// Fetch HTTP Tests (require network, may fail in isolation)
+// Fetch HTTP Tests
 // ============================================================================
 
-test_llrt_module!(
-    test_fetch_httpbin_get,
-    r#"
-        try {
-            const res = await fetch('https://httpbin.org/get');
-            res.ok
-        } catch (e) {
-            // Network may not be available in tests
-            true
-        }
-    "#,
-    |result| {
-        if let Ok(JsValue::Boolean(b)) = result {
-            assert!(b);
-        }
-    }
-);
+#[tokio::test]
+async fn test_fetch_http_get() {
+    let server = LocalFetchServer::start().await;
+    let result = eval_llrt_module(format!(
+        r#"
+        const res = await fetch('{}');
+        res.ok
+        "#,
+        server.url("/get")
+    ))
+    .await;
 
-test_llrt_module!(
-    test_fetch_httpbin_post,
-    r#"
-        try {
-            const res = await fetch('https://httpbin.org/post', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ test: 'data' })
-            });
-            res.ok
-        } catch (e) {
-            true
-        }
-    "#,
-    |result| {
-        if let Ok(JsValue::Boolean(b)) = result {
-            assert!(b);
-        }
-    }
-);
+    assert!(
+        matches!(result, Ok(JsValue::Boolean(true))),
+        "unexpected fetch GET result: {result:?}"
+    );
+}
 
-test_llrt_module!(
-    test_fetch_httpbin_headers,
-    r#"
-        try {
-            const res = await fetch('https://httpbin.org/headers', {
-                headers: { 'X-Test-Header': 'test-value' }
-            });
-            const data = await res.json();
-            data.headers['X-Test-Header'] === 'test-value'
-        } catch (e) {
-            true
-        }
-    "#,
-    |result| {
-        if let Ok(JsValue::Boolean(b)) = result {
-            assert!(b);
-        }
-    }
-);
+#[tokio::test]
+async fn test_fetch_http_post() {
+    let server = LocalFetchServer::start().await;
+    let result = eval_llrt_module(format!(
+        r#"
+        const res = await fetch('{}', {{
+            method: 'POST',
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify({{ test: 'data' }})
+        }});
+        res.ok
+        "#,
+        server.url("/post")
+    ))
+    .await;
 
-test_llrt_module!(
-    test_fetch_httpbin_status,
-    r#"
-        try {
-            const res = await fetch('https://httpbin.org/status/201');
-            res.status === 201
-        } catch (e) {
-            true
-        }
-    "#,
-    |result| {
-        if let Ok(JsValue::Boolean(b)) = result {
-            assert!(b);
-        }
-    }
-);
+    assert!(
+        matches!(result, Ok(JsValue::Boolean(true))),
+        "unexpected fetch POST result: {result:?}"
+    );
+}
 
-test_llrt_module!(
-    test_fetch_httpbin_json,
-    r#"
-        try {
-            const res = await fetch('https://httpbin.org/json');
-            const data = await res.json();
-            typeof data === 'object'
-        } catch (e) {
-            true
-        }
-    "#,
-    |result| {
-        if let Ok(JsValue::Boolean(b)) = result {
-            assert!(b);
-        }
-    }
-);
+#[tokio::test]
+async fn test_fetch_http_headers() {
+    let server = LocalFetchServer::start().await;
+    let result = eval_llrt_module(format!(
+        r#"
+        const res = await fetch('{}', {{
+            headers: {{ 'X-Test-Header': 'test-value' }}
+        }});
+        const data = await res.json();
+        data.headers['X-Test-Header'] === 'test-value'
+        "#,
+        server.url("/headers")
+    ))
+    .await;
+
+    assert!(
+        matches!(result, Ok(JsValue::Boolean(true))),
+        "unexpected fetch status result: {result:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_fetch_http_status() {
+    let server = LocalFetchServer::start().await;
+    let result = eval_llrt_module(format!(
+        r#"
+        const res = await fetch('{}');
+        res.status === 201
+        "#,
+        server.url("/status/201")
+    ))
+    .await;
+
+    assert!(
+        matches!(result, Ok(JsValue::Boolean(true))),
+        "unexpected fetch JSON result: {result:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_fetch_http_json() {
+    let server = LocalFetchServer::start().await;
+    let result = eval_llrt_module(format!(
+        r#"
+        const res = await fetch('{}');
+        const data = await res.json();
+        typeof data === 'object' && data.slideshow.title === 'Sample'
+        "#,
+        server.url("/json")
+    ))
+    .await;
+
+    assert!(matches!(result, Ok(JsValue::Boolean(true))));
+}
 
 // ============================================================================
 // Form Data Tests
