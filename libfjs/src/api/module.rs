@@ -27,7 +27,7 @@ use flutter_rust_bridge::frb;
 use llrt_utils::module::ModuleInfo;
 use rquickjs::loader::{ImportAttributes, Loader, ModuleLoader, Resolver};
 use rquickjs::module::ModuleDef;
-use rquickjs::{Ctx, JsLifetime, Module};
+use rquickjs::{Ctx, Function, JsLifetime, Module, Value};
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
@@ -73,15 +73,27 @@ unsafe impl<'js> JsLifetime<'js> for LoadedDynamicModules {
 
 impl LoadedDynamicModules {
     fn insert(&self, name: impl Into<String>) {
-        self.names.write().unwrap().insert(name.into());
+        self.names
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(name.into());
     }
 
     fn contains(&self, name: &str) -> bool {
-        self.names.read().unwrap().contains(name)
+        self.names
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .contains(name)
     }
 
     fn snapshot(&self) -> Vec<String> {
-        let mut names: Vec<_> = self.names.read().unwrap().iter().cloned().collect();
+        let mut names: Vec<_> = self
+            .names
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .cloned()
+            .collect();
         names.sort();
         names
     }
@@ -103,11 +115,10 @@ pub(crate) fn get_loaded_dynamic_module_names(ctx: &Ctx<'_>) -> Vec<String> {
         .map_or_else(Vec::new, |loaded_modules| loaded_modules.snapshot())
 }
 
-fn normalize_dynamic_module_name(base: &str, name: &str) -> Option<String> {
-    if !name.starts_with('.') {
-        return None;
-    }
-
+/// Resolves a relative specifier (`./x`, `../y`) against the importing
+/// module's path. `base` is the importer; its last segment is dropped before
+/// applying `name`'s segments.
+pub(crate) fn resolve_relative_specifier(base: &str, name: &str) -> String {
     let mut segments: Vec<&str> = base
         .split('/')
         .filter(|segment| !segment.is_empty())
@@ -126,7 +137,12 @@ fn normalize_dynamic_module_name(base: &str, name: &str) -> Option<String> {
         }
     }
 
-    Some(segments.join("/"))
+    segments.join("/")
+}
+
+fn normalize_dynamic_module_name(base: &str, name: &str) -> Option<String> {
+    name.starts_with('.')
+        .then(|| resolve_relative_specifier(base, name))
 }
 
 impl Resolver for DynamicModuleResolver {
@@ -152,7 +168,9 @@ impl Resolver for DynamicModuleResolver {
         _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<String> {
         if let Some(modules_storage) = ctx.userdata::<DynamicModuleStorage>() {
-            let modules = modules_storage.read().unwrap();
+            let modules = modules_storage
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if modules.contains_key(name) {
                 return Ok(name.to_string());
             }
@@ -198,7 +216,11 @@ impl Loader for DynamicModuleLoader {
         _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
         if let Some(modules_storage) = ctx.userdata::<DynamicModuleStorage>() {
-            let entry = modules_storage.read().unwrap().get(name).cloned();
+            let entry = modules_storage
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get(name)
+                .cloned();
             if let Some(entry) = entry {
                 let module = match entry {
                     DynamicModuleEntry::Source(source) => {
@@ -284,7 +306,13 @@ pub(crate) fn get_available_module_names(ctx: &Ctx<'_>) -> Vec<String> {
     }
 
     if let Some(modules_storage) = ctx.userdata::<DynamicModuleStorage>() {
-        names.extend(modules_storage.read().unwrap().keys().cloned());
+        names.extend(
+            modules_storage
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .keys()
+                .cloned(),
+        );
     }
 
     let mut names: Vec<_> = names.into_iter().collect();
@@ -655,7 +683,7 @@ impl JsBuiltinOptions {
         }
         if self.timers.unwrap_or(false) {
             builder = builder
-                .with_global(llrt_timers::init)
+                .with_global(init_guarded_timers)
                 .with_module(llrt_timers::TimersModule);
         }
         if self.tty.unwrap_or(false) {
@@ -680,4 +708,72 @@ impl JsBuiltinOptions {
 
         builder
     }
+}
+
+fn init_guarded_timers(ctx: &Ctx<'_>) -> rquickjs::Result<()> {
+    llrt_timers::init(ctx)?;
+    install_timer_callback_error_guard(ctx)
+}
+
+fn record_timer_callback_error<'js>(ctx: Ctx<'js>, error: Value<'js>) -> rquickjs::Result<bool> {
+    if let Some(sink) = ctx.userdata::<crate::runtime::error_sink::RuntimeErrorSink>() {
+        sink.push(crate::runtime::error_sink::format_value(&ctx, error));
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+fn install_timer_callback_error_guard(ctx: &Ctx<'_>) -> rquickjs::Result<()> {
+    let reporter = Function::new(ctx.clone(), record_timer_callback_error)?;
+    ctx.globals()
+        .set("__fjsInstallTimerErrorReporter", reporter)?;
+    ctx.eval::<(), _>(
+        r#"
+        (() => {
+          const reporter = globalThis.__fjsInstallTimerErrorReporter;
+          delete globalThis.__fjsInstallTimerErrorReporter;
+
+          const guardDelayTimer = (nativeTimer) => function(callback, delay, ...args) {
+            if (typeof callback !== "function") {
+              return nativeTimer(callback, delay, ...args);
+            }
+            return nativeTimer(function() {
+              try {
+                return callback.apply(this, args);
+              } catch (error) {
+                if (!reporter(error)) {
+                  throw error;
+                }
+              }
+            }, delay);
+          };
+
+          const guardImmediate = (nativeTimer) => function(callback, ...args) {
+            if (typeof callback !== "function") {
+              return nativeTimer(callback, ...args);
+            }
+            return nativeTimer(function() {
+              try {
+                return callback.apply(this, args);
+              } catch (error) {
+                if (!reporter(error)) {
+                  throw error;
+                }
+              }
+            });
+          };
+
+          if (typeof globalThis.setTimeout === "function") {
+            globalThis.setTimeout = guardDelayTimer(globalThis.setTimeout);
+          }
+          if (typeof globalThis.setInterval === "function") {
+            globalThis.setInterval = guardDelayTimer(globalThis.setInterval);
+          }
+          if (typeof globalThis.setImmediate === "function") {
+            globalThis.setImmediate = guardImmediate(globalThis.setImmediate);
+          }
+        })();
+        "#,
+    )
 }

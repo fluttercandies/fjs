@@ -38,7 +38,6 @@ use crate::bytecode_support::{
     eval_script_bytecode, load_module_bytecode_checked, validate_module_bundle_impl,
     validate_module_bytecode_impl, validate_script_bytecode_impl,
 };
-use anyhow::anyhow;
 use flutter_rust_bridge::{DartFnFuture, frb};
 use rquickjs::{CatchResultExt, FromJs, Module, Object, Promise};
 use std::collections::HashSet;
@@ -106,7 +105,7 @@ impl JsEngine {
         builtins: Option<JsBuiltinOptions>,
         modules: Option<Vec<JsModule>>,
         runtime_options: Option<JsEngineRuntimeOptions>,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, JsError> {
         let runtime = JsAsyncRuntime::create(builtins, modules).await?;
         if let Some(options) = runtime_options {
             if let Some(limit) = options.memory_limit {
@@ -163,37 +162,189 @@ impl JsEngine {
     }
 
     /// Ensures runtime-level controls can be used on this engine.
-    fn ensure_runtime_accessible(&self) -> anyhow::Result<()> {
+    fn ensure_runtime_accessible(&self) -> Result<(), JsError> {
         match self.state.load(Ordering::Acquire) {
-            STATE_CREATED | STATE_RUNNING => Ok(()),
-            STATE_CLOSED => Err(anyhow!("Engine is closed")),
-            STATE_INITIALIZING => Err(anyhow!("Engine is initializing")),
-            _ => Err(anyhow!("Engine is in an invalid state")),
+            STATE_CREATED => Ok(()),
+            STATE_RUNNING => self.ensure_no_unhandled_job_errors(),
+            STATE_CLOSED => Err(JsError::engine("Engine is closed")),
+            STATE_INITIALIZING => Err(JsError::engine("Engine is initializing")),
+            _ => Err(JsError::engine("Engine is in an invalid state")),
         }
     }
 
     /// Ensures the engine is in running state.
-    fn ensure_running(&self) -> anyhow::Result<()> {
+    fn ensure_running(&self) -> Result<(), JsError> {
         match self.state.load(Ordering::Acquire) {
-            STATE_RUNNING => Ok(()),
-            STATE_CLOSED => Err(anyhow!("Engine is closed")),
-            STATE_INITIALIZING => Err(anyhow!("Engine is initializing")),
-            STATE_CREATED => Err(anyhow!("Engine is not initialized")),
-            _ => Err(anyhow!("Engine is in an invalid state")),
+            STATE_RUNNING => self.ensure_no_unhandled_job_errors(),
+            STATE_CLOSED => Err(JsError::engine("Engine is closed")),
+            STATE_INITIALIZING => Err(JsError::engine("Engine is initializing")),
+            STATE_CREATED => Err(JsError::engine("Engine is not initialized")),
+            _ => Err(JsError::engine("Engine is in an invalid state")),
         }
     }
 
+    fn format_unhandled_job_errors(errors: &[String]) -> String {
+        format!(
+            "Unhandled JavaScript background error: {}",
+            errors.join("\n")
+        )
+    }
+
+    fn ensure_no_unhandled_job_errors(&self) -> Result<(), JsError> {
+        let errors = self.runtime.take_unhandled_job_errors();
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(JsError::runtime(Self::format_unhandled_job_errors(&errors)))
+        }
+    }
+
+    async fn with_foreground_js_result<F>(&self, f: F) -> Result<JsValue, JsError>
+    where
+        F: for<'js> AsyncFnOnce(rquickjs::Ctx<'js>, u64) -> JsResult + Send + 'static,
+    {
+        self.context
+            .with_foreground_js_result(f)
+            .await
+            .into_result()
+    }
+
+    fn already_loaded_error(module_name: String) -> JsError {
+        JsError::module(
+            Some(module_name),
+            None,
+            "Module has already been loaded in this context and cannot be redefined; \
+             create a new context to replace it",
+        )
+    }
+
+    fn ensure_unique_module_names<'a>(
+        names: impl IntoIterator<Item = &'a str>,
+    ) -> Result<(), JsError> {
+        if let Some(duplicate) = first_duplicate_name(names) {
+            return Err(JsError::module(
+                Some(duplicate.clone()),
+                None,
+                format!("Duplicate module name in request: '{duplicate}'"),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Declares pre-resolved dynamic modules in the engine context.
+    async fn declare_dynamic_modules(
+        &self,
+        entries: Vec<(String, DynamicModuleEntry)>,
+    ) -> Result<(), JsError> {
+        let single = entries.len() == 1;
+        self.with_foreground_js_result(async move |ctx, _checkpoint| {
+            let conflicts: Vec<_> = entries
+                .iter()
+                .filter(|(name, _)| is_dynamic_module_loaded(&ctx, name))
+                .map(|(name, _)| name.clone())
+                .collect();
+            if let Some(first) = conflicts.first() {
+                return JsResult::Err(if single {
+                    Self::already_loaded_error(first.clone())
+                } else {
+                    JsError::module(
+                        Some(first.clone()),
+                        None,
+                        format!(
+                            "Loaded dynamic modules cannot be redefined in this context: {}",
+                            conflicts.join(", ")
+                        ),
+                    )
+                });
+            }
+            let Some(storage) = ctx.userdata::<DynamicModuleStorage>() else {
+                return JsResult::Err(JsError::storage("Module storage not initialized"));
+            };
+            storage
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .extend(entries);
+            JsResult::Ok(JsValue::None)
+        })
+        .await
+        .map(|_| ())
+    }
+
+    /// Registers a dynamic module and runs its top-level code.
+    async fn evaluate_dynamic_module(
+        &self,
+        module_name: String,
+        entry: DynamicModuleEntry,
+    ) -> Result<JsValue, JsError> {
+        let driver = self.runtime.driver.clone();
+        self.with_foreground_js_result(async move |ctx, checkpoint| {
+            if is_dynamic_module_loaded(&ctx, &module_name) {
+                return JsResult::Err(Self::already_loaded_error(module_name));
+            }
+            let Some(storage) = ctx.userdata::<DynamicModuleStorage>() else {
+                return JsResult::Err(JsError::storage("Module storage not initialized"));
+            };
+
+            let res = match entry {
+                DynamicModuleEntry::Source(source) => {
+                    storage
+                        .write()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .insert(
+                            module_name.clone(),
+                            DynamicModuleEntry::Source(source.clone()),
+                        );
+                    Module::evaluate(ctx.clone(), module_name.clone(), source)
+                }
+                DynamicModuleEntry::Bytecode(bytes) => {
+                    let loaded = load_module_bytecode_checked(ctx.clone(), &module_name, &bytes)
+                        .and_then(|module| {
+                            let embedded_name: String = module.name()?;
+                            if embedded_name != module_name {
+                                return Err(rquickjs::Error::new_loading_message(
+                                    module_name.clone(),
+                                    format!(
+                                        "Bytecode module name mismatch: expected '{}', found '{}'",
+                                        module_name, embedded_name
+                                    ),
+                                ));
+                            }
+                            let (_module, promise) = module.eval()?;
+                            Ok(promise)
+                        });
+                    if loaded.is_ok() {
+                        storage
+                            .write()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .insert(module_name.clone(), DynamicModuleEntry::Bytecode(bytes));
+                    }
+                    loaded
+                }
+            };
+
+            if res.is_ok() {
+                mark_dynamic_module_loaded(&ctx, &module_name);
+            }
+            let driver = driver.clone();
+            result_from_promise(&ctx, res, move |source| {
+                driver.remove_error_source_since(checkpoint, source);
+            })
+            .await
+        })
+        .await
+    }
+
     /// Transitions the engine into the initializing state.
-    fn begin_init(&self) -> anyhow::Result<()> {
+    fn begin_init(&self) -> Result<(), JsError> {
         let current = self.state.load(Ordering::Acquire);
         if current == STATE_CLOSED {
-            return Err(anyhow!("Engine is closed"));
+            return Err(JsError::engine("Engine is closed"));
         }
         if current == STATE_INITIALIZING {
-            return Err(anyhow!("Engine is initializing"));
+            return Err(JsError::engine("Engine is initializing"));
         }
         if current == STATE_RUNNING {
-            return Err(anyhow!("Engine is already initialized"));
+            return Err(JsError::engine("Engine is already initialized"));
         }
 
         self.state
@@ -203,71 +354,74 @@ impl JsEngine {
                 Ordering::AcqRel,
                 Ordering::Acquire,
             )
-            .map_err(|_| anyhow!("Failed to initialize engine - invalid state"))?;
+            .map_err(|_| JsError::engine("Failed to initialize engine - invalid state"))?;
         Ok(())
     }
 
     /// Advances the engine-owned runtime by one scheduler step.
-    pub async fn execute_pending_job(&self) -> anyhow::Result<bool> {
+    #[cfg(test)]
+    pub(crate) async fn execute_pending_job(&self) -> Result<bool, JsError> {
         self.ensure_runtime_accessible()?;
         self.runtime.execute_pending_job().await
     }
 
     /// Runs the engine-owned runtime until quiescent.
-    pub async fn idle(&self) -> anyhow::Result<()> {
+    #[cfg(test)]
+    pub(crate) async fn idle(&self) -> Result<(), JsError> {
         self.ensure_runtime_accessible()?;
         self.runtime.idle().await;
         Ok(())
     }
 
     /// Returns whether the engine-owned runtime still has work pending.
-    pub async fn is_job_pending(&self) -> anyhow::Result<bool> {
+    #[cfg(test)]
+    pub(crate) async fn is_job_pending(&self) -> Result<bool, JsError> {
         self.ensure_runtime_accessible()?;
         Ok(self.runtime.is_job_pending().await)
     }
 
     /// Returns memory usage statistics for the engine-owned runtime.
-    pub async fn memory_usage(&self) -> anyhow::Result<MemoryUsage> {
+    pub async fn memory_usage(&self) -> Result<MemoryUsage, JsError> {
         self.ensure_runtime_accessible()?;
         Ok(self.runtime.memory_usage().await)
     }
 
     /// Forces a garbage collection pass on the engine-owned runtime.
-    pub async fn run_gc(&self) -> anyhow::Result<()> {
+    pub async fn run_gc(&self) -> Result<(), JsError> {
         self.ensure_runtime_accessible()?;
         self.runtime.run_gc().await;
         Ok(())
     }
 
     /// Sets the garbage collection threshold on the engine-owned runtime.
-    pub async fn set_gc_threshold(&self, threshold: usize) -> anyhow::Result<()> {
+    pub async fn set_gc_threshold(&self, threshold: usize) -> Result<(), JsError> {
         self.ensure_runtime_accessible()?;
         self.runtime.set_gc_threshold(threshold).await;
         Ok(())
     }
 
     /// Sets runtime metadata on the engine-owned runtime.
-    pub async fn set_info(&self, info: String) -> anyhow::Result<()> {
+    pub async fn set_info(&self, info: String) -> Result<(), JsError> {
         self.ensure_runtime_accessible()?;
         self.runtime.set_info(info).await
     }
 
     /// Sets the max stack size on the engine-owned runtime.
-    pub async fn set_max_stack_size(&self, limit: usize) -> anyhow::Result<()> {
+    pub async fn set_max_stack_size(&self, limit: usize) -> Result<(), JsError> {
         self.ensure_runtime_accessible()?;
         self.runtime.set_max_stack_size(limit).await;
         Ok(())
     }
 
     /// Sets the memory limit on the engine-owned runtime.
-    pub async fn set_memory_limit(&self, limit: usize) -> anyhow::Result<()> {
+    pub async fn set_memory_limit(&self, limit: usize) -> Result<(), JsError> {
         self.ensure_runtime_accessible()?;
         self.runtime.set_memory_limit(limit).await;
         Ok(())
     }
 
     /// Commits initialization after all setup steps succeed.
-    fn finish_init(&self) -> anyhow::Result<()> {
+    fn finish_init(&self) -> Result<(), JsError> {
         self.state
             .compare_exchange(
                 STATE_INITIALIZING,
@@ -275,7 +429,7 @@ impl JsEngine {
                 Ordering::AcqRel,
                 Ordering::Acquire,
             )
-            .map_err(|_| anyhow!("Failed to finalize engine initialization"))?;
+            .map_err(|_| JsError::engine("Failed to finalize engine initialization"))?;
         Ok(())
     }
 
@@ -289,14 +443,17 @@ impl JsEngine {
         );
     }
 
-    /// Marks the engine as closed and returns the previous stable state.
-    fn begin_close(&self) -> anyhow::Result<u8> {
+    /// Marks the engine as closed and returns the previous state.
+    ///
+    /// Closing always wins, even while an `init()` is still in flight: the
+    /// in-flight initialization observes the CLOSED state when it tries to
+    /// commit and reports failure to its own caller.
+    fn begin_close(&self) -> Result<u8, JsError> {
         loop {
             let current = self.state.load(Ordering::Acquire);
             match current {
                 STATE_CLOSED => return Ok(STATE_CLOSED),
-                STATE_INITIALIZING => return Err(anyhow!("Engine is initializing")),
-                STATE_CREATED | STATE_RUNNING => {
+                STATE_CREATED | STATE_INITIALIZING | STATE_RUNNING => {
                     if self
                         .state
                         .compare_exchange(
@@ -310,7 +467,7 @@ impl JsEngine {
                         return Ok(current);
                     }
                 }
-                _ => return Err(anyhow!("Engine is in an invalid state")),
+                _ => return Err(JsError::engine("Engine is in an invalid state")),
             }
         }
     }
@@ -339,7 +496,7 @@ impl JsEngine {
     pub async fn init(
         &self,
         bridge: impl Fn(JsValue) -> DartFnFuture<JsResult> + Sync + Send + 'static,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), JsError> {
         self.begin_init()?;
 
         let bridge = Arc::new(bridge);
@@ -351,10 +508,14 @@ impl JsEngine {
                 if let Some(attachment) = &attachment
                     && let Err(e) = attachment.attach(&ctx)
                 {
-                    return Err(anyhow!("Failed to attach global context: {}", e));
+                    return Err(JsError::context(format!(
+                        "Failed to attach global context: {e}"
+                    )));
                 }
                 if let Err(e) = register_fjs(ctx.clone(), bridge) {
-                    return Err(anyhow!("Failed to register fjs bridge: {}", e));
+                    return Err(JsError::bridge(format!(
+                        "Failed to register fjs bridge: {e}"
+                    )));
                 }
                 Ok(())
             })
@@ -367,9 +528,14 @@ impl JsEngine {
         init_result?;
         if let Err(error) = self.finish_init() {
             self.rollback_init();
+            // close() may have won the race while we were setting up the
+            // context; undo our setup so the closed engine does not keep the
+            // bridge object (and any captured Dart closure) alive.
+            if self.closed() {
+                crate::runtime::teardown::cleanup_async_engine(&self.context, &self.runtime).await;
+            }
             return Err(error);
         }
-        self.runtime.start_driver().await;
         Ok(())
     }
 
@@ -387,7 +553,7 @@ impl JsEngine {
     /// ```dart
     /// await engine.initWithoutBridge();
     /// ```
-    pub async fn init_without_bridge(&self) -> anyhow::Result<()> {
+    pub async fn init_without_bridge(&self) -> Result<(), JsError> {
         self.begin_init()?;
 
         let attachment = self.context.global_attachment.clone();
@@ -397,7 +563,9 @@ impl JsEngine {
                 if let Some(attachment) = &attachment
                     && let Err(e) = attachment.attach(&ctx)
                 {
-                    return Err(anyhow!("Failed to attach global context: {}", e));
+                    return Err(JsError::context(format!(
+                        "Failed to attach global context: {e}"
+                    )));
                 }
                 Ok(())
             })
@@ -410,9 +578,14 @@ impl JsEngine {
         init_result?;
         if let Err(error) = self.finish_init() {
             self.rollback_init();
+            // close() may have won the race while we were setting up the
+            // context; undo our setup so the closed engine does not keep the
+            // bridge object (and any captured Dart closure) alive.
+            if self.closed() {
+                crate::runtime::teardown::cleanup_async_engine(&self.context, &self.runtime).await;
+            }
             return Err(error);
         }
-        self.runtime.start_driver().await;
         Ok(())
     }
 
@@ -423,40 +596,68 @@ impl JsEngine {
     /// and triggers a garbage collection pass, but it does not directly
     /// release the underlying runtime or context objects.
     ///
+    /// Closing always wins: it succeeds even while `init()` is still in
+    /// flight (the interrupted `init()` reports the failure to its caller).
+    ///
     /// Pending timers, Promise callbacks, and other runtime tasks may run during
-    /// this drain step. Unhandled Promise errors collected by the runtime can be
-    /// read with `drain_unhandled_job_errors()`.
+    /// this drain step. Unhandled background JavaScript errors are surfaced
+    /// automatically by `close()` or by the next engine operation.
     ///
     /// ## Throws
-    /// - If initialization is still in progress
+    /// - If unhandled background JavaScript errors are pending
     ///
     /// ## Example
     /// ```dart
     /// await engine.close();
     /// ```
-    pub async fn close(&self) -> anyhow::Result<()> {
+    pub async fn close(&self) -> Result<(), JsError> {
         let previous_state = self.begin_close()?;
+        let mut unhandled_errors = self.runtime.take_unhandled_job_errors();
 
-        if previous_state == STATE_CREATED || previous_state == STATE_RUNNING {
+        if previous_state != STATE_CLOSED {
             crate::runtime::teardown::cleanup_async_engine(&self.context, &self.runtime).await;
         }
 
-        Ok(())
+        unhandled_errors.extend(self.runtime.take_unhandled_job_errors());
+        if unhandled_errors.is_empty() {
+            Ok(())
+        } else {
+            Err(JsError::runtime(Self::format_unhandled_job_errors(
+                &unhandled_errors,
+            )))
+        }
     }
 
     /// Returns whether the engine-owned runtime background driver is running.
     ///
     /// Engine initialization starts the driver automatically. `close()` stops it.
-    pub async fn driver_running(&self) -> anyhow::Result<bool> {
+    #[cfg(test)]
+    pub(crate) async fn driver_running(&self) -> Result<bool, JsError> {
         Ok(self.runtime.driver_running().await)
     }
 
     /// Drains unhandled asynchronous JavaScript errors captured by the engine runtime.
     ///
-    /// This is useful for logging failures from detached Promise chains, timers,
-    /// and other background work that cannot return an error to the original Dart call.
-    pub async fn drain_unhandled_job_errors(&self) -> anyhow::Result<Vec<String>> {
-        Ok(self.runtime.drain_unhandled_job_errors().await)
+    /// Background JavaScript failures (detached Promise chains, timer callbacks,
+    /// spawned async work) cannot return an error to the original Dart call. They
+    /// are queued instead and surfaced either by the next engine operation, by
+    /// `close()`, or by this method.
+    ///
+    /// Call this periodically when you want to log background failures without
+    /// letting them fail an unrelated engine call. Draining is destructive: the
+    /// returned errors are removed from the queue. This method works in every
+    /// engine state, including after `close()`.
+    ///
+    /// ## Example
+    /// ```dart
+    /// final errors = engine.drainUnhandledJobErrors();
+    /// for (final error in errors) {
+    ///   print('Background JS error: \$error');
+    /// }
+    /// ```
+    #[frb(sync)]
+    pub fn drain_unhandled_job_errors(&self) -> Vec<String> {
+        self.runtime.take_unhandled_job_errors()
     }
 
     /// Evaluates JavaScript code and returns the result.
@@ -491,25 +692,24 @@ impl JsEngine {
         &self,
         source: JsCode,
         options: Option<JsEvalOptions>,
-    ) -> anyhow::Result<JsValue> {
+    ) -> Result<JsValue, JsError> {
         self.ensure_running()?;
 
         let mut options = options.unwrap_or_default();
         options.promise = Some(true);
 
-        let source_code = get_raw_source_code(source)
-            .await
-            .map_err(|e| anyhow!("Failed to get source code: {}", e))?;
+        let source_code = get_raw_source_code(source).await?;
 
-        let result = self
-            .context
-            .with_js(async |ctx| {
-                let res = ctx.eval_with_options(source_code, options.into());
-                result_from_promise(&ctx, res).await
+        let driver = self.runtime.driver.clone();
+        self.with_foreground_js_result(async move |ctx, checkpoint| {
+            let res = ctx.eval_with_options(source_code, options.into());
+            let driver = driver.clone();
+            result_from_promise(&ctx, res, move |source| {
+                driver.remove_error_source_since(checkpoint, source);
             })
-            .await;
-
-        result.into_result()
+            .await
+        })
+        .await
     }
 
     /// Declares a new bytecode-backed module without executing it.
@@ -526,7 +726,7 @@ impl JsEngine {
     /// final bytecode = await JsBytecode.compile(
     ///   module: JsModule.code(
     ///     module: 'feature/config',
-    ///     code: 'export const version = "2.2.0";',
+    ///     code: 'export const version = "3.0.0";',
     ///   ),
     /// );
     ///
@@ -535,33 +735,14 @@ impl JsEngine {
     pub async fn declare_new_bytecode_module(
         &self,
         module: JsModuleBytecode,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), JsError> {
         self.ensure_running()?;
         validate_module_bytecode_impl(&module.name, &module.bytes)?;
-
-        let result = self
-            .context
-            .with_js(async |ctx| {
-                if is_dynamic_module_loaded(&ctx, &module.name) {
-                    return JsResult::Err(JsError::module(
-                        Some(module.name),
-                        None,
-                        "Module has already been loaded in this context and cannot be redefined; create a new context to replace it",
-                    ));
-                }
-                if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
-                    storage
-                        .write()
-                        .unwrap()
-                        .insert(module.name, DynamicModuleEntry::Bytecode(module.bytes));
-                    JsResult::Ok(JsValue::None)
-                } else {
-                    JsResult::Err(JsError::storage("Module storage not initialized"))
-                }
-            })
-            .await;
-
-        result.into_result().map(|_| ())
+        self.declare_dynamic_modules(vec![(
+            module.name,
+            DynamicModuleEntry::Bytecode(module.bytes),
+        )])
+        .await
     }
 
     /// Declares multiple bytecode-backed modules without executing them.
@@ -579,48 +760,19 @@ impl JsEngine {
     pub async fn declare_new_bytecode_modules(
         &self,
         modules: Vec<JsModuleBytecode>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), JsError> {
         self.ensure_running()?;
-        if let Some(duplicate) =
-            first_duplicate_name(modules.iter().map(|module| module.name.as_str()))
-        {
-            return Err(anyhow!("Duplicate module name in request: '{}'", duplicate));
-        }
+        Self::ensure_unique_module_names(modules.iter().map(|module| module.name.as_str()))?;
         for module in &modules {
             validate_module_bytecode_impl(&module.name, &module.bytes)?;
         }
-
-        let result = self
-            .context
-            .with_js(async |ctx| {
-                let conflicts: Vec<_> = modules
-                    .iter()
-                    .filter(|module| is_dynamic_module_loaded(&ctx, &module.name))
-                    .map(|module| module.name.clone())
-                    .collect();
-                if !conflicts.is_empty() {
-                    return JsResult::Err(JsError::module(
-                        Some(conflicts[0].clone()),
-                        None,
-                        format!(
-                            "Loaded dynamic modules cannot be redefined in this context: {}",
-                            conflicts.join(", ")
-                        ),
-                    ));
-                }
-                if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
-                    let mut storage = storage.write().unwrap();
-                    for module in modules {
-                        storage.insert(module.name, DynamicModuleEntry::Bytecode(module.bytes));
-                    }
-                    JsResult::Ok(JsValue::None)
-                } else {
-                    JsResult::Err(JsError::storage("Module storage not initialized"))
-                }
-            })
-            .await;
-
-        result.into_result().map(|_| ())
+        self.declare_dynamic_modules(
+            modules
+                .into_iter()
+                .map(|module| (module.name, DynamicModuleEntry::Bytecode(module.bytes)))
+                .collect(),
+        )
+        .await
     }
 
     /// Declares a bundle of bytecode-backed modules without executing them.
@@ -636,10 +788,19 @@ impl JsEngine {
     pub async fn declare_new_bytecode_bundle(
         &self,
         bundle: JsModuleBytecodeBundle,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), JsError> {
         self.ensure_running()?;
+        // Bundle validation already covers duplicate names and per-module
+        // bytecode checks; declare directly to avoid validating twice.
         validate_module_bundle_impl(&bundle)?;
-        self.declare_new_bytecode_modules(bundle.modules).await
+        self.declare_dynamic_modules(
+            bundle
+                .modules
+                .into_iter()
+                .map(|module| (module.name, DynamicModuleEntry::Bytecode(module.bytes)))
+                .collect(),
+        )
+        .await
     }
 
     /// Declares a new module without executing it.
@@ -669,40 +830,13 @@ impl JsEngine {
     ///   add(1, 2)
     /// '''));
     /// ```
-    pub async fn declare_new_module(&self, module: JsModule) -> anyhow::Result<()> {
+    pub async fn declare_new_module(&self, module: JsModule) -> Result<(), JsError> {
         self.ensure_running()?;
 
-        let JsModule {
-            name: module_name,
-            source,
-        } = module;
-        let source_code = get_raw_source_code(source)
+        let JsModule { name, source } = module;
+        let source_code = get_raw_source_code(source).await?;
+        self.declare_dynamic_modules(vec![(name, DynamicModuleEntry::Source(source_code))])
             .await
-            .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
-
-        let result = self
-            .context
-            .with_js(async |ctx| {
-                if is_dynamic_module_loaded(&ctx, &module_name) {
-                    return JsResult::Err(JsError::module(
-                        Some(module_name),
-                        None,
-                        "Module has already been loaded in this context and cannot be redefined; create a new context to replace it",
-                    ));
-                }
-                if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
-                    storage
-                        .write()
-                        .unwrap()
-                        .insert(module_name, DynamicModuleEntry::Source(source_code));
-                    JsResult::Ok(JsValue::None)
-                } else {
-                    JsResult::Err(JsError::storage("Module storage not initialized"))
-                }
-            })
-            .await;
-
-        result.into_result().map(|_| ())
     }
 
     /// Declares multiple new modules without executing them.
@@ -726,56 +860,17 @@ impl JsEngine {
     ///   JsModule.code(module: 'helpers', code: 'export function log(x) { console.log(x); }'),
     /// ]);
     /// ```
-    pub async fn declare_new_modules(&self, modules: Vec<JsModule>) -> anyhow::Result<()> {
+    pub async fn declare_new_modules(&self, modules: Vec<JsModule>) -> Result<(), JsError> {
         self.ensure_running()?;
-        if let Some(duplicate) =
-            first_duplicate_name(modules.iter().map(|module| module.name.as_str()))
-        {
-            return Err(anyhow!("Duplicate module name in request: '{}'", duplicate));
-        }
+        Self::ensure_unique_module_names(modules.iter().map(|module| module.name.as_str()))?;
 
-        let mut resolved_modules = Vec::with_capacity(modules.len());
+        let mut entries = Vec::with_capacity(modules.len());
         for module in modules {
             let JsModule { name, source } = module;
-            let source_code = get_raw_source_code(source)
-                .await
-                .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
-            resolved_modules.push((name, source_code));
+            let source_code = get_raw_source_code(source).await?;
+            entries.push((name, DynamicModuleEntry::Source(source_code)));
         }
-
-        let result = self
-            .context
-            .with_js(async |ctx| {
-                let conflicts: Vec<_> = resolved_modules
-                    .iter()
-                    .filter(|(name, _)| is_dynamic_module_loaded(&ctx, name))
-                    .map(|(name, _)| name.clone())
-                    .collect();
-                if !conflicts.is_empty() {
-                    return JsResult::Err(JsError::module(
-                        Some(conflicts[0].clone()),
-                        None,
-                        format!(
-                            "Loaded dynamic modules cannot be redefined in this context: {}",
-                            conflicts.join(", ")
-                        ),
-                    ));
-                }
-                if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
-                    let mut storage = storage.write().unwrap();
-                    storage.extend(
-                        resolved_modules
-                            .into_iter()
-                            .map(|(name, source)| (name, DynamicModuleEntry::Source(source))),
-                    );
-                    JsResult::Ok(JsValue::None)
-                } else {
-                    JsResult::Err(JsError::storage("Module storage not initialized"))
-                }
-            })
-            .await;
-
-        result.into_result().map(|_| ())
+        self.declare_dynamic_modules(entries).await
     }
 
     /// Evaluates a module (registers and executes it).
@@ -813,44 +908,13 @@ impl JsEngine {
     ///   info.version
     /// '''));
     /// ```
-    pub async fn evaluate_module(&self, module: JsModule) -> anyhow::Result<JsValue> {
+    pub async fn evaluate_module(&self, module: JsModule) -> Result<JsValue, JsError> {
         self.ensure_running()?;
 
-        let JsModule {
-            name: module_name,
-            source,
-        } = module;
-        let source_code = get_raw_source_code(source)
+        let JsModule { name, source } = module;
+        let source_code = get_raw_source_code(source).await?;
+        self.evaluate_dynamic_module(name, DynamicModuleEntry::Source(source_code))
             .await
-            .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
-
-        let result = self
-            .context
-            .with_js(async |ctx| {
-                if is_dynamic_module_loaded(&ctx, &module_name) {
-                    return JsResult::Err(JsError::module(
-                        Some(module_name),
-                        None,
-                        "Module has already been loaded in this context and cannot be redefined; create a new context to replace it",
-                    ));
-                }
-                if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
-                    storage
-                        .write()
-                        .unwrap()
-                        .insert(module_name.clone(), DynamicModuleEntry::Source(source_code.clone()));
-                    let res = Module::evaluate(ctx.clone(), module_name.clone(), source_code);
-                    if res.is_ok() {
-                        mark_dynamic_module_loaded(&ctx, &module_name);
-                    }
-                    result_from_promise(&ctx, res).await
-                } else {
-                    JsResult::Err(JsError::storage("Module storage not initialized"))
-                }
-            })
-            .await;
-
-        result.into_result()
     }
 
     /// Evaluates a bytecode-backed module (registers and executes it).
@@ -878,59 +942,12 @@ impl JsEngine {
     pub async fn evaluate_bytecode_module(
         &self,
         module: JsModuleBytecode,
-    ) -> anyhow::Result<JsValue> {
+    ) -> Result<JsValue, JsError> {
         self.ensure_running()?;
-        validate_module_bytecode_impl(&module.name, &module.bytes)?;
-
-        let module_name = module.name;
-        let bytecode = module.bytes;
-
-        let result = self
-            .context
-            .with_js(async |ctx| {
-                if is_dynamic_module_loaded(&ctx, &module_name) {
-                    return JsResult::Err(JsError::module(
-                        Some(module_name),
-                        None,
-                        "Module has already been loaded in this context and cannot be redefined; create a new context to replace it",
-                    ));
-                }
-
-                let res = load_module_bytecode_checked(ctx.clone(), &module_name, &bytecode)
-                    .and_then(|module| {
-                    let embedded_name: String = module.name()?;
-                    if embedded_name != module_name {
-                        return Err(rquickjs::Error::new_loading_message(
-                            module_name.clone(),
-                            format!(
-                                "Bytecode module name mismatch: expected '{}', found '{}'",
-                                module_name, embedded_name
-                            ),
-                        ));
-                    }
-                    let (_module, promise) = module.eval()?;
-                    Ok(promise)
-                });
-
-                if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
-                    match res {
-                        Ok(promise) => {
-                            storage.write().unwrap().insert(
-                                module_name.clone(),
-                                DynamicModuleEntry::Bytecode(bytecode),
-                            );
-                            mark_dynamic_module_loaded(&ctx, &module_name);
-                            result_from_promise(&ctx, Ok(promise)).await
-                        }
-                        Err(err) => result_from_promise(&ctx, Err(err)).await,
-                    }
-                } else {
-                    JsResult::Err(JsError::storage("Module storage not initialized"))
-                }
-            })
-            .await;
-
-        result.into_result()
+        // `load_module_bytecode_checked` validates the payload inside the
+        // target context, so no separate validation pass is needed here.
+        self.evaluate_dynamic_module(module.name, DynamicModuleEntry::Bytecode(module.bytes))
+            .await
     }
 
     /// Declares a bytecode bundle and evaluates its entry module.
@@ -950,13 +967,15 @@ impl JsEngine {
     pub async fn evaluate_bytecode_bundle(
         &self,
         bundle: JsModuleBytecodeBundle,
-    ) -> anyhow::Result<JsValue> {
+    ) -> Result<JsValue, JsError> {
         self.ensure_running()?;
         validate_module_bundle_impl(&bundle)?;
 
         let Some(entry) = bundle.entry.clone() else {
-            return Err(anyhow!(
-                "Bytecode bundle has no entry module; declare it or provide an entry to evaluate"
+            return Err(JsError::module(
+                None,
+                None,
+                "Bytecode bundle has no entry module; declare it or provide an entry to evaluate",
             ));
         };
 
@@ -971,14 +990,23 @@ impl JsEngine {
         }
 
         let Some(entry_module) = entry_module else {
-            return Err(anyhow!(
-                "Bytecode bundle entry '{}' is not present in the bundle",
-                entry
+            return Err(JsError::module(
+                Some(entry.clone()),
+                None,
+                format!("Bytecode bundle entry '{entry}' is not present in the bundle"),
             ));
         };
 
         if !dependencies.is_empty() {
-            self.declare_new_bytecode_modules(dependencies).await?;
+            // Bundle validation above already covered these modules; declare
+            // them directly instead of validating a second time.
+            self.declare_dynamic_modules(
+                dependencies
+                    .into_iter()
+                    .map(|module| (module.name, DynamicModuleEntry::Bytecode(module.bytes)))
+                    .collect(),
+            )
+            .await?;
         }
         self.evaluate_bytecode_module(entry_module).await
     }
@@ -994,7 +1022,7 @@ impl JsEngine {
     /// ```dart
     /// final script = await JsBytecode.compileScript(
     ///   name: 'bootstrap.js',
-    ///   source: JsCode.code('globalThis.appVersion = "2.2.0";'),
+    ///   source: JsCode.code('globalThis.appVersion = "3.0.0";'),
     /// );
     ///
     /// await engine.evaluateScriptBytecode(script: script);
@@ -1003,21 +1031,22 @@ impl JsEngine {
     pub async fn evaluate_script_bytecode(
         &self,
         script: JsScriptBytecode,
-    ) -> anyhow::Result<JsValue> {
+    ) -> Result<JsValue, JsError> {
         self.ensure_running()?;
         validate_script_bytecode_impl(&script.name, &script.bytes)?;
 
         let script_name = script.name;
         let bytecode = script.bytes;
-        let result = self
-            .context
-            .with_js(async move |ctx| {
-                let res = eval_script_bytecode(&ctx, &script_name, &bytecode);
-                result_from_maybe_promise(&ctx, res).await
+        let driver = self.runtime.driver.clone();
+        self.with_foreground_js_result(async move |ctx, checkpoint| {
+            let res = eval_script_bytecode(&ctx, &script_name, &bytecode);
+            let driver = driver.clone();
+            result_from_maybe_promise(&ctx, res, move |source| {
+                driver.remove_error_source_since(checkpoint, source);
             })
-            .await;
-
-        result.into_result()
+            .await
+        })
+        .await
     }
 
     /// Clears dynamic modules that have not been loaded into the QuickJS module cache.
@@ -1034,27 +1063,26 @@ impl JsEngine {
     /// ```dart
     /// await engine.clearPendingModules();
     /// ```
-    pub async fn clear_pending_modules(&self) -> anyhow::Result<()> {
+    pub async fn clear_pending_modules(&self) -> Result<(), JsError> {
         self.ensure_running()?;
 
         let result = self
-            .context
-            .with_js(async |ctx| {
+            .with_foreground_js_result(async |ctx, _checkpoint| {
                 if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
                     let loaded: HashSet<_> =
                         get_loaded_dynamic_module_names(&ctx).into_iter().collect();
                     storage
                         .write()
-                        .unwrap()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
                         .retain(|name, _| loaded.contains(name));
                     JsResult::Ok(JsValue::None)
                 } else {
                     JsResult::Err(JsError::storage("Module storage not initialized"))
                 }
             })
-            .await;
-
-        result.into_result().map(|_| ())
+            .await?;
+        let _ = result;
+        Ok(())
     }
 
     /// Gets all declared module names.
@@ -1073,17 +1101,22 @@ impl JsEngine {
     /// final modules = await engine.getDeclaredModules();
     /// print('Declared modules: $modules');
     /// ```
-    pub async fn get_declared_modules(&self) -> anyhow::Result<Vec<String>> {
+    pub async fn get_declared_modules(&self) -> Result<Vec<String>, JsError> {
         self.ensure_running()?;
 
         self.context
             .with_js(async |ctx| {
                 if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
-                    let mut modules: Vec<_> = storage.read().unwrap().keys().cloned().collect();
+                    let mut modules: Vec<_> = storage
+                        .read()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .keys()
+                        .cloned()
+                        .collect();
                     modules.sort();
                     Ok(modules)
                 } else {
-                    Err(anyhow!("Module storage not initialized"))
+                    Err(JsError::storage("Module storage not initialized"))
                 }
             })
             .await
@@ -1106,7 +1139,7 @@ impl JsEngine {
     /// final modules = await engine.getAvailableModules();
     /// print(modules);
     /// ```
-    pub async fn get_available_modules(&self) -> anyhow::Result<Vec<String>> {
+    pub async fn get_available_modules(&self) -> Result<Vec<String>, JsError> {
         self.ensure_running()?;
         self.context.get_available_modules().await
     }
@@ -1129,15 +1162,18 @@ impl JsEngine {
     ///   print('Module exists!');
     /// }
     /// ```
-    pub async fn is_module_declared(&self, module_name: String) -> anyhow::Result<bool> {
+    pub async fn is_module_declared(&self, module_name: String) -> Result<bool, JsError> {
         self.ensure_running()?;
 
         self.context
             .with_js(async move |ctx| {
                 if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
-                    Ok(storage.read().unwrap().contains_key(&module_name))
+                    Ok(storage
+                        .read()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .contains_key(&module_name))
                 } else {
-                    Err(anyhow!("Module storage not initialized"))
+                    Err(JsError::storage("Module storage not initialized"))
                 }
             })
             .await
@@ -1163,7 +1199,7 @@ impl JsEngine {
     /// final available = await engine.isModuleAvailable(moduleName: 'path');
     /// print(available);
     /// ```
-    pub async fn is_module_available(&self, module_name: String) -> anyhow::Result<bool> {
+    pub async fn is_module_available(&self, module_name: String) -> Result<bool, JsError> {
         self.ensure_running()?;
         Ok(self
             .get_available_modules()
@@ -1211,16 +1247,19 @@ impl JsEngine {
         module: String,
         method: String,
         params: Option<Vec<JsValue>>,
-    ) -> anyhow::Result<JsValue> {
+    ) -> Result<JsValue, JsError> {
         self.ensure_running()?;
 
         let params = params.unwrap_or_default();
-        let result = self
-            .context
-            .with_js(async |ctx| call_module_method(&ctx, module, method, params).await)
-            .await;
-
-        result.into_result()
+        let driver = self.runtime.driver.clone();
+        self.with_foreground_js_result(async move |ctx, checkpoint| {
+            let driver = driver.clone();
+            call_module_method(&ctx, module, method, params, move |source| {
+                driver.remove_error_source_since(checkpoint, source);
+            })
+            .await
+        })
+        .await
     }
 }
 
