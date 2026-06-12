@@ -4,6 +4,11 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: true
 
+# The cargokit build tool publishes precompiled binaries as GitHub Releases
+# (precompiled_<crate-hash>), which requires a writable GITHUB_TOKEN.
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
