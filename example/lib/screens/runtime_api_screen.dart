@@ -30,6 +30,9 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
   JsAsyncRuntime get _runtimeOrThrow =>
       _runtime ?? (throw StateError('Runtime not initialized'));
 
+  JsAsyncContext get _contextOrThrow =>
+      _context ?? (throw StateError('Context not initialized'));
+
   @override
   void initState() {
     super.initState();
@@ -163,10 +166,10 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
                   ),
                   _buildMemoryTests(),
 
-                  // Job Management Tests
+                  // Async work tests
                   const ApiTestSection(
-                    title: 'Job Management',
-                    description: 'Test pending job APIs',
+                    title: 'Async Work',
+                    description: 'Test automatic async runtime scheduling',
                     icon: Icons.work,
                   ),
                   _buildJobTests(),
@@ -394,42 +397,93 @@ class _RuntimeApiScreenState extends State<RuntimeApiScreen>
     return Column(
       children: [
         ApiTestCard(
-          title: 'isJobPending()',
-          subtitle: 'Check if there are pending jobs',
-          icon: Icons.pending_actions,
-          isSuccess: _testResults['is_job_pending']?.isSuccess,
-          isLoading: _testResults['is_job_pending']?.isLoading ?? false,
-          result: _testResults['is_job_pending']?.result,
-          error: _testResults['is_job_pending']?.error,
-          onRun: () => _runTest('is_job_pending', () async {
-            final isPending = await _runtimeOrThrow.isJobPending();
-            return {'isJobPending': isPending};
+          title: 'Automatic Promises',
+          subtitle: 'Promise jobs advance without host polling',
+          icon: Icons.auto_mode,
+          isSuccess: _testResults['automatic_promises']?.isSuccess,
+          isLoading: _testResults['automatic_promises']?.isLoading ?? false,
+          result: _testResults['automatic_promises']?.result,
+          error: _testResults['automatic_promises']?.error,
+          onRun: () => _runTest('automatic_promises', () async {
+            final marker = DateTime.now().microsecondsSinceEpoch;
+            final key = '__fjsAutomaticPromise$marker';
+            final scheduled = await _contextOrThrow.eval(
+              code: '''
+                Promise.resolve().then(() => {
+                  globalThis.$key = true;
+                });
+                "scheduled";
+              ''',
+            );
+            if (scheduled.isErr) {
+              throw StateError(scheduled.err.toString());
+            }
+            await _eventuallyJsResult(() async {
+              final result = await _contextOrThrow.eval(
+                code: 'globalThis.$key === true',
+              );
+              return result.isOk && result.ok.value == true;
+            });
+            return {'scheduled': scheduled.ok.value, 'completed': true};
           }),
         ),
         ApiTestCard(
-          title: 'executePendingJob()',
-          subtitle: 'Execute a pending job',
-          icon: Icons.play_circle,
-          isSuccess: _testResults['execute_pending_job']?.isSuccess,
-          isLoading: _testResults['execute_pending_job']?.isLoading ?? false,
-          result: _testResults['execute_pending_job']?.result,
-          error: _testResults['execute_pending_job']?.error,
-          onRun: () => _runTest('execute_pending_job', () async {
-            final executed = await _runtimeOrThrow.executePendingJob();
-            return {'jobExecuted': executed};
+          title: 'Automatic Timers',
+          subtitle: 'Timer callbacks advance without host polling',
+          icon: Icons.timer,
+          isSuccess: _testResults['automatic_timers']?.isSuccess,
+          isLoading: _testResults['automatic_timers']?.isLoading ?? false,
+          result: _testResults['automatic_timers']?.result,
+          error: _testResults['automatic_timers']?.error,
+          onRun: () => _runTest('automatic_timers', () async {
+            final marker = DateTime.now().microsecondsSinceEpoch;
+            final key = '__fjsAutomaticTimer$marker';
+            final scheduled = await _contextOrThrow.eval(
+              code: '''
+                setTimeout(() => {
+                  globalThis.$key = true;
+                }, 10);
+                "scheduled";
+              ''',
+            );
+            if (scheduled.isErr) {
+              throw StateError(scheduled.err.toString());
+            }
+            await _eventuallyJsResult(() async {
+              final result = await _contextOrThrow.eval(
+                code: 'globalThis.$key === true',
+              );
+              return result.isOk && result.ok.value == true;
+            });
+            return {'scheduled': scheduled.ok.value, 'completed': true};
           }),
         ),
         ApiTestCard(
-          title: 'idle()',
-          subtitle: 'Put runtime into idle state',
-          icon: Icons.pause_circle,
-          isSuccess: _testResults['idle']?.isSuccess,
-          isLoading: _testResults['idle']?.isLoading ?? false,
-          result: _testResults['idle']?.result,
-          error: _testResults['idle']?.error,
-          onRun: () => _runTest('idle', () async {
-            await _runtimeOrThrow.idle();
-            return 'Runtime set to idle state';
+          title: 'Background Errors',
+          subtitle: 'Unhandled async errors surface on later operations',
+          icon: Icons.report,
+          isSuccess: _testResults['background_errors']?.isSuccess,
+          isLoading: _testResults['background_errors']?.isLoading ?? false,
+          result: _testResults['background_errors']?.result,
+          error: _testResults['background_errors']?.error,
+          onRun: () => _runTest('background_errors', () async {
+            final marker = DateTime.now().microsecondsSinceEpoch;
+            final message = 'fjs runtime api background failure $marker';
+            final scheduled = await _contextOrThrow.eval(
+              code: '''
+                Promise.resolve().then(() => {
+                  throw new Error("$message");
+                });
+                "scheduled";
+              ''',
+            );
+            if (scheduled.isErr) {
+              throw StateError(scheduled.err.toString());
+            }
+            final error = await _eventuallyJsError(() async {
+              return _contextOrThrow.eval(code: '1 + 1');
+            });
+            return {'scheduled': scheduled.ok.value, 'error': error};
           }),
         ),
       ],
@@ -484,4 +538,42 @@ class _TestResult {
     this.result,
     this.error,
   });
+}
+
+Future<void> _eventuallyJsResult(
+  Future<bool> Function() condition, {
+  Duration timeout = const Duration(seconds: 2),
+  Duration interval = const Duration(milliseconds: 20),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (await condition()) {
+      return;
+    }
+    await Future<void>.delayed(interval);
+  }
+  if (await condition()) {
+    return;
+  }
+  throw StateError('condition was not met within ${timeout.inMilliseconds}ms');
+}
+
+Future<String> _eventuallyJsError(
+  Future<JsResult> Function() action, {
+  Duration timeout = const Duration(seconds: 2),
+  Duration interval = const Duration(milliseconds: 20),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    final result = await action();
+    if (result.isErr) {
+      return result.err.toString();
+    }
+    await Future<void>.delayed(interval);
+  }
+  final result = await action();
+  if (result.isErr) {
+    return result.err.toString();
+  }
+  throw StateError('error was not returned within ${timeout.inMilliseconds}ms');
 }

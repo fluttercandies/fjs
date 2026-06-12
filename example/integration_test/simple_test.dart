@@ -4,13 +4,10 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fjs/fjs.dart';
 
-Matcher throwsAnyhowException() => throwsA(
-      predicate<Object?>(
-        (error) =>
-            error != null && error.toString().startsWith('AnyhowException('),
-        'AnyhowException',
-      ),
-    );
+Matcher throwsJsError() => throwsA(isA<JsError>());
+
+Matcher throwsJsErrorWithCode(String code) =>
+    throwsA(isA<JsError>().having((e) => e.code(), 'code', code));
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -579,9 +576,31 @@ void main() {
       expect(result.isOk, true);
     });
 
-    test('Async pending jobs', () async {
-      final pending = await runtime.isJobPending();
-      expect(pending, isA<bool>());
+    test('Async promises advance without manual polling', () async {
+      final scheduled = await context.eval(
+        code: '''
+          Promise.resolve().then(() => {
+            globalThis.__fjsSimpleAutomaticPromiseDone = true;
+          });
+          "scheduled";
+        ''',
+      );
+      expect(scheduled.isOk, true);
+      expect(scheduled.ok.value, equals('scheduled'));
+
+      var done = false;
+      for (var i = 0; i < 20; i++) {
+        final result = await context.eval(
+          code: 'globalThis.__fjsSimpleAutomaticPromiseDone === true',
+        );
+        if (result.isOk && result.ok.value == true) {
+          done = true;
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+
+      expect(done, true);
     });
 
     test('Async evaluation with options', () async {
@@ -712,7 +731,7 @@ void main() {
       expect(await engine.isModuleDeclared(moduleName: moduleName), isFalse);
       expect(
         () => engine.eval(source: JsCode.code("await import('$moduleName')")),
-        throwsAnyhowException(),
+        throwsJsError(),
       );
     });
 
@@ -925,7 +944,7 @@ void main() {
 
       expect(
         () => engine.eval(source: const JsCode.code('function {')),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('SYNTAX_ERROR'),
       );
     });
 
@@ -935,7 +954,7 @@ void main() {
       expect(
         () => engine.eval(
             source: const JsCode.code('undefinedVariable.property')),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('REFERENCE_ERROR'),
       );
     });
 
@@ -952,7 +971,7 @@ void main() {
 
       expect(
         () => engine.initWithoutBridge(),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('ENGINE_ERROR'),
       );
     });
 
@@ -962,14 +981,14 @@ void main() {
 
       expect(
         () => engine.eval(source: const JsCode.code('1 + 1')),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('ENGINE_ERROR'),
       );
     });
 
     test('Use without initialization should throw', () async {
       expect(
         () => engine.eval(source: const JsCode.code('1 + 1')),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('ENGINE_ERROR'),
       );
     });
 
@@ -1737,28 +1756,28 @@ void main() {
     test('TypeError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('null.property')),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('TYPE_ERROR'),
       );
     });
 
     test('ReferenceError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('nonExistentVariable')),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('REFERENCE_ERROR'),
       );
     });
 
     test('SyntaxError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('function {')),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('SYNTAX_ERROR'),
       );
     });
 
     test('RangeError in JS', () async {
       expect(
         () => engine.eval(source: const JsCode.code('new Array(-1)')),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('RUNTIME_ERROR'),
       );
     });
   });
@@ -1929,7 +1948,7 @@ void main() {
         () => engine.eval(
           source: const JsCode.code('new Array(10000000).fill({})'),
         ),
-        throwsAnyhowException(),
+        throwsJsErrorWithCode('MEMORY_LIMIT_ERROR'),
       );
 
       await engine.close();

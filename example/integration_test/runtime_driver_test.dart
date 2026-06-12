@@ -10,7 +10,7 @@ void main() {
   });
 
   group('Runtime driver integration', () {
-    testWidgets('engine driver advances detached timers without host polling',
+    testWidgets('engine advances detached timers without host polling',
         (_) async {
       final engine = await JsEngine.create(
         builtins: JsBuiltinOptions.essential(),
@@ -22,7 +22,6 @@ void main() {
       });
 
       await engine.initWithoutBridge();
-      expect(await engine.driverRunning(), isTrue);
 
       final scheduled = await engine.eval(
         source: const JsCode.code('''
@@ -45,10 +44,9 @@ void main() {
 
       await engine.close();
       expect(engine.closed, isTrue);
-      expect(await engine.driverRunning(), isFalse);
     });
 
-    testWidgets('engine drains background JavaScript job errors', (_) async {
+    testWidgets('engine surfaces background JavaScript job errors', (_) async {
       final engine = await JsEngine.create(
         builtins: JsBuiltinOptions.essential(),
       );
@@ -68,26 +66,74 @@ void main() {
         '''),
       );
 
-      await _eventually(() async {
-        final errors = await engine.drainUnhandledJobErrors();
-        return errors.any(
-          (error) => error.contains('fjs integration timer failure'),
+      final error = await _eventuallyError(() async {
+        await engine.eval(
+          source: const JsCode.code('1 + 1'),
         );
       });
+      expect(error.toString(), contains('fjs integration timer failure'));
     });
 
-    testWidgets('runtime executePendingJob manually advances detached timers',
+    testWidgets('engine recovers after background timer callback errors',
         (_) async {
+      final engine = await JsEngine.create(
+        builtins: JsBuiltinOptions.essential(),
+      );
+      addTearDown(() async {
+        if (!engine.closed) {
+          await engine.close();
+        }
+      });
+
+      await engine.initWithoutBridge();
+      await engine.eval(
+        source: const JsCode.code('''
+          setTimeout(() => {
+            throw new Error("fjs integration recoverable timer failure");
+          }, 10);
+          "scheduled";
+        '''),
+      );
+
+      final error = await _eventuallyError(() async {
+        await engine.eval(
+          source: const JsCode.code('1 + 1'),
+        );
+      });
+      expect(
+        error.toString(),
+        contains('fjs integration recoverable timer failure'),
+      );
+
+      await engine.eval(
+        source: const JsCode.code('''
+          setTimeout(() => {
+            globalThis.__fjsTimerRecovered = true;
+          }, 10);
+          "scheduled";
+        '''),
+      );
+
+      await _eventually(() async {
+        final value = await engine.eval(
+          source: const JsCode.code(
+            'globalThis.__fjsTimerRecovered === true',
+          ),
+        );
+        return value.value == true;
+      });
+    });
+
+    testWidgets('runtime advances detached timers automatically', (_) async {
       final runtime = await JsAsyncRuntime.create(
         builtins: JsBuiltinOptions.essential(),
       );
-      addTearDown(runtime.stopDriver);
       final context = await JsAsyncContext.from(runtime: runtime);
 
       final scheduled = await context.eval(
         code: '''
           setTimeout(() => {
-            globalThis.__fjsManualPumpDone = true;
+            globalThis.__fjsAutomaticRuntimeDone = true;
           }, 10);
           "scheduled";
         ''',
@@ -95,60 +141,41 @@ void main() {
       expect(scheduled.isOk, isTrue);
       expect(scheduled.ok.value, 'scheduled');
 
-      await runtime.stopDriver();
-      expect(await runtime.driverRunning(), isFalse);
-
       await _eventually(() async {
-        await runtime.executePendingJob();
         final result = await context.eval(
-          code: 'globalThis.__fjsManualPumpDone === true',
+          code: 'globalThis.__fjsAutomaticRuntimeDone === true',
         );
         return result.isOk && result.ok.value == true;
       });
-
-      expect(await runtime.drainUnhandledJobErrors(), isEmpty);
     });
 
-    testWidgets('runtime driver can restart after stop', (_) async {
+    testWidgets('runtime advances detached promises automatically', (_) async {
       final runtime = await JsAsyncRuntime.create(
         builtins: JsBuiltinOptions.essential(),
       );
-      addTearDown(runtime.stopDriver);
       final context = await JsAsyncContext.from(runtime: runtime);
-
-      await runtime.startDriver();
-      expect(await runtime.driverRunning(), isTrue);
-      await runtime.stopDriver();
-      expect(await runtime.driverRunning(), isFalse);
 
       final scheduled = await context.eval(
         code: '''
-          setTimeout(() => {
-            globalThis.__fjsRestartedDriverDone = true;
-          }, 10);
+          Promise.resolve().then(() => {
+            globalThis.__fjsAutomaticPromiseDone = true;
+          });
           "scheduled";
         ''',
       );
       expect(scheduled.isOk, isTrue);
       expect(scheduled.ok.value, 'scheduled');
 
-      await runtime.startDriver();
-      expect(await runtime.driverRunning(), isTrue);
-
       await _eventually(() async {
         final result = await context.eval(
-          code: 'globalThis.__fjsRestartedDriverDone === true',
+          code: 'globalThis.__fjsAutomaticPromiseDone === true',
         );
         return result.isOk && result.ok.value == true;
       });
-
-      await runtime.stopDriver();
-      expect(await runtime.driverRunning(), isFalse);
     });
 
-    testWidgets('runtime drains unhandled promise rejections', (_) async {
+    testWidgets('runtime surfaces unhandled promise rejections', (_) async {
       final runtime = await JsAsyncRuntime.create();
-      addTearDown(runtime.stopDriver);
       final context = await JsAsyncContext.from(runtime: runtime);
 
       final scheduled = await context.eval(
@@ -160,15 +187,12 @@ void main() {
       expect(scheduled.isOk, isTrue);
       expect(scheduled.ok.value, 'scheduled');
 
-      await _eventually(() async {
-        await runtime.executePendingJob();
-        final errors = await runtime.drainUnhandledJobErrors();
-        return errors.any(
-          (error) => error.contains('fjs integration unhandled rejection'),
+      final error = await _eventuallyJsResultError(() async {
+        return context.eval(
+          code: '1 + 1',
         );
       });
-
-      expect(await runtime.drainUnhandledJobErrors(), isEmpty);
+      expect(error.toString(), contains('fjs integration unhandled rejection'));
     });
 
     testWidgets('drop path tolerates bridge and loaded module without close',
@@ -244,7 +268,7 @@ void main() {
       );
     });
 
-    testWidgets('background error queue is bounded to newest errors',
+    testWidgets('background errors are surfaced through public calls',
         (_) async {
       final engine = await JsEngine.create(
         builtins: JsBuiltinOptions.essential(),
@@ -262,32 +286,19 @@ void main() {
           for (let i = 0; i < 40; i++) {
             Promise.resolve().then(() => {
               globalThis.__fjsBoundedQueueFired += 1;
-              throw new Error("fjs bounded queue error " + i);
+              throw new Error("fjs public background error " + i);
             });
           }
           "scheduled";
         '''),
       );
 
-      await _eventually(() async {
-        final fired = await engine.eval(
+      final error = await _eventuallyError(() async {
+        await engine.eval(
           source: const JsCode.code('globalThis.__fjsBoundedQueueFired'),
         );
-        return fired.value == 40;
       });
-
-      final drained = await engine.drainUnhandledJobErrors();
-      expect(drained.length, 32);
-      expect(drained.first, isNot(contains('fjs bounded queue error 0')));
-      expect(
-        drained,
-        contains(
-          predicate<String>(
-            (error) => error.contains('fjs bounded queue error 39'),
-            'latest queued error',
-          ),
-        ),
-      );
+      expect(error.toString(), contains('fjs public background error'));
     });
   });
 }
@@ -309,4 +320,51 @@ Future<void> _eventually(
     return;
   }
   fail('condition was not met within ${timeout.inMilliseconds}ms');
+}
+
+Future<Object> _eventuallyError(
+  Future<void> Function() action, {
+  Duration timeout = const Duration(seconds: 2),
+  Duration interval = const Duration(milliseconds: 20),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+
+  while (DateTime.now().isBefore(deadline)) {
+    try {
+      await action();
+    } catch (error) {
+      return error;
+    }
+    await Future<void>.delayed(interval);
+  }
+
+  try {
+    await action();
+  } catch (error) {
+    return error;
+  }
+
+  fail('error was not thrown within ${timeout.inMilliseconds}ms');
+}
+
+Future<JsError> _eventuallyJsResultError(
+  Future<JsResult> Function() action, {
+  Duration timeout = const Duration(seconds: 2),
+  Duration interval = const Duration(milliseconds: 20),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+
+  while (DateTime.now().isBefore(deadline)) {
+    final result = await action();
+    if (result.isErr) {
+      return result.err;
+    }
+    await Future<void>.delayed(interval);
+  }
+
+  final result = await action();
+  if (result.isErr) {
+    return result.err;
+  }
+  fail('JsResult error was not returned within ${timeout.inMilliseconds}ms');
 }
