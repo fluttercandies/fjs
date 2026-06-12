@@ -26,6 +26,7 @@ const JS_MIN_SAFE_INTEGER: i64 = -JS_MAX_SAFE_INTEGER;
 pub(crate) struct ValueIntrinsics<'js> {
     date_constructor: rquickjs::Object<'js>,
     date_get_time: rquickjs::Function<'js>,
+    array_buffer_constructor: rquickjs::Object<'js>,
     array_buffer_is_view: rquickjs::Function<'js>,
     _marker: PhantomData<&'js ()>,
 }
@@ -47,20 +48,24 @@ impl<'js> ValueIntrinsics<'js> {
         Ok(Self {
             date_constructor,
             date_get_time,
+            array_buffer_constructor: array_buffer,
             array_buffer_is_view,
             _marker: PhantomData,
         })
     }
 }
 
-pub(crate) fn install_value_intrinsics<'js>(ctx: &Ctx<'js>) -> anyhow::Result<()> {
+pub(crate) fn install_value_intrinsics<'js>(
+    ctx: &Ctx<'js>,
+) -> Result<(), crate::api::error::JsError> {
     if ctx.userdata::<ValueIntrinsics<'js>>().is_some() {
         return Ok(());
     }
 
     let intrinsics = ValueIntrinsics::capture(ctx)?;
-    ctx.store_userdata(intrinsics)
-        .map_err(|e| anyhow::anyhow!("Failed to store value intrinsics: {:?}", e))?;
+    ctx.store_userdata(intrinsics).map_err(|e| {
+        crate::api::error::JsError::context(format!("Failed to store value intrinsics: {e:?}"))
+    })?;
     Ok(())
 }
 
@@ -68,71 +73,58 @@ fn is_safe_js_integer(value: i64) -> bool {
     (JS_MIN_SAFE_INTEGER..=JS_MAX_SAFE_INTEGER).contains(&value)
 }
 
+/// Clears an exception left pending by a probing QuickJS call (for example
+/// `JS_GetArrayBuffer` throws a `TypeError` for detached buffers) so it cannot
+/// be misattributed to a later, unrelated operation on the context.
+fn clear_residual_exception(ctx: &Ctx<'_>) {
+    if ctx.has_exception() {
+        let _ = ctx.catch();
+    }
+}
+
+fn detached_buffer_error(from: &'static str) -> rquickjs::Error {
+    rquickjs::Error::new_from_js_message(from, "Bytes", "buffer is detached")
+}
+
+/// Returns whether `obj` is an `ArrayBuffer` instance, without probing through
+/// `JS_GetArrayBuffer` (which throws and leaves a pending exception for every
+/// non-ArrayBuffer object).
+fn is_array_buffer_instance<'js>(
+    ctx: &Ctx<'js>,
+    obj: &rquickjs::Object<'js>,
+    intrinsics: Option<&ValueIntrinsics<'js>>,
+) -> bool {
+    let constructor = match intrinsics {
+        Some(intrinsics) => intrinsics.array_buffer_constructor.clone(),
+        None => match ctx.globals().get::<_, rquickjs::Object>("ArrayBuffer") {
+            Ok(constructor) => constructor,
+            Err(_) => return false,
+        },
+    };
+    obj.is_instance_of(&constructor)
+}
+
 fn dynamic_view_bytes<'js>(
     ctx: &Ctx<'js>,
     obj: &rquickjs::Object<'js>,
     intrinsics: Option<&ValueIntrinsics<'js>>,
 ) -> rquickjs::Result<Option<Vec<u8>>> {
-    if let Some(bytes) = obj
-        .as_typed_array::<i8>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
+    macro_rules! try_typed_array_bytes {
+        ($($ty:ty),+ $(,)?) => {
+            $(
+                if let Some(arr) = obj.as_typed_array::<$ty>() {
+                    return match arr.as_bytes() {
+                        Some(bytes) => Ok(Some(bytes.to_vec())),
+                        None => {
+                            clear_residual_exception(ctx);
+                            Err(detached_buffer_error("TypedArray"))
+                        }
+                    };
+                }
+            )+
+        };
     }
-    if let Some(bytes) = obj
-        .as_typed_array::<u8>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
-    }
-    if let Some(bytes) = obj
-        .as_typed_array::<i16>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
-    }
-    if let Some(bytes) = obj
-        .as_typed_array::<u16>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
-    }
-    if let Some(bytes) = obj
-        .as_typed_array::<i32>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
-    }
-    if let Some(bytes) = obj
-        .as_typed_array::<u32>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
-    }
-    if let Some(bytes) = obj
-        .as_typed_array::<f32>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
-    }
-    if let Some(bytes) = obj
-        .as_typed_array::<f64>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
-    }
-    if let Some(bytes) = obj
-        .as_typed_array::<i64>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
-    }
-    if let Some(bytes) = obj
-        .as_typed_array::<u64>()
-        .and_then(|arr| arr.as_bytes().map(|bytes| bytes.to_vec()))
-    {
-        return Ok(Some(bytes));
-    }
+    try_typed_array_bytes!(i8, u8, i16, u16, i32, u32, f32, f64, i64, u64);
 
     let is_view = if let Some(intrinsics) = intrinsics {
         intrinsics
@@ -157,11 +149,14 @@ fn dynamic_view_bytes<'js>(
     let buffer = obj.get::<_, rquickjs::Object>("buffer")?;
     let byte_offset = obj.get::<_, usize>("byteOffset")?;
     let byte_length = obj.get::<_, usize>("byteLength")?;
-    let array_buffer = rquickjs::ArrayBuffer::from_object(buffer)
-        .ok_or_else(|| rquickjs::Error::new_from_js("value", "ArrayBuffer"))?;
-    let bytes = array_buffer
-        .as_bytes()
-        .ok_or_else(|| rquickjs::Error::new_from_js("value", "ArrayBuffer"))?;
+    let Some(array_buffer) = rquickjs::ArrayBuffer::from_object(buffer) else {
+        clear_residual_exception(ctx);
+        return Err(detached_buffer_error("DataView"));
+    };
+    let Some(bytes) = array_buffer.as_bytes() else {
+        clear_residual_exception(ctx);
+        return Err(detached_buffer_error("DataView"));
+    };
     let end = byte_offset.checked_add(byte_length).ok_or_else(|| {
         rquickjs::Error::new_from_js_message("value", "Bytes", "Binary view overflow")
     })?;
@@ -631,10 +626,20 @@ impl<'js> FromJs<'js> for JsValue {
                     .ok_or_else(|| rquickjs::Error::new_from_js("value", "Object"))?;
                 let intrinsics = ctx.userdata::<ValueIntrinsics<'js>>();
 
-                // Check for ArrayBuffer
-                if let Some(ab) = rquickjs::ArrayBuffer::from_object(obj.clone()) {
-                    let bytes: Vec<u8> = ab.as_bytes().map(|b| b.to_vec()).unwrap_or_default();
-                    return Ok(JsValue::Bytes(bytes));
+                // Check for ArrayBuffer. The instanceof gate matters:
+                // `ArrayBuffer::from_object` probes via `JS_GetArrayBuffer`,
+                // which throws a TypeError for every non-ArrayBuffer object
+                // and would leave that exception pending on the context.
+                if is_array_buffer_instance(ctx, obj, intrinsics.as_deref()) {
+                    let bytes = rquickjs::ArrayBuffer::from_object(obj.clone())
+                        .and_then(|ab| ab.as_bytes().map(|bytes| bytes.to_vec()));
+                    return match bytes {
+                        Some(bytes) => Ok(JsValue::Bytes(bytes)),
+                        None => {
+                            clear_residual_exception(ctx);
+                            Err(detached_buffer_error("ArrayBuffer"))
+                        }
+                    };
                 }
 
                 if let Some(bytes) = dynamic_view_bytes(ctx, obj, intrinsics.as_deref())? {

@@ -705,6 +705,26 @@ fn test_from_js_symbol() {
 }
 
 #[test]
+fn test_from_js_empty_array_buffer() {
+    test_with(|ctx| {
+        let val: rquickjs::Value = ctx.eval("new ArrayBuffer(0)").unwrap();
+        let js_val = JsValue::from_js(&ctx, val).unwrap();
+        assert!(matches!(js_val, JsValue::Bytes(ref bytes) if bytes.is_empty()));
+    });
+}
+
+#[test]
+fn test_from_js_detached_array_buffer_is_an_error() {
+    test_with(|ctx| {
+        let val: rquickjs::Value = ctx
+            .eval("const buf = new ArrayBuffer(8); buf.transfer(); buf")
+            .unwrap();
+        let result = JsValue::from_js(&ctx, val);
+        assert!(result.is_err(), "detached buffer must not silently convert");
+    });
+}
+
+#[test]
 fn test_from_js_function() {
     test_with(|ctx| {
         let val: rquickjs::Value = ctx.eval("function myFunc() {}; myFunc").unwrap();
