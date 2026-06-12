@@ -9,6 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'value.dart';
 part 'error.freezed.dart';
 
+// These functions are ignored because they are not marked as `pub`: `from_caught`, `from_exception`, `from_pending_exception`, `from_thrown_value`, `parse_stack_position`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `bridge`, `cancelled`, `context`, `conversion`, `engine`, `err`, `generic`, `into_result`, `io`, `is_err`, `is_ok`, `map_err`, `map`, `memory_limit`, `module`, `ok`, `promise`, `reference`, `runtime`, `storage`, `syntax`, `timeout`, `type_error`
 
@@ -94,13 +95,9 @@ sealed class JsError with _$JsError {
   }) = JsError_Timeout;
 
   /// Memory limit exceeded errors
-  const factory JsError.memoryLimit({
-    /// Current memory usage in bytes
-    required BigInt current,
-
-    /// Memory limit in bytes
-    required BigInt limit,
-  }) = JsError_MemoryLimit;
+  const factory JsError.memoryLimit(
+    String field0,
+  ) = JsError_MemoryLimit;
 
   /// Stack overflow errors
   const factory JsError.stackOverflow(

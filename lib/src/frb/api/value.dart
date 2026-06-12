@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'value.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `capture`, `date_millis`, `dynamic_view_bytes`, `install_value_intrinsics`, `is_safe_js_integer`
+// These functions are ignored because they are not marked as `pub`: `capture`, `clear_residual_exception`, `date_millis`, `detached_buffer_error`, `dynamic_view_bytes`, `install_value_intrinsics`, `is_array_buffer_instance`, `is_safe_js_integer`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ValueIntrinsics`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`, `from_js`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `into_js`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `array`, `bigint`, `boolean`, `bytes`, `date`, `float`, `integer`, `none`, `object`, `string`

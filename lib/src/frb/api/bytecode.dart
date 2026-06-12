@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'error.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'source.dart';
 
@@ -124,7 +125,7 @@ abstract class JsBytecode implements RustOpaqueInterface {
   /// ```dart
   /// final script = JsBytecode.compileScriptSync(
   ///   name: 'bootstrap.js',
-  ///   source: JsCode.code('globalThis.version = "2.2.0";'),
+  ///   source: JsCode.code('globalThis.version = "3.0.0";'),
   /// );
   /// ```
   static JsScriptBytecode compileScriptSync(

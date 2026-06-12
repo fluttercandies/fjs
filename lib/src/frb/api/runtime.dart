@@ -9,8 +9,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'source.dart';
 import 'value.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `install_default_async_loaders`, `install_error_tracker`, `make_loader_stack`, `result_from_maybe_promise`, `result_from_promise`, `result_from_sync`, `result_from_value`, `unwrap_async_eval_value`, `with_js`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`
+// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `cleanup_after_context_drop`, `cleanup_once`, `ensure_no_unhandled_job_errors`, `finalize_context_drop`, `finalize_runtime_drop`, `idle`, `install_default_async_loaders`, `install_error_tracker`, `is_job_pending`, `make_loader_stack`, `result_from_maybe_promise`, `result_from_promise`, `result_from_sync`, `result_from_value`, `start_driver_now`, `stop_driver`, `take_unhandled_job_error`, `take_unhandled_job_errors`, `unwrap_async_eval_value`, `with_foreground_js_result`, `with_js`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `drop`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncContext>>
 abstract class JsAsyncContext implements RustOpaqueInterface {
@@ -199,78 +199,6 @@ abstract class JsAsyncRuntime implements RustOpaqueInterface {
       LibFjs.instance.api.crateApiRuntimeJsAsyncRuntimeCreate(
           builtins: builtins, modules: modules);
 
-  /// Drains unhandled asynchronous JavaScript errors captured by the runtime.
-  ///
-  /// The queue is bounded and stores formatted strings, so draining never
-  /// exposes live JavaScript values or keeps QuickJS objects alive.
-  Future<List<String>> drainUnhandledJobErrors();
-
-  /// Returns whether the runtime background driver is currently running.
-  Future<bool> driverRunning();
-
-  /// Advances the async runtime by one scheduler step.
-  ///
-  /// This may execute one queued QuickJS job or make progress on background
-  /// runtime futures. A `false` return value only means this call did not make
-  /// progress; it does not guarantee the runtime is fully drained. Use
-  /// `idle()` when you explicitly want to run the runtime until quiescent.
-  ///
-  /// ## Returns
-  ///
-  /// `true` if this call executed a job or advanced pending async work,
-  /// `false` if nothing progressed during this step
-  ///
-  /// ## Throws
-  ///
-  /// If a scheduled job throws while running
-  ///
-  /// ## Example
-  ///
-  /// ```dart
-  /// while (await runtime.isJobPending()) {
-  ///   final progressed = await runtime.executePendingJob();
-  ///   if (!progressed) {
-  ///     break;
-  ///   }
-  /// }
-  /// ```
-  Future<bool> executePendingJob();
-
-  /// Runs the async runtime until no queued jobs or spawned futures remain.
-  ///
-  /// This is a full drain operation. It may execute timers, promise callbacks,
-  /// and other background work unrelated to the call site, so it should be used
-  /// deliberately for teardown, tests, or explicit "drain everything" flows.
-  ///
-  /// QuickJS job errors raised during this drain are handled by the underlying
-  /// runtime and are not surfaced through this method.
-  ///
-  /// ## Example
-  ///
-  /// ```dart
-  /// await runtime.idle();
-  /// ```
-  Future<void> idle();
-
-  /// Checks whether the async runtime still has work to do.
-  ///
-  /// This reports both queued QuickJS jobs and background futures managed by
-  /// the runtime scheduler, such as timers or other spawned async work.
-  ///
-  /// ## Returns
-  ///
-  /// `true` if the runtime still has queued jobs or scheduled async work,
-  /// `false` otherwise
-  ///
-  /// ## Example
-  ///
-  /// ```dart
-  /// if (await runtime.isJobPending()) {
-  ///   await runtime.executePendingJob();
-  /// }
-  /// ```
-  Future<bool> isJobPending();
-
   /// Returns memory usage statistics.
   ///
   /// Provides detailed information about current memory allocation
@@ -365,19 +293,6 @@ abstract class JsAsyncRuntime implements RustOpaqueInterface {
   /// await runtime.setMemoryLimit(limit: 16 * 1024 * 1024); // 16 MB
   /// ```
   Future<void> setMemoryLimit({required BigInt limit});
-
-  /// Starts the runtime background driver.
-  ///
-  /// The driver keeps timers, fetches, spawned futures, and queued Promise
-  /// work moving without requiring the host to poll `execute_pending_job()`.
-  /// Starting an already-running driver is a no-op.
-  Future<void> startDriver();
-
-  /// Stops the runtime background driver.
-  ///
-  /// Stopping is idempotent. The runtime remains usable afterwards; callers
-  /// can still evaluate code or restart the driver later.
-  Future<void> stopDriver();
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsContext>>
