@@ -188,6 +188,15 @@ jobs:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # The SwiftPM package declares a binary target at
+      # darwin/fjs/Binaries/fjs.xcframework, which is not checked in;
+      # build it from source before Xcode resolves package dependencies.
+      - name: Build fjs XCFramework (SwiftPM binary target)
+        run: sh tool/build_fjs_xcframework.sh --configuration Release
+
       - name: Get dependencies
         run: flutter pub get
         working-directory: ${{ env.EXAMPLE_DIR }}
@@ -352,6 +361,15 @@ jobs:
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # The SwiftPM package declares a binary target at
+      # darwin/fjs/Binaries/fjs.xcframework, which is not checked in;
+      # build it from source before Xcode resolves package dependencies.
+      - name: Build fjs XCFramework (SwiftPM binary target)
+        run: sh tool/build_fjs_xcframework.sh --configuration Release
 
       - name: Get dependencies
         run: flutter pub get
