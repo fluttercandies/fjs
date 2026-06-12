@@ -297,8 +297,7 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
           error: _testResults['error_memory']?.error,
           onRun: () => _runTest('error_memory', () async {
             final error = JsError.memoryLimit(
-              current: BigInt.from(150 * 1024 * 1024),
-              limit: BigInt.from(100 * 1024 * 1024),
+              'memory limit exceeded: 150 MB used, 100 MB allowed',
             );
             return {
               'error': error.toString(),
@@ -382,10 +381,12 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
               await _engineOrThrow.eval(
                   source: JsCode.code('undefinedVariable'));
               return {'error': 'Expected error was not thrown'};
-            } catch (e) {
+            } on JsError catch (e) {
               return {
                 'caught': true,
-                'errorType': e.runtimeType.toString(),
+                'code': e.code(),
+                'isReferenceVariant': e is JsError_Reference,
+                'isRecoverable': e.isRecoverable(),
                 'message': e.toString(),
               };
             }
@@ -403,10 +404,12 @@ class _ErrorApiScreenState extends State<ErrorApiScreen>
             try {
               await _engineOrThrow.eval(source: JsCode.code('null.foo()'));
               return {'error': 'Expected error was not thrown'};
-            } catch (e) {
+            } on JsError catch (e) {
               return {
                 'caught': true,
-                'errorType': e.runtimeType.toString(),
+                'code': e.code(),
+                'isTypeVariant': e is JsError_Type,
+                'isRecoverable': e.isRecoverable(),
                 'message': e.toString(),
               };
             }

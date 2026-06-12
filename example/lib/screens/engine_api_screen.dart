@@ -259,6 +259,34 @@ class _EngineApiScreenState extends State<EngineApiScreen>
             return {'closed': _engine?.closed ?? true};
           }),
         ),
+        ApiTestCard(
+          title: 'drainUnhandledJobErrors()',
+          subtitle: 'Observe background JS failures without failing a call',
+          icon: Icons.cleaning_services,
+          isSuccess: _testResults['drain_errors']?.isSuccess,
+          isLoading: _testResults['drain_errors']?.isLoading ?? false,
+          result: _testResults['drain_errors']?.result,
+          error: _testResults['drain_errors']?.error,
+          onRun: () => _runTest('drain_errors', () async {
+            final engine = _engine!;
+            // Schedule a detached failure that no Dart call awaits.
+            await engine.eval(
+              source: const JsCode.code('''
+                setTimeout(() => {
+                  throw new Error("background task failed");
+                }, 10);
+                "scheduled";
+              '''),
+            );
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+            final drained = engine.drainUnhandledJobErrors();
+            return {
+              'drainedCount': drained.length,
+              'errors': drained,
+              'queueAfterDrain': engine.drainUnhandledJobErrors().length,
+            };
+          }),
+        ),
       ],
     );
   }
