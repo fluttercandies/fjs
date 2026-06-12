@@ -1,13 +1,18 @@
 use crate::runtime::executor;
 use std::collections::VecDeque;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::sync::Notify;
 
 const MAX_ERRORS: usize = 32;
-const IDLE_POLL_INTERVAL: Duration = Duration::from_millis(5);
+/// Defensive fallback: re-check the runtime even without an explicit wake, in
+/// case a waker registration was lost (e.g. a foreground poll displaced the
+/// driver's schedular waker without a follow-up notification).
+const FALLBACK_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Clone, Default)]
 pub(crate) struct DriverController {
@@ -17,9 +22,45 @@ pub(crate) struct DriverController {
 #[derive(Default)]
 struct DriverState {
     next_task_id: AtomicU64,
+    next_error_id: AtomicU64,
     lifecycle: Mutex<DriverLifecycle>,
-    errors: Mutex<VecDeque<String>>,
+    errors: Mutex<VecDeque<DriverError>>,
     stop_finished: Notify,
+    work_added: Notify,
+}
+
+struct DriverError {
+    id: u64,
+    source: DriverErrorSource,
+    message: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum DriverErrorSource {
+    Unattributed,
+    Promise(JsValueIdentity),
+}
+
+impl DriverErrorSource {
+    pub(crate) fn promise(value: &rquickjs::Value<'_>) -> Self {
+        Self::Promise(JsValueIdentity::from_value(value))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct JsValueIdentity {
+    tag: i32,
+    bits: u64,
+}
+
+impl JsValueIdentity {
+    fn from_value(value: &rquickjs::Value<'_>) -> Self {
+        let raw = value.as_raw();
+        Self {
+            tag: unsafe { rquickjs::qjs::JS_VALUE_GET_TAG(raw) },
+            bits: unsafe { rquickjs::qjs::JS_VALUE_GET_FLOAT64(raw).to_bits() },
+        }
+    }
 }
 
 #[derive(Default)]
@@ -37,10 +78,9 @@ enum DriverLifecycle {
 
 impl DriverController {
     pub(crate) fn start(&self, runtime: rquickjs::AsyncRuntime) {
-        let weak_runtime = runtime.weak();
         let driver = self.clone();
         self.start_task(async move {
-            drive_runtime(weak_runtime, driver).await;
+            drive_runtime(runtime, driver).await;
         });
     }
 
@@ -48,7 +88,11 @@ impl DriverController {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let mut lifecycle = self.inner.lifecycle.lock().unwrap();
+        let mut lifecycle = self
+            .inner
+            .lifecycle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if !matches!(*lifecycle, DriverLifecycle::Idle) {
             return;
         }
@@ -74,7 +118,11 @@ impl DriverController {
     }
 
     fn stop_action(&self) -> StopAction {
-        let mut lifecycle = self.inner.lifecycle.lock().unwrap();
+        let mut lifecycle = self
+            .inner
+            .lifecycle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         match std::mem::take(&mut *lifecycle) {
             DriverLifecycle::Running { task_id, handle } => {
                 *lifecycle = DriverLifecycle::Stopping { task_id };
@@ -102,69 +150,146 @@ impl DriverController {
     async fn wait_until_idle(&self) {
         loop {
             let notified = self.inner.stop_finished.notified();
-            if matches!(*self.inner.lifecycle.lock().unwrap(), DriverLifecycle::Idle) {
+            if matches!(
+                *self
+                    .inner
+                    .lifecycle
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+                DriverLifecycle::Idle
+            ) {
                 return;
             }
             notified.await;
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn running(&self) -> bool {
         matches!(
-            *self.inner.lifecycle.lock().unwrap(),
+            *self
+                .inner
+                .lifecycle
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
             DriverLifecycle::Running { .. }
         )
     }
 
     pub(crate) fn push_error(&self, error: String) {
-        let mut errors = self.inner.errors.lock().unwrap();
+        self.push_error_from(DriverErrorSource::Unattributed, error);
+    }
+
+    pub(crate) fn push_error_from(&self, source: DriverErrorSource, error: String) {
+        let id = self.inner.next_error_id.fetch_add(1, Ordering::AcqRel);
+        let mut errors = self
+            .inner
+            .errors
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if errors.len() == MAX_ERRORS {
             errors.pop_front();
         }
-        errors.push_back(error);
+        errors.push_back(DriverError {
+            id,
+            source,
+            message: error,
+        });
+    }
+
+    pub(crate) fn error_checkpoint(&self) -> u64 {
+        self.inner.next_error_id.load(Ordering::Acquire)
+    }
+
+    /// Removes the newest queued error for `source`.
+    ///
+    /// Promise identities are raw value bits; after GC a new promise can reuse
+    /// a dead promise's address. Removing only the newest match keeps a stale
+    /// queued error for the dead promise from being silently swallowed when
+    /// the new promise becomes handled.
+    pub(crate) fn remove_error_source(&self, source: DriverErrorSource) {
+        let mut errors = self
+            .inner
+            .errors
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(index) = errors.iter().rposition(|queued| queued.source == source) {
+            errors.remove(index);
+        }
+    }
+
+    pub(crate) fn remove_error_source_since(&self, checkpoint: u64, source: DriverErrorSource) {
+        self.remove_errors_matching(|queued| queued.id >= checkpoint && queued.source == source);
+    }
+
+    fn remove_errors_matching(&self, mut matches_error: impl FnMut(&DriverError) -> bool) {
+        self.inner
+            .errors
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .retain(|queued| !matches_error(queued));
     }
 
     pub(crate) fn drain_errors(&self) -> Vec<String> {
-        self.inner.errors.lock().unwrap().drain(..).collect()
+        self.inner
+            .errors
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .drain(..)
+            .map(|error| error.message)
+            .collect()
+    }
+
+    /// Signals the driver that foreground work may have scheduled new runtime
+    /// jobs (timers, detached promises, spawned futures).
+    pub(crate) fn notify_work(&self) {
+        self.inner.work_added.notify_one();
     }
 }
 
-async fn drive_runtime(runtime: rquickjs::runtime::AsyncWeakRuntime, driver: DriverController) {
+/// Completes the second time it is polled, i.e. as soon as the owning task is
+/// woken for any reason. The QuickJS schedular forwards wakes from spawned
+/// futures (timers, IO) to the waker of the task that last polled it, so any
+/// wake of the driver task means the runtime may have runnable work again.
+struct WokenAgain {
+    polled: bool,
+}
+
+impl Future for WokenAgain {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<()> {
+        if self.polled {
+            Poll::Ready(())
+        } else {
+            self.polled = true;
+            Poll::Pending
+        }
+    }
+}
+
+async fn drive_runtime(runtime: rquickjs::AsyncRuntime, driver: DriverController) {
     loop {
-        let Some(runtime) = runtime.try_ref() else {
-            return;
-        };
-
-        let step = execute_driver_step(&runtime, &driver).await;
-        drop(runtime);
-
-        match step {
-            DriverStep::Progressed | DriverStep::Pending => continue,
-            DriverStep::Idle => tokio::time::sleep(IDLE_POLL_INTERVAL).await,
+        match runtime.execute_pending_job().await {
+            Ok(true) => continue,
+            Ok(false) => {
+                // Nothing runnable right now. Park until something can change
+                // that: an explicit work notification from a foreground call,
+                // a schedular wake forwarded from a timer/IO/spawned future,
+                // or the defensive fallback tick.
+                tokio::select! {
+                    biased;
+                    _ = driver.inner.work_added.notified() => {}
+                    _ = (WokenAgain { polled: false }) => {}
+                    _ = tokio::time::sleep(FALLBACK_POLL_INTERVAL) => {}
+                }
+            }
+            Err(error) => {
+                let error = crate::runtime::job_error::async_job_context(error.0).await;
+                driver.push_error(error.to_string());
+            }
         }
     }
-}
-
-async fn execute_driver_step(
-    runtime: &rquickjs::AsyncRuntime,
-    driver: &DriverController,
-) -> DriverStep {
-    match tokio::time::timeout(IDLE_POLL_INTERVAL, runtime.execute_pending_job()).await {
-        Ok(Ok(true)) => DriverStep::Progressed,
-        Ok(Ok(false)) => DriverStep::Idle,
-        Ok(Err(error)) => {
-            let error = crate::runtime::job_error::async_job_context(error.0).await;
-            driver.push_error(error.to_string());
-            DriverStep::Progressed
-        }
-        Err(_) => DriverStep::Pending,
-    }
-}
-
-enum DriverStep {
-    Progressed,
-    Pending,
-    Idle,
 }
 
 enum StopAction {
@@ -185,7 +310,10 @@ impl Drop for DriverTaskGuard {
 
 impl DriverState {
     fn mark_idle(&self, task_id: u64) {
-        let mut lifecycle = self.lifecycle.lock().unwrap();
+        let mut lifecycle = self
+            .lifecycle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let matches_current_task = match &*lifecycle {
             DriverLifecycle::Running {
                 task_id: current, ..
@@ -203,7 +331,7 @@ impl DriverState {
 
 #[cfg(test)]
 mod tests {
-    use super::DriverController;
+    use super::{DriverController, DriverErrorSource, JsValueIdentity};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
@@ -222,6 +350,47 @@ mod tests {
         assert_eq!(errors.first().unwrap(), "error 8");
         assert_eq!(errors.last().unwrap(), "error 39");
         assert!(driver.drain_errors().is_empty());
+    }
+
+    #[test]
+    fn error_queue_removes_handled_error() {
+        let driver = DriverController::default();
+
+        let handled = DriverErrorSource::Promise(JsValueIdentity { tag: -1, bits: 1 });
+        let pending = DriverErrorSource::Promise(JsValueIdentity { tag: -1, bits: 2 });
+        driver.push_error_from(handled, "first".to_string());
+        driver.push_error_from(pending, "second".to_string());
+
+        driver.remove_error_source(handled);
+
+        assert_eq!(driver.drain_errors(), vec!["second"]);
+    }
+
+    #[test]
+    fn error_queue_removes_handled_source_without_matching_same_message() {
+        let driver = DriverController::default();
+        let foreground = DriverErrorSource::Promise(JsValueIdentity { tag: -1, bits: 1 });
+        let background = DriverErrorSource::Promise(JsValueIdentity { tag: -1, bits: 2 });
+
+        driver.push_error_from(background, "Error: same message".to_string());
+        driver.push_error_from(foreground, "Error: same message".to_string());
+
+        driver.remove_error_source(foreground);
+
+        assert_eq!(driver.drain_errors(), vec!["Error: same message"]);
+    }
+
+    #[test]
+    fn error_queue_remove_handled_source_keeps_older_entry_with_reused_identity() {
+        let driver = DriverController::default();
+        let identity = DriverErrorSource::Promise(JsValueIdentity { tag: -1, bits: 7 });
+
+        driver.push_error_from(identity, "stale promise error".to_string());
+        driver.push_error_from(identity, "new promise error".to_string());
+
+        driver.remove_error_source(identity);
+
+        assert_eq!(driver.drain_errors(), vec!["stale promise error"]);
     }
 
     #[tokio::test]

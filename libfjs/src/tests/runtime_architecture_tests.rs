@@ -3,7 +3,7 @@
 use crate::api::engine::JsEngine;
 use crate::api::error::JsResult;
 use crate::api::runtime::{JsAsyncContext, JsAsyncRuntime};
-use crate::api::source::{JsBuiltinOptions, JsCode};
+use crate::api::source::{JsBuiltinOptions, JsCode, JsModule};
 use crate::api::value::JsValue;
 use rquickjs::CatchResultExt;
 use std::sync::Arc;
@@ -201,8 +201,68 @@ async fn engine_background_driver_progresses_detached_timers_without_manual_pump
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn background_driver_wakes_for_timers_without_foreground_polling() {
+    let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+        .await
+        .unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .eval(
+            JsCode::Code(
+                r#"
+                globalThis.__timerStart = Date.now();
+                globalThis.__timerFiredAt = 0;
+                setTimeout(() => {
+                  globalThis.__timerFiredAt = Date.now();
+                }, 50);
+                'scheduled'
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    // No foreground traffic while the timer is pending: the driver must be
+    // woken by the runtime schedular itself, well before the 1s fallback tick.
+    tokio::time::sleep(Duration::from_millis(400)).await;
+
+    let elapsed = engine
+        .eval(
+            JsCode::Code(
+                "globalThis.__timerFiredAt > 0 \
+                 ? globalThis.__timerFiredAt - globalThis.__timerStart : -1"
+                    .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let ms = match elapsed {
+        JsValue::Integer(ms) => ms as f64,
+        JsValue::Float(ms) => ms,
+        other => panic!("unexpected eval result: {other:?}"),
+    };
+    assert!(
+        ms >= 0.0,
+        "detached timer did not fire during the idle window"
+    );
+    assert!(
+        ms < 350.0,
+        "detached timer fired too late ({ms} ms); driver was likely only \
+         woken by the fallback poll"
+    );
+
+    engine.close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn explicit_job_error_contains_original_javascript_exception() {
     let runtime = JsAsyncRuntime::new().unwrap();
+    runtime.stop_driver().await;
     let context = JsAsyncContext::from(&runtime).await.unwrap();
 
     context
@@ -255,7 +315,7 @@ async fn background_driver_errors_are_drainable() {
 
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
-        let errors = engine.drain_unhandled_job_errors().await.unwrap();
+        let errors = engine.drain_unhandled_job_errors();
         if errors
             .iter()
             .any(|error| error.contains("fjs background job failure"))
@@ -294,7 +354,7 @@ async fn background_driver_timer_callback_errors_are_drainable() {
 
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
-        let errors = engine.drain_unhandled_job_errors().await.unwrap();
+        let errors = engine.drain_unhandled_job_errors();
         if errors
             .iter()
             .any(|error| error.contains("fjs timer callback failure"))
@@ -306,6 +366,395 @@ async fn background_driver_timer_callback_errors_are_drainable() {
     }
 
     engine.close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn timer_callback_error_does_not_break_later_timers() {
+    let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+        .await
+        .unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .eval(
+            JsCode::Code(
+                r#"
+                setTimeout(() => {
+                  throw new Error('fjs recoverable timer failure');
+                }, 10);
+                'scheduled'
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let errors = engine.drain_unhandled_job_errors();
+        if errors
+            .iter()
+            .any(|error| error.contains("fjs recoverable timer failure"))
+        {
+            break;
+        }
+        assert!(Instant::now() < deadline, "timer error was not queued");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    engine
+        .eval(
+            JsCode::Code(
+                r#"
+                setTimeout(() => {
+                  globalThis.__fjsTimerRecovered = true;
+                }, 10);
+                'scheduled'
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let done = engine
+            .eval(
+                JsCode::Code("globalThis.__fjsTimerRecovered === true".to_string()),
+                None,
+            )
+            .await
+            .unwrap();
+        if matches!(done, JsValue::Boolean(true)) {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "runtime did not recover after timer callback error"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    engine.close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn interval_callback_error_does_not_break_later_ticks() {
+    let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+        .await
+        .unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .eval(
+            JsCode::Code(
+                r#"
+                globalThis.__fjsIntervalTicks = 0;
+                const interval = setInterval(() => {
+                  globalThis.__fjsIntervalTicks += 1;
+                  if (globalThis.__fjsIntervalTicks === 1) {
+                    throw new Error('fjs interval recoverable failure');
+                  }
+                  if (globalThis.__fjsIntervalTicks >= 3) {
+                    clearInterval(interval);
+                  }
+                }, 10);
+                'scheduled'
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let errors = engine.drain_unhandled_job_errors();
+        if errors
+            .iter()
+            .any(|error| error.contains("fjs interval recoverable failure"))
+        {
+            break;
+        }
+        assert!(Instant::now() < deadline, "interval error was not queued");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let ticks = engine
+            .eval(
+                JsCode::Code("globalThis.__fjsIntervalTicks".to_string()),
+                None,
+            )
+            .await
+            .unwrap();
+        if matches!(ticks, JsValue::Integer(value) if value >= 3) {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "interval did not continue after callback error"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    engine.close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_surfaces_unhandled_background_error_on_next_operation() {
+    let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+        .await
+        .unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .eval(
+            JsCode::Code(
+                r#"
+                setTimeout(() => {
+                  throw new Error('fjs automatic background error');
+                }, 10);
+                'scheduled'
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let error = loop {
+        match engine.eval(JsCode::Code("1 + 1".to_string()), None).await {
+            Ok(_) => {
+                assert!(
+                    Instant::now() < deadline,
+                    "background error was not surfaced automatically"
+                );
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            Err(error) => break error.to_string(),
+        }
+    };
+
+    assert!(error.contains("fjs automatic background error"));
+    engine.close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn detached_promise_error_caught_in_javascript_is_not_surfaced_to_dart() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .eval(
+            JsCode::Code(
+                r#"
+                Promise.resolve()
+                  .then(() => {
+                    throw new Error('fjs handled detached failure');
+                  })
+                  .catch((error) => {
+                    globalThis.__fjsHandledDetachedFailure = String(error);
+                  });
+                'scheduled'
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let result = engine
+            .eval(
+                JsCode::Code(
+                    "globalThis.__fjsHandledDetachedFailure?.includes('fjs handled detached failure') === true"
+                        .to_string(),
+                ),
+                None,
+            )
+            .await
+            .unwrap();
+        if matches!(result, JsValue::Boolean(true)) {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "JavaScript .catch() did not observe detached failure"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    engine
+        .eval(JsCode::Code("1 + 1".to_string()), None)
+        .await
+        .unwrap();
+    engine.close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_surfaces_unhandled_background_error() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .runtime_for_test()
+        .driver
+        .push_error("fjs close background error".to_string());
+
+    let error = engine.close().await.unwrap_err().to_string();
+    assert!(error.contains("fjs close background error"));
+    assert!(engine.closed());
+    assert!(!engine.driver_running().await.unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_surfaces_background_timer_error_raised_during_teardown() {
+    let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+        .await
+        .unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .eval(
+            JsCode::Code(
+                r#"
+                setTimeout(() => {
+                  throw new Error('fjs close teardown timer failure');
+                }, 10);
+                'scheduled'
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let error = engine.close().await.unwrap_err().to_string();
+    assert!(error.contains("fjs close teardown timer failure"));
+    assert!(engine.closed());
+    assert!(!engine.driver_running().await.unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_direct_eval_error_is_not_replayed_as_background_error() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    let error = engine
+        .eval(
+            JsCode::Code(
+                r#"
+                function recurse() {
+                  return recurse() + 1;
+                }
+                recurse();
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("Maximum call stack size exceeded"));
+
+    engine.close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_foreground_error_does_not_acknowledge_detached_background_promise_error() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    let error = engine
+        .eval(
+            JsCode::Code(
+                r#"
+                Promise.reject(new Error('fjs duplicate'));
+                throw new Error('fjs duplicate');
+                "#
+                .to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("fjs duplicate"));
+
+    let close_error = engine.close().await.unwrap_err().to_string();
+    assert!(close_error.contains("fjs duplicate"));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_call_rejected_promise_error_is_not_replayed_as_background_error() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .evaluate_module(JsModule::code(
+            "/foreground-call-error".to_string(),
+            "export async function run() { throw new Error('fjs call foreground failure'); }"
+                .to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let error = engine
+        .call(
+            "/foreground-call-error".to_string(),
+            "run".to_string(),
+            None,
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("fjs call foreground failure"));
+
+    engine.close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn async_context_eval_function_rejected_promise_error_is_not_replayed_as_background_error() {
+    let runtime = JsAsyncRuntime::create(
+        None,
+        Some(vec![JsModule::code(
+            "/foreground-context-error".to_string(),
+            "export async function run() { throw new Error('fjs context foreground failure'); }"
+                .to_string(),
+        )]),
+    )
+    .await
+    .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    let result = context
+        .eval_function(
+            "/foreground-context-error".to_string(),
+            "run".to_string(),
+            None,
+        )
+        .await;
+    let error = match result {
+        JsResult::Err(error) => error.to_string(),
+        JsResult::Ok(value) => panic!("expected foreground error, got {value:?}"),
+    };
+    assert!(error.contains("fjs context foreground failure"));
+
+    let result = context.eval("1 + 1".to_string()).await;
+    assert!(result.is_ok(), "foreground error was replayed: {result:?}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -341,6 +790,82 @@ async fn background_driver_raw_quickjs_job_errors_are_drainable() {
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
 
+    runtime.stop_driver().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn async_runtime_starts_background_driver_automatically() {
+    let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::essential()), None)
+        .await
+        .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    let scheduled = context
+        .eval(
+            r#"
+            setTimeout(() => {
+              globalThis.__fjsAutomaticDriverTimerDone = true;
+            }, 10);
+            "scheduled";
+            "#
+            .to_string(),
+        )
+        .await;
+    assert!(matches!(scheduled, JsResult::Ok(JsValue::String(ref value)) if value == "scheduled"));
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let mut fired = false;
+    while Instant::now() < deadline {
+        let result = context
+            .eval("globalThis.__fjsAutomaticDriverTimerDone === true".to_string())
+            .await;
+        if matches!(result, JsResult::Ok(JsValue::Boolean(true))) {
+            fired = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    runtime.idle().await;
+    assert!(fired, "automatic background driver did not fire timer");
+    runtime.stop_driver().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn async_context_surfaces_unhandled_background_error_automatically() {
+    let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::essential()), None)
+        .await
+        .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    let scheduled = context
+        .eval(
+            r#"
+            setTimeout(() => {
+              throw new Error('fjs context background error');
+            }, 10);
+            "scheduled";
+            "#
+            .to_string(),
+        )
+        .await;
+    assert!(matches!(scheduled, JsResult::Ok(JsValue::String(ref value)) if value == "scheduled"));
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let error = loop {
+        match context.eval("1 + 1".to_string()).await {
+            JsResult::Ok(_) => {
+                assert!(
+                    Instant::now() < deadline,
+                    "context background error was not surfaced automatically"
+                );
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            JsResult::Err(error) => break error.to_string(),
+        }
+    };
+
+    assert!(error.contains("fjs context background error"));
     runtime.stop_driver().await;
 }
 
