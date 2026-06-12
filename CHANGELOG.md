@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.0.0
+
+* **BREAKING**: `JsEngine`, `JsBytecode`, `JsRuntime`, `JsContext`, `JsAsyncRuntime`, and `JsAsyncContext` methods now throw a typed `JsError` instead of `AnyhowException`; catch with `on JsError` and match `code()` or the freezed variants
+* **BREAKING**: `JsError.memoryLimit` now carries a message string instead of `current`/`limit` byte counts (those fields were never populated)
+* **BREAKING**: `JsEngine.close()` now succeeds while `init()` is still in flight; the interrupted `init()` reports the failure instead
+* **FEATURE**: Real QuickJS exceptions are classified into structured `JsError` variants — `syntax` (with line/column), `type`, `reference`, `stackOverflow`, `memoryLimit` — with full message and stack text preserved
+* **FEATURE**: `rquickjs` error mapping now produces `conversion`, `module`, `io`, and `memoryLimit` variants instead of flattening everything into `runtime`
+* **FEATURE**: Added public `JsEngine.drainUnhandledJobErrors()` to observe background JavaScript failures without failing an unrelated engine call; works in every engine state, including after `close()`
+* **PERF**: Replaced the 5 ms background driver poll loop with an event-driven design (runtime schedular wakes + foreground notifications + 1 s defensive fallback); idle runtimes no longer consume CPU and detached timers fire on time
+* **PERF**: Bytecode bundle validation reuses a single scratch QuickJS runtime for all modules; engine bytecode evaluation/bundle paths no longer validate or decode payloads twice
+* **FIX**: Dropping `JsAsyncRuntime`/`JsAsyncContext` no longer blocks the calling thread (often the Dart main thread); cleanup now runs detached on the JS executor while `close()` stays deterministic
+* **FIX**: Lock poisoning in driver/module/engine state no longer panics across the FFI boundary; locks recover the inner state instead
+* **FIX**: Converting plain JavaScript objects no longer leaves a stale pending `TypeError` on the context (the previous `ArrayBuffer` probe threw internally for every non-ArrayBuffer object); detached `ArrayBuffer`/`TypedArray`/`DataView` values now raise a clear conversion error instead of silently producing empty bytes
+* **FIX**: Background error acknowledgements are bounded: a handled promise rejection only removes its own queued error, so a recycled promise address can no longer swallow an unrelated background failure
+* **INTERNAL**: Collapsed the six engine module declaration/evaluation methods into shared helpers; unified relative-specifier normalization; macro-ized typed-array byte extraction
+* **INTERNAL**: Regenerated Flutter Rust Bridge bindings with `flutter_rust_bridge_codegen 2.12.0`
+
 ## 2.2.0
 
 * **BREAKING**: Renamed runtime and engine factory APIs from `withOptions(...)` to `create(...)`

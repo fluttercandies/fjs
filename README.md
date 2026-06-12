@@ -118,17 +118,8 @@ print(functionResult.ok.value); // 5
 final availableModules = await context.getAvailableModules();
 print(availableModules);
 
-// Advance or fully drain pending async work when you need explicit control.
-if (await runtime.isJobPending()) {
-  await runtime.executePendingJob();
-}
-await runtime.idle();
-
-// Start the background driver when detached Promises, timers, fetches,
-// or spawned async work should keep moving without manual polling.
-await runtime.startDriver();
-
-// Prefer JavaScript .catch() for failures owned by detached JS work.
+// Detached Promise, timer, fetch, and spawned async work is driven automatically.
+// Prefer JavaScript .catch() for failures that are expected and owned by JS.
 await context.evalWithOptions(
   code: '''
     Promise.resolve()
@@ -138,22 +129,85 @@ await context.evalWithOptions(
   ''',
   options: JsEvalOptions.withPromise(),
 );
-
-// Drain the runtime safety net for unhandled detached Promise or timer errors.
-final unhandledErrors = await runtime.drainUnhandledJobErrors();
-for (final error in unhandledErrors) {
-  print(error);
-}
-
-await runtime.stopDriver();
 ```
 
 Low-level context APIs return `JsResult`, which is useful when you want structured success or error handling instead of exceptions.
-`JsEngine.init()` and `JsEngine.initWithoutBridge()` start the runtime driver
-automatically; `JsEngine.close()` stops it after draining pending work. Use
-JavaScript `.catch()` for expected detached work, and use
-`drainUnhandledJobErrors()` as the Dart-side safety net for failures that cannot
-return through the original `eval()` or `call()`.
+Detached JavaScript work is scheduled automatically. Use JavaScript `.catch()`
+for expected detached failures; unhandled background failures are surfaced on a
+later `eval()`, `call()`, low-level context operation, or `close()`. When you
+prefer to observe them without failing an unrelated call, drain them explicitly
+with `engine.drainUnhandledJobErrors()` (works in every engine state, including
+after `close()`).
+
+### Async Work and Error Handling
+
+Async runtimes own their background driver internally. Application code does not
+start, stop, poll, or drain the driver for normal use:
+
+```dart
+final engine = await JsEngine.create(
+  builtins: JsBuiltinOptions.web(),
+);
+await engine.initWithoutBridge();
+
+await engine.eval(source: const JsCode.code('''
+  setTimeout(() => {
+    globalThis.ready = true;
+  }, 10);
+  "scheduled";
+'''));
+
+// The timer above is advanced by FJS. Any later engine operation observes the
+// updated JS state after the timer fires.
+await Future<void>.delayed(const Duration(milliseconds: 20));
+final ready = await engine.eval(
+  source: const JsCode.code('globalThis.ready === true'),
+);
+print(ready.value); // true
+
+await engine.close();
+```
+
+If detached JavaScript work owns a failure path, catch it in JavaScript:
+
+```dart
+await engine.eval(source: const JsCode.code('''
+  async function runOptionalBackgroundTask() {
+    throw new Error("optional task failed");
+  }
+
+  Promise.resolve()
+    .then(() => runOptionalBackgroundTask())
+    .catch((error) => console.log(String(error)));
+  undefined;
+'''));
+```
+
+If detached work fails without a JavaScript `.catch()`, FJS stores the formatted
+QuickJS error in a bounded runtime queue and surfaces it automatically through a
+later public operation:
+
+```dart
+await engine.eval(source: const JsCode.code('''
+  setTimeout(() => {
+    throw new Error("background task failed");
+  }, 10);
+  "scheduled";
+'''));
+
+await Future<void>.delayed(const Duration(milliseconds: 20));
+try {
+  await engine.eval(source: const JsCode.code('1 + 1'));
+} catch (error) {
+  // Contains "Unhandled JavaScript background error" and the original JS stack.
+  print(error);
+}
+```
+
+This keeps the user-facing lifecycle small: create an engine, run JavaScript,
+and call `close()` when the owner is done. Lower-level async runtime/context
+users still get the same automatic driver behavior; Dart application code does
+not start, stop, poll, or drain that driver.
 
 ### Synchronous Runtime & Context
 
@@ -447,15 +501,25 @@ const syntaxError = JsError.syntax(
 print(syntaxError.code());
 print(syntaxError.isRecoverable());
 
-// High-level execution APIs still throw AnyhowException on failure.
+// High-level execution APIs throw a typed JsError on failure, classified
+// from the real QuickJS exception (SyntaxError, TypeError, ReferenceError,
+// stack overflow, memory limit, ...), including line/column and stack text.
 try {
   await engine.eval(source: JsCode.code('invalid.code()'));
-} on AnyhowException catch (e) {
-  print('Execution failed: ${e.message}');
+} on JsError catch (e) {
+  print('Execution failed [${e.code()}]: $e');
+  switch (e) {
+    case JsError_Syntax(:final line, :final column):
+      print('Syntax error at $line:$column');
+    case JsError_Reference():
+      print('Reference error');
+    default:
+      break;
+  }
 }
 ```
 
-`JsError` is returned inside `JsResult.err(...)` for structured bridge and low-level context results. Public execution APIs like `eval()` and `call()` currently surface Rust-side failures as `AnyhowException`.
+`JsError` is used everywhere: thrown by `JsEngine`/`JsBytecode` methods and returned inside `JsResult.err(...)` by low-level context APIs and the bridge. Use `code()` for stable programmatic matching or pattern-match the freezed variants.
 
 ## 🌉 Bridge Communication
 
@@ -507,13 +571,6 @@ abstract class JsAsyncRuntime {
     List<JsModule>? modules,
   });
 
-  Future<bool> isJobPending();
-  Future<bool> executePendingJob();
-  Future<void> idle();
-  Future<void> startDriver();
-  Future<void> stopDriver();
-  Future<bool> driverRunning();
-  Future<List<String>> drainUnhandledJobErrors();
   Future<MemoryUsage> memoryUsage();
   Future<void> setMemoryLimit({required BigInt limit});
   Future<void> setGcThreshold({required BigInt threshold});
@@ -601,17 +658,13 @@ abstract class JsEngine {
   Future<JsValue> evaluateBytecodeModule({required JsModuleBytecode module});
   Future<JsValue> evaluateScriptBytecode({required JsScriptBytecode script});
 
-  Future<bool> executePendingJob();
-  Future<void> idle();
-  Future<bool> isJobPending();
-  Future<bool> driverRunning();
-  Future<List<String>> drainUnhandledJobErrors();
   Future<MemoryUsage> memoryUsage();
   Future<void> runGc();
   Future<void> setGcThreshold({required BigInt threshold});
   Future<void> setInfo({required String info});
   Future<void> setMaxStackSize({required BigInt limit});
   Future<void> setMemoryLimit({required BigInt limit});
+  List<String> drainUnhandledJobErrors(); // background JS failures; usable in every state
   Future<void> close(); // drains pending runtime work, then runs GC
   bool get running;
   bool get closed;
@@ -640,6 +693,8 @@ abstract class MemoryUsage {
   PlatformInt64 get mallocSize;
   PlatformInt64 get objCount;
   PlatformInt64 get strCount;
+  // ... plus detailed counters: atomCount/Size, shapeCount/Size, propCount/Size,
+  // jsFuncCount/Size, arrayCount, fastArrayCount, binaryObjectCount/Size, etc.
   String summary();
 }
 ```
@@ -664,6 +719,13 @@ sealed class JsValue {
   static JsValue from(Object? any);
   String typeName();
   dynamic get value;
+
+  // Variant tests and typed accessors.
+  bool isNone() / isBoolean() / isNumber() / isString() / isBytes()
+       / isArray() / isObject() / isDate() / isPrimitive();
+  bool? get asBoolean; PlatformInt64? get asInteger; double? get asFloat;
+  String? get asBigint; String? get asString; Uint8List? get asBytes;
+  List<JsValue>? get asArray; Map<String, JsValue>? get asObject; num? get asNum;
 }
 ```
 
@@ -715,6 +777,8 @@ sealed class JsCode {
   const factory JsCode.code(String value);    // Inline code
   const factory JsCode.path(String value);    // File path
   const factory JsCode.bytes(Uint8List value); // Raw UTF-8 source bytes
+
+  bool isCode() / isPath() / isBytes();
 }
 
 sealed class JsModule {
@@ -837,10 +901,7 @@ sealed class JsError {
     required String operation,
     required BigInt timeoutMs,
   });
-  const factory JsError.memoryLimit({
-    required BigInt current,
-    required BigInt limit,
-  });
+  const factory JsError.memoryLimit(String message);
   const factory JsError.stackOverflow(String message);
   const factory JsError.syntax({int? line, int? column, required String message});
   const factory JsError.reference(String message);
@@ -849,6 +910,7 @@ sealed class JsError {
 
   String code();
   bool isRecoverable();
+  String toString(); // formatted message including stack text when available
 }
 ```
 

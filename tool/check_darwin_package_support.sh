@@ -45,6 +45,9 @@ require_contains() {
   grep -F -- "$text" "$file" >/dev/null || fail "$file does not contain: $text"
 }
 
+PACKAGE_VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
+[ -n "$PACKAGE_VERSION" ] || fail "unable to read package version from pubspec.yaml"
+
 require_file "darwin/fjs/Package.swift"
 require_file "darwin/fjs.podspec"
 require_file "darwin/fjs/Binaries/.gitkeep"
@@ -70,14 +73,21 @@ require_contains "tool/build_fjs_xcframework.sh" "swift package compute-checksum
 require_contains "tool/prepare_darwin_release.sh" "--require-xcframework"
 require_contains "tool/prepare_darwin_release.sh" "flutter pub publish --dry-run"
 require_contains ".gitignore" "/darwin/fjs/Binaries/fjs.xcframework/"
-require_contains ".pubignore" "/docs/superpowers/"
+require_contains ".pubignore" "/docs/"
+require_contains "darwin/fjs.podspec" "s.version          = '$PACKAGE_VERSION'"
+require_contains "ios/fjs.podspec" "s.version          = '$PACKAGE_VERSION'"
+require_contains "macos/fjs.podspec" "s.version          = '$PACKAGE_VERSION'"
+require_contains "tool/build_fjs_xcframework.sh" "PACKAGE_VERSION="
+require_contains "tool/build_fjs_xcframework.sh" "BUNDLE_SHORT_VERSION="
+require_contains "tool/build_fjs_xcframework.sh" "BUNDLE_VERSION="
+require_contains "tool/build_fjs_xcframework.sh" "<string>\$BUNDLE_SHORT_VERSION</string>"
+require_contains "tool/build_fjs_xcframework.sh" "<string>\$BUNDLE_VERSION</string>"
 if grep -F "/release/release" tool/build_fjs_xcframework.sh >/dev/null; then
   fail "tool/build_fjs_xcframework.sh contains duplicate release path segments"
 fi
 if grep -F "fjs.xcframework" .pubignore >/dev/null; then
   fail ".pubignore must not exclude fjs.xcframework; SwiftPM needs it in pub archives"
 fi
-require_contains "macos/fjs.podspec" "s.version          = '2.2.0'"
 
 if [ "$REQUIRE_XCFRAMEWORK" -eq 1 ]; then
   [ -d "darwin/fjs/Binaries/fjs.xcframework" ] ||
