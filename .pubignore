@@ -23,7 +23,7 @@ migrate_working_dir/
 build/
 
 # Internal planning artifacts are useful in Git but not in the pub package.
-/docs/superpowers/
+/docs/
 
 # Third-party dependencies (local clones)
 third/

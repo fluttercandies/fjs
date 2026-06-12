@@ -118,17 +118,8 @@ print(functionResult.ok.value); // 5
 final availableModules = await context.getAvailableModules();
 print(availableModules);
 
-// 在需要显式调度时，推进或彻底 drain runtime 中的异步工作。
-if (await runtime.isJobPending()) {
-  await runtime.executePendingJob();
-}
-await runtime.idle();
-
-// 如果需要让游离 Promise、timer、fetch 或其他后台异步任务自动推进，
-// 可以启动后台 driver，避免宿主侧手动轮询。
-await runtime.startDriver();
-
-// JS 自己负责的后台任务，优先在 JavaScript 里使用 .catch() 处理失败。
+// 游离 Promise、timer、fetch 和其他后台异步任务会自动推进。
+// 对预期内、由 JS 自己负责的失败，优先在 JavaScript 里使用 .catch()。
 await context.evalWithOptions(
   code: '''
     Promise.resolve()
@@ -138,22 +129,82 @@ await context.evalWithOptions(
   ''',
   options: JsEvalOptions.withPromise(),
 );
-
-// 对没有被 JS .catch() 捕获的游离 Promise 或 timer 错误，
-// Dart 侧可以 drain 运行时的兜底错误队列。
-final unhandledErrors = await runtime.drainUnhandledJobErrors();
-for (final error in unhandledErrors) {
-  print(error);
-}
-
-await runtime.stopDriver();
 ```
 
 底层 context API 返回的是 `JsResult`，适合你需要结构化成功/失败结果，而不是直接依赖异常的场景。
-`JsEngine.init()` 和 `JsEngine.initWithoutBridge()` 会自动启动 runtime
-driver；`JsEngine.close()` 会在 drain 待处理任务后停止 driver。预期内的后台 JS
-任务失败应优先用 JavaScript `.catch()` 处理，`drainUnhandledJobErrors()` 是 Dart
-侧的兜底通道，用来收集无法通过原始 `eval()` 或 `call()` 返回的未处理异步错误。
+后台 JavaScript 任务会自动调度。预期内的后台失败应优先用 JavaScript `.catch()`
+处理；未处理的后台错误会在后续 `eval()`、`call()`、底层 context 操作或 `close()`
+时自动暴露。如果你希望只做日志记录而不影响正常调用，可以主动调用
+`engine.drainUnhandledJobErrors()` 取走这些错误（任何引擎状态下都可用，包括
+`close()` 之后）。
+
+### 异步任务与错误处理
+
+异步 runtime 会在内部管理后台 driver。正常业务代码不需要启动、停止、轮询或 drain
+这个 driver：
+
+```dart
+final engine = await JsEngine.create(
+  builtins: JsBuiltinOptions.web(),
+);
+await engine.initWithoutBridge();
+
+await engine.eval(source: const JsCode.code('''
+  setTimeout(() => {
+    globalThis.ready = true;
+  }, 10);
+  "scheduled";
+'''));
+
+// 上面的 timer 会由 FJS 自动推进。timer 触发后，后续任意 engine 操作都能观察到
+// 更新后的 JS 状态。
+await Future<void>.delayed(const Duration(milliseconds: 20));
+final ready = await engine.eval(
+  source: const JsCode.code('globalThis.ready === true'),
+);
+print(ready.value); // true
+
+await engine.close();
+```
+
+如果某个游离的 JavaScript 任务自己拥有失败路径，应在 JavaScript 里捕获：
+
+```dart
+await engine.eval(source: const JsCode.code('''
+  async function runOptionalBackgroundTask() {
+    throw new Error("optional task failed");
+  }
+
+  Promise.resolve()
+    .then(() => runOptionalBackgroundTask())
+    .catch((error) => console.log(String(error)));
+  undefined;
+'''));
+```
+
+如果游离任务失败但没有 JavaScript `.catch()`，FJS 会把格式化后的 QuickJS 错误放入
+runtime 的有界队列，并在后续 public 操作中自动暴露：
+
+```dart
+await engine.eval(source: const JsCode.code('''
+  setTimeout(() => {
+    throw new Error("background task failed");
+  }, 10);
+  "scheduled";
+'''));
+
+await Future<void>.delayed(const Duration(milliseconds: 20));
+try {
+  await engine.eval(source: const JsCode.code('1 + 1'));
+} catch (error) {
+  // 包含 "Unhandled JavaScript background error" 和原始 JS stack。
+  print(error);
+}
+```
+
+这样用户侧生命周期保持很小：创建 engine，执行 JavaScript，owner 结束时调用
+`close()`。如果使用更底层的异步 runtime/context，也会得到相同的自动 driver 行为；
+Dart 应用代码不需要启动、停止、轮询或 drain 这个 driver。
 
 ### 同步 Runtime 与 Context
 
@@ -447,15 +498,25 @@ const syntaxError = JsError.syntax(
 print(syntaxError.code());
 print(syntaxError.isRecoverable());
 
-// 高层执行 API 失败时仍然会抛 AnyhowException。
+// 高层执行 API 失败时抛出类型化的 JsError，会根据真实的 QuickJS 异常
+// 分类（SyntaxError、TypeError、ReferenceError、栈溢出、内存上限等），
+// 并携带行列号和调用栈文本。
 try {
   await engine.eval(source: JsCode.code('invalid.code()'));
-} on AnyhowException catch (e) {
-  print('执行失败: ${e.message}');
+} on JsError catch (e) {
+  print('执行失败 [${e.code()}]: $e');
+  switch (e) {
+    case JsError_Syntax(:final line, :final column):
+      print('语法错误位于 $line:$column');
+    case JsError_Reference():
+      print('引用错误');
+    default:
+      break;
+  }
 }
 ```
 
-`JsError` 主要出现在 `JsResult.err(...)`、bridge 返回值和底层 context 结果里。`eval()`、`call()` 这类公开执行 API 当前抛出的 Rust 侧失败会表现为 `AnyhowException`。
+`JsError` 贯穿所有 API：`JsEngine`/`JsBytecode` 的方法失败时直接抛出，底层 context API 和 bridge 则通过 `JsResult.err(...)` 返回。可以用 `code()` 做稳定的程序化匹配，也可以直接对 freezed 变体做模式匹配。
 
 ## 🌉 桥接通信
 
@@ -507,13 +568,6 @@ abstract class JsAsyncRuntime {
     List<JsModule>? modules,
   });
 
-  Future<bool> isJobPending();
-  Future<bool> executePendingJob();
-  Future<void> idle();
-  Future<void> startDriver();
-  Future<void> stopDriver();
-  Future<bool> driverRunning();
-  Future<List<String>> drainUnhandledJobErrors();
   Future<MemoryUsage> memoryUsage();
   Future<void> setMemoryLimit({required BigInt limit});
   Future<void> setGcThreshold({required BigInt threshold});
@@ -601,17 +655,13 @@ abstract class JsEngine {
   Future<JsValue> evaluateBytecodeModule({required JsModuleBytecode module});
   Future<JsValue> evaluateScriptBytecode({required JsScriptBytecode script});
 
-  Future<bool> executePendingJob();
-  Future<void> idle();
-  Future<bool> isJobPending();
-  Future<bool> driverRunning();
-  Future<List<String>> drainUnhandledJobErrors();
   Future<MemoryUsage> memoryUsage();
   Future<void> runGc();
   Future<void> setGcThreshold({required BigInt threshold});
   Future<void> setInfo({required String info});
   Future<void> setMaxStackSize({required BigInt limit});
   Future<void> setMemoryLimit({required BigInt limit});
+  List<String> drainUnhandledJobErrors(); // 后台 JS 错误；任何状态下都可调用
   Future<void> close(); // 会推进待处理的 runtime 工作，然后执行 GC
   bool get running;
   bool get closed;
@@ -640,6 +690,8 @@ abstract class MemoryUsage {
   PlatformInt64 get mallocSize;
   PlatformInt64 get objCount;
   PlatformInt64 get strCount;
+  // ... 还有更细的计数器：atomCount/Size、shapeCount/Size、propCount/Size、
+  // jsFuncCount/Size、arrayCount、fastArrayCount、binaryObjectCount/Size 等
   String summary();
 }
 ```
@@ -664,6 +716,13 @@ sealed class JsValue {
   static JsValue from(Object? any);
   String typeName();
   dynamic get value;
+
+  // 变体判断与类型化访问器。
+  bool isNone() / isBoolean() / isNumber() / isString() / isBytes()
+       / isArray() / isObject() / isDate() / isPrimitive();
+  bool? get asBoolean; PlatformInt64? get asInteger; double? get asFloat;
+  String? get asBigint; String? get asString; Uint8List? get asBytes;
+  List<JsValue>? get asArray; Map<String, JsValue>? get asObject; num? get asNum;
 }
 ```
 
@@ -715,6 +774,8 @@ sealed class JsCode {
   const factory JsCode.code(String value);    // 内联代码
   const factory JsCode.path(String value);    // 文件路径
   const factory JsCode.bytes(Uint8List value); // UTF-8 源码字节
+
+  bool isCode() / isPath() / isBytes();
 }
 
 sealed class JsModule {
@@ -837,10 +898,7 @@ sealed class JsError {
     required String operation,
     required BigInt timeoutMs,
   });
-  const factory JsError.memoryLimit({
-    required BigInt current,
-    required BigInt limit,
-  });
+  const factory JsError.memoryLimit(String message);
   const factory JsError.stackOverflow(String message);
   const factory JsError.syntax({int? line, int? column, required String message});
   const factory JsError.reference(String message);
@@ -849,6 +907,7 @@ sealed class JsError {
 
   String code();
   bool isRecoverable();
+  String toString(); // 格式化消息，可用时包含调用栈文本
 }
 ```
 

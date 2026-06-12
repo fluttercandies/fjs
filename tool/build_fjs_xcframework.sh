@@ -71,6 +71,25 @@ case "$CONFIGURATION" in
 esac
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+PACKAGE_VERSION="$(sed -n 's/^version:[[:space:]]*//p' "$ROOT_DIR/pubspec.yaml" | head -n 1)"
+if [ -z "$PACKAGE_VERSION" ]; then
+  echo "error: unable to read package version from pubspec.yaml" >&2
+  exit 1
+fi
+BUNDLE_SHORT_VERSION="${PACKAGE_VERSION%%+*}"
+if [ "$BUNDLE_SHORT_VERSION" = "$PACKAGE_VERSION" ]; then
+  BUNDLE_VERSION="$PACKAGE_VERSION"
+else
+  BUNDLE_VERSION="${PACKAGE_VERSION#*+}"
+fi
+if ! printf '%s\n' "$BUNDLE_SHORT_VERSION" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$'; then
+  echo "error: pubspec version '$PACKAGE_VERSION' has Apple-incompatible marketing version '$BUNDLE_SHORT_VERSION'" >&2
+  exit 1
+fi
+if ! printf '%s\n' "$BUNDLE_VERSION" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$'; then
+  echo "error: pubspec version '$PACKAGE_VERSION' has Apple-incompatible build version '$BUNDLE_VERSION'" >&2
+  exit 1
+fi
 if [ -z "$OUTPUT_DIR" ]; then
   OUTPUT_DIR="$ROOT_DIR/darwin/fjs/Binaries"
 fi
@@ -171,9 +190,9 @@ create_framework() {
   <key>CFBundlePackageType</key>
   <string>FMWK</string>
   <key>CFBundleShortVersionString</key>
-  <string>2.2.0</string>
+  <string>$BUNDLE_SHORT_VERSION</string>
   <key>CFBundleVersion</key>
-  <string>2.2.0</string>
+  <string>$BUNDLE_VERSION</string>
   <key>MinimumOSVersion</key>
   <string>$minimum_os_version</string>
 </dict>

@@ -12,7 +12,11 @@
 /// - **Bidirectional Communication**: Call JavaScript from Dart and Dart from JavaScript
 /// - **Memory Management**: Fine-grained control over memory usage and garbage collection
 /// - **Type Safety**: Type-safe conversion between Dart and JavaScript values
-/// - **Error Handling**: Comprehensive error reporting and debugging capabilities
+/// - **Automatic Async Work**: Detached timers, Promises, fetches, and spawned JS work are driven internally
+/// - **Error Handling**: Foreground failures throw a typed [JsError] classified from the real QuickJS
+///   exception (syntax/type/reference/stack-overflow/memory-limit, with line, column, and stack text);
+///   unhandled background JS errors surface on the next public operation, on `close()`, or via
+///   `drainUnhandledJobErrors()`
 ///
 /// ## Basic Usage
 ///
@@ -33,7 +37,14 @@
 /// );
 ///
 /// print('Random number: ${result.value}');
+///
+/// await engine.close();
 /// ```
+///
+/// Detached asynchronous JavaScript work is scheduled automatically after
+/// `JsEngine.init()` or `JsEngine.initWithoutBridge()`. Use JavaScript
+/// `.catch()` for expected detached failures. Unhandled background failures are
+/// reported by a later `eval()`, `call()`, context operation, or `close()`.
 ///
 /// ## Module Usage
 ///
