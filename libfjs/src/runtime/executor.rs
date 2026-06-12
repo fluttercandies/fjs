@@ -1,6 +1,5 @@
 use std::future::Future;
 use std::sync::OnceLock;
-use std::sync::mpsc;
 
 pub(crate) const JS_THREAD_STACK_SIZE: usize = 8 * 1024 * 1024;
 
@@ -35,21 +34,4 @@ where
     F::Output: Send + 'static,
 {
     runtime().spawn(future)
-}
-
-pub(crate) fn block_on_js<F, R>(future: F) -> R
-where
-    F: Future<Output = R> + Send + 'static,
-    R: Send + 'static,
-{
-    if std::thread::current().name() == Some("fjs-js") {
-        return futures::executor::block_on(future);
-    }
-
-    let (tx, rx) = mpsc::sync_channel(1);
-    runtime().spawn(async move {
-        let _ = tx.send(future.await);
-    });
-    rx.recv()
-        .expect("fjs JavaScript executor task terminated before sending a result")
 }

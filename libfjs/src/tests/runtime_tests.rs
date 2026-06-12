@@ -381,7 +381,7 @@ async fn test_async_runtime_idle() {
 }
 
 #[tokio::test]
-async fn test_async_context_eval_does_not_implicitly_idle_runtime() {
+async fn test_async_context_eval_progresses_detached_timer_automatically() {
     let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::essential()), None)
         .await
         .unwrap();
@@ -404,14 +404,22 @@ async fn test_async_context_eval_does_not_implicitly_idle_runtime() {
         other => panic!("Expected string result, got {other:?}"),
     }
 
-    assert!(runtime.is_job_pending().await);
-
-    let before_idle = context
-        .eval("globalThis.__fjs_timer_fired ?? false".to_string())
-        .await;
-    match before_idle {
-        crate::api::error::JsResult::Ok(JsValue::Boolean(false)) => {}
-        other => panic!("Expected timer to be pending before idle, got {other:?}"),
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        let result = context
+            .eval("globalThis.__fjs_timer_fired === true".to_string())
+            .await;
+        if matches!(
+            result,
+            crate::api::error::JsResult::Ok(JsValue::Boolean(true))
+        ) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "automatic runtime driver did not fire timer"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
 
     runtime.idle().await;
