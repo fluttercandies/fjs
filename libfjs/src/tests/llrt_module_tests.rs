@@ -18,13 +18,13 @@ macro_rules! test_llrt_module {
         #[tokio::test]
         async fn $name() {
             let result = eval_llrt_module($code.to_string()).await;
-            let check_fn: fn(Result<JsValue, anyhow::Error>) = $check;
+            let check_fn: fn(Result<JsValue, crate::api::error::JsError>) = $check;
             check_fn(result);
         }
     };
 }
 
-async fn eval_llrt_module(code: String) -> Result<JsValue, anyhow::Error> {
+async fn eval_llrt_module(code: String) -> Result<JsValue, crate::api::error::JsError> {
     let engine = JsEngine::create(Some(JsBuiltinOptions::all()), None, None).await?;
     engine.init_without_bridge().await?;
 

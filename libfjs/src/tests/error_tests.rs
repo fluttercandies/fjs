@@ -125,7 +125,7 @@ fn test_error_timeout() {
 
 #[test]
 fn test_error_memory_limit() {
-    let err = JsError::memory_limit(16 * 1024 * 1024, 8 * 1024 * 1024);
+    let err = JsError::memory_limit("out of memory");
     assert_eq!(err.code(), "MEMORY_LIMIT_ERROR");
     assert!(!err.is_recoverable());
 }
@@ -337,7 +337,7 @@ fn test_all_error_codes_unique() {
         JsError::bridge(""),
         JsError::conversion("", "", ""),
         JsError::timeout("", 0),
-        JsError::memory_limit(0, 0),
+        JsError::memory_limit(""),
         JsError::StackOverflow("".to_string()),
         JsError::syntax(None, None, ""),
         JsError::reference(""),
@@ -378,7 +378,135 @@ fn test_non_recoverable_errors() {
     assert!(!JsError::context("").is_recoverable());
     assert!(!JsError::storage("").is_recoverable());
     assert!(!JsError::engine("").is_recoverable());
-    assert!(!JsError::memory_limit(0, 0).is_recoverable());
+    assert!(!JsError::memory_limit("").is_recoverable());
     assert!(!JsError::StackOverflow("".to_string()).is_recoverable());
     assert!(!JsError::cancelled("").is_recoverable());
+}
+
+// ============================================================================
+// Structured Classification of Real QuickJS Errors
+// ============================================================================
+
+fn eval_err(code: &str) -> JsError {
+    let runtime = crate::api::runtime::JsRuntime::new().unwrap();
+    let context = crate::api::runtime::JsContext::from(&runtime).unwrap();
+    match context.eval(code.to_string()) {
+        JsResult::Err(err) => err,
+        JsResult::Ok(value) => panic!("expected error, got {value:?}"),
+    }
+}
+
+#[test]
+fn test_classify_reference_error() {
+    let err = eval_err("definitely_not_defined_anywhere");
+    let JsError::Reference(message) = &err else {
+        panic!("expected Reference, got {err:?}");
+    };
+    assert!(message.contains("definitely_not_defined_anywhere"));
+    assert!(message.contains("not defined"));
+}
+
+#[test]
+fn test_classify_type_error() {
+    let err = eval_err("null.someProperty");
+    let JsError::Type(message) = &err else {
+        panic!("expected Type, got {err:?}");
+    };
+    assert!(message.contains("null"));
+}
+
+#[test]
+fn test_classify_syntax_error_with_position() {
+    let err = eval_err("let let = 1;");
+    let JsError::Syntax { line, message, .. } = &err else {
+        panic!("expected Syntax, got {err:?}");
+    };
+    assert_eq!(*line, Some(1));
+    assert!(!message.is_empty());
+}
+
+#[test]
+fn test_classify_stack_overflow() {
+    let runtime = crate::api::runtime::JsRuntime::new().unwrap();
+    runtime.set_max_stack_size(256 * 1024);
+    let context = crate::api::runtime::JsContext::from(&runtime).unwrap();
+    let result = context.eval("function recurse() { return recurse(); } recurse();".to_string());
+    let JsResult::Err(err) = result else {
+        panic!("expected error");
+    };
+    assert!(
+        matches!(err, JsError::StackOverflow(_)),
+        "expected StackOverflow, got {err:?}"
+    );
+}
+
+#[test]
+fn test_classify_thrown_error_object_keeps_name_and_stack() {
+    let err = eval_err("function boom() { throw new Error('kaboom'); } boom();");
+    let JsError::Runtime(message) = &err else {
+        panic!("expected Runtime, got {err:?}");
+    };
+    assert!(message.contains("Error: kaboom"), "message: {message}");
+    assert!(message.contains("boom"), "stack missing: {message}");
+}
+
+#[test]
+fn test_classify_thrown_non_error_value() {
+    let err = eval_err("throw 42;");
+    let JsError::Runtime(message) = &err else {
+        panic!("expected Runtime, got {err:?}");
+    };
+    assert!(message.contains("42"));
+}
+
+#[test]
+fn test_classify_custom_error_subclass() {
+    let err =
+        eval_err("class MyError extends TypeError {}\nthrow new MyError('custom type failure');");
+    let JsError::Type(message) = &err else {
+        panic!("expected Type for TypeError subclass, got {err:?}");
+    };
+    assert!(message.contains("custom type failure"));
+}
+
+#[test]
+fn test_classify_memory_limit() {
+    let runtime = crate::api::runtime::JsRuntime::new().unwrap();
+    runtime.set_memory_limit(512 * 1024);
+    let context = crate::api::runtime::JsContext::from(&runtime).unwrap();
+    let result = context.eval(
+        "const chunks = []; while (true) { chunks.push(new Array(65536).fill('x')); }".to_string(),
+    );
+    let JsResult::Err(err) = result else {
+        panic!("expected error");
+    };
+    assert!(
+        matches!(err, JsError::MemoryLimit(_)),
+        "expected MemoryLimit, got {err:?}"
+    );
+}
+
+#[test]
+fn test_classify_rquickjs_conversion_error() {
+    let err: JsError = rquickjs::Error::FromJs {
+        from: "string",
+        to: "u32",
+        message: Some("number too large".to_string()),
+    }
+    .into();
+    let JsError::Conversion { from, to, message } = &err else {
+        panic!("expected Conversion, got {err:?}");
+    };
+    assert_eq!(from, "string");
+    assert_eq!(to, "u32");
+    assert!(message.contains("number too large"));
+}
+
+#[test]
+fn test_classify_rquickjs_loading_error() {
+    let err: JsError = rquickjs::Error::new_loading_message("missing-module", "not found").into();
+    let JsError::Module { module, .. } = &err else {
+        panic!("expected Module, got {err:?}");
+    };
+    assert_eq!(module.as_deref(), Some("missing-module"));
 }

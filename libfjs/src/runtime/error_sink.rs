@@ -41,10 +41,6 @@ pub(crate) fn format_caught_error<'js>(ctx: &Ctx<'js>, error: CaughtError<'js>) 
     }
 }
 
-pub(crate) fn format_caught_exception<'js>(ctx: &Ctx<'js>) -> String {
-    format_value(ctx, ctx.catch())
-}
-
 pub(crate) fn format_value<'js>(ctx: &Ctx<'js>, value: Value<'js>) -> String {
     if let Some(exception) = value.clone().into_object().and_then(Exception::from_object) {
         return exception.to_string();

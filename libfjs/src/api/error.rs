@@ -61,12 +61,7 @@ pub enum JsError {
         timeout_ms: u64,
     },
     /// Memory limit exceeded errors
-    MemoryLimit {
-        /// Current memory usage in bytes
-        current: u64,
-        /// Memory limit in bytes
-        limit: u64,
-    },
+    MemoryLimit(String),
     /// Stack overflow errors
     StackOverflow(String),
     /// Syntax errors in JavaScript code
@@ -269,15 +264,14 @@ impl JsError {
     ///
     /// ## Parameters
     ///
-    /// - `current`: Current memory usage in bytes
-    /// - `limit`: Memory limit in bytes
+    /// - `msg`: Error message describing the memory limit failure
     ///
     /// ## Returns
     ///
     /// A `JsError::MemoryLimit` instance
     #[frb(ignore)]
-    pub fn memory_limit(current: u64, limit: u64) -> Self {
-        JsError::MemoryLimit { current, limit }
+    pub fn memory_limit<S: Into<String>>(msg: S) -> Self {
+        JsError::MemoryLimit(msg.into())
     }
 
     /// Creates a new syntax error.
@@ -450,6 +444,132 @@ impl JsError {
             | JsError::Cancelled(_) => false,
         }
     }
+
+    /// Classifies a caught QuickJS error into a structured `JsError`.
+    ///
+    /// Exception objects are classified by their JavaScript `name` property
+    /// (`SyntaxError`, `TypeError`, ...), with line/column information parsed
+    /// from the stack trace when available. The full message and stack text
+    /// are preserved in the error message.
+    #[frb(ignore)]
+    pub(crate) fn from_caught<'js>(
+        ctx: &rquickjs::Ctx<'js>,
+        error: rquickjs::CaughtError<'js>,
+    ) -> Self {
+        match error {
+            rquickjs::CaughtError::Exception(exception) => Self::from_exception(ctx, &exception),
+            rquickjs::CaughtError::Value(value) => Self::from_thrown_value(ctx, value),
+            rquickjs::CaughtError::Error(error) => error.into(),
+        }
+    }
+
+    /// Classifies the currently pending exception on the context.
+    #[frb(ignore)]
+    pub(crate) fn from_pending_exception(ctx: &rquickjs::Ctx<'_>) -> Self {
+        Self::from_thrown_value(ctx, ctx.catch())
+    }
+
+    /// Classifies an arbitrary thrown JavaScript value.
+    #[frb(ignore)]
+    pub(crate) fn from_thrown_value<'js>(
+        ctx: &rquickjs::Ctx<'js>,
+        value: rquickjs::Value<'js>,
+    ) -> Self {
+        use rquickjs::FromJs;
+
+        if let Some(exception) = value
+            .clone()
+            .into_object()
+            .and_then(rquickjs::Exception::from_object)
+        {
+            return Self::from_exception(ctx, &exception);
+        }
+
+        let message = rquickjs::convert::Coerced::<String>::from_js(ctx, value.clone())
+            .map(|coerced| coerced.0)
+            .unwrap_or_else(|_| {
+                // Coercion may have left its own exception pending (e.g. a
+                // throwing `toString`); clear it so later context operations
+                // do not misattribute it.
+                let _ = ctx.catch();
+                format!("{value:?}")
+            });
+        JsError::Runtime(message)
+    }
+
+    #[frb(ignore)]
+    fn from_exception<'js>(ctx: &rquickjs::Ctx<'js>, exception: &rquickjs::Exception<'js>) -> Self {
+        let name = exception
+            .as_object()
+            .get::<_, Option<rquickjs::convert::Coerced<String>>>("name")
+            .ok()
+            .flatten()
+            .map(|coerced| coerced.0)
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| "Error".to_string());
+        let message = exception.message().unwrap_or_default();
+        let stack = exception
+            .stack()
+            .map(|stack| stack.trim_end().to_string())
+            .filter(|stack| !stack.is_empty());
+        // Throwing `name`/`message`/`stack` accessors leave their own
+        // exception pending on the context; clear it so later operations do
+        // not misattribute it.
+        if ctx.has_exception() {
+            let _ = ctx.catch();
+        }
+
+        let mut detail = if message.is_empty() {
+            name.clone()
+        } else {
+            format!("{name}: {message}")
+        };
+        if let Some(stack) = &stack {
+            detail.push('\n');
+            detail.push_str(stack);
+        }
+
+        // QuickJS reports stack exhaustion as `RangeError: Maximum call stack
+        // size exceeded` or `InternalError: stack overflow (...)`; require the
+        // matching name so user-thrown errors cannot spoof the classification.
+        let is_stack_overflow = matches!(name.as_str(), "RangeError" | "InternalError")
+            && (message.contains("Maximum call stack size exceeded")
+                || message.contains("stack overflow"));
+        if is_stack_overflow {
+            return JsError::StackOverflow(detail);
+        }
+
+        match name.as_str() {
+            "SyntaxError" => {
+                let position = stack.as_deref().and_then(parse_stack_position);
+                JsError::Syntax {
+                    line: position.map(|(line, _)| line),
+                    column: position.and_then(|(_, column)| column),
+                    message: detail,
+                }
+            }
+            "TypeError" => JsError::Type(detail),
+            "ReferenceError" => JsError::Reference(detail),
+            "InternalError" if message.contains("out of memory") => JsError::MemoryLimit(detail),
+            _ => JsError::Runtime(detail),
+        }
+    }
+}
+
+/// Parses `line` and `column` from the first frame of a QuickJS stack trace
+/// (`    at func (file:line:column)` or `    at file:line`).
+fn parse_stack_position(stack: &str) -> Option<(u32, Option<u32>)> {
+    let frame = stack.lines().find(|line| !line.trim().is_empty())?;
+    let frame = frame.trim().trim_end_matches(')');
+    let mut parts = frame.rsplitn(3, ':');
+    let last = parts.next()?;
+    let middle = parts.next();
+
+    let last_number = last.parse::<u32>().ok()?;
+    match middle.and_then(|segment| segment.parse::<u32>().ok()) {
+        Some(line) => Some((line, Some(last_number))),
+        None => Some((last_number, None)),
+    }
 }
 
 impl fmt::Display for JsError {
@@ -497,12 +617,8 @@ impl fmt::Display for JsError {
                     operation, timeout_ms
                 )
             }
-            JsError::MemoryLimit { current, limit } => {
-                write!(
-                    f,
-                    "Memory limit exceeded: {} bytes used, {} bytes limit",
-                    current, limit
-                )
+            JsError::MemoryLimit(msg) => {
+                write!(f, "Memory limit exceeded: {}", msg)
             }
             JsError::StackOverflow(msg) => write!(f, "Stack overflow: {}", msg),
             JsError::Syntax {
@@ -534,7 +650,7 @@ impl std::error::Error for JsError {}
 
 impl From<anyhow::Error> for JsError {
     fn from(err: anyhow::Error) -> Self {
-        JsError::Generic(err.to_string())
+        JsError::Generic(format!("{err:#}"))
     }
 }
 
@@ -549,9 +665,42 @@ impl From<std::io::Error> for JsError {
 
 impl From<rquickjs::Error> for JsError {
     fn from(err: rquickjs::Error) -> Self {
-        match &err {
-            rquickjs::Error::Exception => JsError::Runtime(err.to_string()),
-            _ => JsError::Runtime(err.to_string()),
+        use rquickjs::Error;
+
+        match err {
+            Error::FromJs { from, to, message } | Error::IntoJs { from, to, message } => {
+                JsError::Conversion {
+                    from: from.to_string(),
+                    to: to.to_string(),
+                    message: message.unwrap_or_default(),
+                }
+            }
+            Error::Resolving {
+                base,
+                name,
+                message,
+            } => JsError::Module {
+                module: Some(name.clone()),
+                method: None,
+                message: match message {
+                    Some(message) => format!("Failed to resolve '{name}' from '{base}': {message}"),
+                    None => format!("Failed to resolve '{name}' from '{base}'"),
+                },
+            },
+            Error::Loading { name, message } => JsError::Module {
+                module: Some(name.clone()),
+                method: None,
+                message: match message {
+                    Some(message) => format!("Failed to load '{name}': {message}"),
+                    None => format!("Failed to load '{name}'"),
+                },
+            },
+            Error::Allocation => JsError::MemoryLimit("Allocation failed".to_string()),
+            Error::Io(error) => JsError::Io {
+                path: None,
+                message: error.to_string(),
+            },
+            other => JsError::Runtime(other.to_string()),
         }
     }
 }
@@ -702,12 +851,12 @@ impl JsResult {
     ///
     /// ## Returns
     ///
-    /// `Ok(value)` if Ok, `Err(anyhow::Error)` if Err
+    /// `Ok(value)` if Ok, `Err(JsError)` if Err
     #[frb(ignore)]
-    pub fn into_result(self) -> anyhow::Result<super::value::JsValue> {
+    pub fn into_result(self) -> Result<super::value::JsValue, JsError> {
         match self {
             JsResult::Ok(v) => Ok(v),
-            JsResult::Err(e) => Err(anyhow::anyhow!("{}", e)),
+            JsResult::Err(e) => Err(e),
         }
     }
 }

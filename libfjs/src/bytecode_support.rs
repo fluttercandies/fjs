@@ -1,14 +1,18 @@
+use crate::api::error::JsError;
 use crate::api::source::{
     JsModuleBytecode, JsModuleBytecodeBundle, JsModuleBytecodeOptions, JsScriptBytecode,
     JsScriptBytecodeOptions,
 };
-use anyhow::anyhow;
 use rquickjs::loader::{ImportAttributes, Loader, Resolver};
 use rquickjs::promise::MaybePromise;
 use rquickjs::{CatchResultExt, Ctx, Module, Value, WriteOptions, qjs};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::sync::Arc;
+
+fn module_error(module_name: &str, message: impl Into<String>) -> JsError {
+    JsError::module(Some(module_name.to_string()), None, message.into())
+}
 
 #[derive(Default)]
 struct CompileOnlyResolver;
@@ -17,26 +21,7 @@ fn normalize_compile_specifier(base: &str, name: &str) -> String {
     if !name.starts_with('.') {
         return name.to_string();
     }
-
-    let mut segments: Vec<&str> = base
-        .split('/')
-        .filter(|segment| !segment.is_empty())
-        .collect();
-    if !segments.is_empty() {
-        segments.pop();
-    }
-
-    for segment in name.split('/') {
-        match segment {
-            "" | "." => {}
-            ".." => {
-                segments.pop();
-            }
-            value => segments.push(value),
-        }
-    }
-
-    segments.join("/")
+    crate::api::module::resolve_relative_specifier(base, name)
 }
 
 impl Resolver for CompileOnlyResolver {
@@ -68,56 +53,67 @@ impl Loader for CompileOnlyLoader {
 pub(crate) fn validate_module_bytecode_impl(
     module_name: &str,
     bytecode: &[u8],
-) -> anyhow::Result<()> {
+) -> Result<(), JsError> {
     let runtime = compile_runtime()?;
     runtime.set_loader(CompileOnlyResolver, CompileOnlyLoader);
-    let context = rquickjs::Context::full(&runtime)?;
+    let context = rquickjs::Context::full(&runtime).map_err(JsError::from)?;
 
-    context.with(|ctx| {
-        let raw_value = read_bytecode_value(&ctx, bytecode)
-            .catch(&ctx)
-            .map_err(|e| anyhow!("Failed to read bytecode module '{}': {}", module_name, e))?;
-        if !raw_value.is_module() {
-            return Err(anyhow!(
-                "Failed to read bytecode module '{}': bytecode does not contain an ES module",
-                module_name
-            ));
-        }
-        drop(raw_value);
-        let module = unsafe { Module::load(ctx.clone(), bytecode) }
-            .catch(&ctx)
-            .map_err(|e| anyhow!("Failed to read bytecode module '{}': {}", module_name, e))?;
-        let embedded_name: String = module
-            .name()
-            .map_err(|e| anyhow!("Failed to inspect bytecode module '{}': {}", module_name, e))?;
-        if embedded_name != module_name {
-            return Err(anyhow!(
+    context.with(|ctx| validate_module_bytecode_in(&ctx, module_name, bytecode))
+}
+
+pub(crate) fn validate_module_bytecode_in(
+    ctx: &Ctx<'_>,
+    module_name: &str,
+    bytecode: &[u8],
+) -> Result<(), JsError> {
+    let raw_value = read_bytecode_value(ctx, bytecode)
+        .catch(ctx)
+        .map_err(|e| module_error(module_name, format!("Failed to read bytecode module: {e}")))?;
+    if !raw_value.is_module() {
+        return Err(module_error(
+            module_name,
+            "Failed to read bytecode module: bytecode does not contain an ES module",
+        ));
+    }
+    drop(raw_value);
+    let module = unsafe { Module::load(ctx.clone(), bytecode) }
+        .catch(ctx)
+        .map_err(|e| module_error(module_name, format!("Failed to read bytecode module: {e}")))?;
+    let embedded_name: String = module.name().map_err(|e| {
+        module_error(
+            module_name,
+            format!("Failed to inspect bytecode module: {e}"),
+        )
+    })?;
+    if embedded_name != module_name {
+        return Err(module_error(
+            module_name,
+            format!(
                 "Bytecode module name mismatch: expected '{}', found '{}'",
-                module_name,
-                embedded_name
-            ));
-        }
-        Ok(())
-    })
+                module_name, embedded_name
+            ),
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn compile_module_bytecode_impl(
     module_name: &str,
     source_code: Vec<u8>,
     options: JsModuleBytecodeOptions,
-) -> anyhow::Result<JsModuleBytecode> {
+) -> Result<JsModuleBytecode, JsError> {
     let runtime = compile_runtime()?;
     runtime.set_loader(CompileOnlyResolver, CompileOnlyLoader);
-    let context = rquickjs::Context::full(&runtime)?;
+    let context = rquickjs::Context::full(&runtime).map_err(JsError::from)?;
 
     context.with(|ctx| {
         let module = Module::declare(ctx.clone(), module_name, source_code)
             .catch(&ctx)
-            .map_err(|e| anyhow!("Failed to compile module '{}': {}", module_name, e))?;
+            .map_err(|e| JsError::from_caught(&ctx, e))?;
         let bytes = module
             .write(options.into())
             .catch(&ctx)
-            .map_err(|e| anyhow!("Failed to serialize module '{}': {}", module_name, e))?;
+            .map_err(|e| module_error(module_name, format!("Failed to serialize module: {e}")))?;
         Ok(JsModuleBytecode::new(module_name.to_string(), bytes))
     })
 }
@@ -126,17 +122,19 @@ pub(crate) fn compile_script_bytecode_impl(
     script_name: &str,
     source_code: Vec<u8>,
     options: JsScriptBytecodeOptions,
-) -> anyhow::Result<JsScriptBytecode> {
+) -> Result<JsScriptBytecode, JsError> {
     let runtime = compile_runtime()?;
-    let context = rquickjs::Context::full(&runtime)?;
+    let context = rquickjs::Context::full(&runtime).map_err(JsError::from)?;
 
     context.with(|ctx| {
         let compiled = compile_script_value(&ctx, script_name, source_code, &options)
             .catch(&ctx)
-            .map_err(|e| anyhow!("Failed to compile script '{}': {}", script_name, e))?;
+            .map_err(|e| JsError::from_caught(&ctx, e))?;
         let bytes = write_bytecode_value(&ctx, &compiled, options.into())
             .catch(&ctx)
-            .map_err(|e| anyhow!("Failed to serialize script '{}': {}", script_name, e))?;
+            .map_err(|e| {
+                JsError::generic(format!("Failed to serialize script '{script_name}': {e}"))
+            })?;
         Ok(JsScriptBytecode::new(script_name.to_string(), bytes))
     })
 }
@@ -144,25 +142,23 @@ pub(crate) fn compile_script_bytecode_impl(
 pub(crate) fn validate_script_bytecode_impl(
     script_name: &str,
     bytecode: &[u8],
-) -> anyhow::Result<()> {
+) -> Result<(), JsError> {
     let runtime = compile_runtime()?;
-    let context = rquickjs::Context::full(&runtime)?;
+    let context = rquickjs::Context::full(&runtime).map_err(JsError::from)?;
 
     context.with(|ctx| {
-        let value = read_bytecode_value(&ctx, bytecode)
-            .catch(&ctx)
-            .map_err(|e| anyhow!("Failed to read script bytecode '{}': {}", script_name, e))?;
+        let value = read_bytecode_value(&ctx, bytecode).catch(&ctx).map_err(|e| {
+            JsError::generic(format!("Failed to read script bytecode '{script_name}': {e}"))
+        })?;
         if value.is_module() {
-            return Err(anyhow!(
-                "Failed to read script bytecode '{}': bytecode contains an ES module",
-                script_name
-            ));
+            return Err(JsError::generic(format!(
+                "Failed to read script bytecode '{script_name}': bytecode contains an ES module"
+            )));
         }
         if !is_executable_script_value(&value) {
-            return Err(anyhow!(
-                "Failed to read script bytecode '{}': bytecode does not contain an executable script",
-                script_name
-            ));
+            return Err(JsError::generic(format!(
+                "Failed to read script bytecode '{script_name}': bytecode does not contain an executable script"
+            )));
         }
         Ok(())
     })
@@ -172,20 +168,23 @@ pub(crate) fn compile_module_bundle_impl(
     entry: Option<String>,
     modules: Vec<(String, Vec<u8>)>,
     options: JsModuleBytecodeOptions,
-) -> anyhow::Result<JsModuleBytecodeBundle> {
+) -> Result<JsModuleBytecodeBundle, JsError> {
     if let Some(entry_name) = &entry
         && !modules.iter().any(|(name, _)| name == entry_name)
     {
-        return Err(anyhow!(
-            "Bundle entry '{}' is not present in the provided modules",
-            entry_name
+        return Err(module_error(
+            entry_name,
+            format!("Bundle entry '{entry_name}' is not present in the provided modules"),
         ));
     }
 
     let mut unique = HashMap::with_capacity(modules.len());
     for (name, source) in &modules {
         if unique.insert(name.clone(), source.clone()).is_some() {
-            return Err(anyhow!("Duplicate bundle module name '{}'", name));
+            return Err(module_error(
+                name,
+                format!("Duplicate bundle module name '{name}'"),
+            ));
         }
     }
 
@@ -195,18 +194,20 @@ pub(crate) fn compile_module_bundle_impl(
         BundleCompileResolver::new(shared_modules.clone()),
         BundleCompileLoader::new(shared_modules),
     );
-    let context = rquickjs::Context::full(&runtime)?;
+    let context = rquickjs::Context::full(&runtime).map_err(JsError::from)?;
 
     context.with(|ctx| {
         let mut compiled = Vec::with_capacity(modules.len());
         for (name, source) in modules {
             let module = Module::declare(ctx.clone(), name.clone(), source)
                 .catch(&ctx)
-                .map_err(|e| anyhow!("Failed to compile bundle module '{}': {}", name, e))?;
+                .map_err(|e| JsError::from_caught(&ctx, e))?;
             let bytes = module
                 .write(options.clone().into())
                 .catch(&ctx)
-                .map_err(|e| anyhow!("Failed to serialize bundle module '{}': {}", name, e))?;
+                .map_err(|e| {
+                    module_error(&name, format!("Failed to serialize bundle module: {e}"))
+                })?;
             compiled.push(JsModuleBytecode::new(name, bytes));
         }
 
@@ -215,31 +216,44 @@ pub(crate) fn compile_module_bundle_impl(
     })
 }
 
-fn compile_runtime() -> anyhow::Result<rquickjs::Runtime> {
-    let runtime = rquickjs::Runtime::new()?;
+fn compile_runtime() -> Result<rquickjs::Runtime, JsError> {
+    let runtime = rquickjs::Runtime::new().map_err(JsError::from)?;
     runtime.set_max_stack_size(crate::runtime::stack::SYNC_MAX_STACK_SIZE);
     Ok(runtime)
 }
 
-pub(crate) fn validate_module_bundle_impl(bundle: &JsModuleBytecodeBundle) -> anyhow::Result<()> {
+pub(crate) fn validate_module_bundle_impl(bundle: &JsModuleBytecodeBundle) -> Result<(), JsError> {
     if let Some(entry) = &bundle.entry
         && !bundle.modules.iter().any(|module| &module.name == entry)
     {
-        return Err(anyhow!(
-            "Bundle entry '{}' is not present in the provided bytecode modules",
-            entry
+        return Err(module_error(
+            entry,
+            format!("Bundle entry '{entry}' is not present in the provided bytecode modules"),
         ));
     }
 
     let mut seen = HashMap::with_capacity(bundle.modules.len());
     for module in &bundle.modules {
         if seen.insert(module.name.clone(), ()).is_some() {
-            return Err(anyhow!("Duplicate bundle module name '{}'", module.name));
+            return Err(module_error(
+                &module.name,
+                format!("Duplicate bundle module name '{}'", module.name),
+            ));
         }
-        validate_module_bytecode_impl(&module.name, &module.bytes)?;
     }
 
-    Ok(())
+    // Reuse one scratch runtime/context for every module in the bundle instead
+    // of building a fresh QuickJS runtime per module.
+    let runtime = compile_runtime()?;
+    runtime.set_loader(CompileOnlyResolver, CompileOnlyLoader);
+    let context = rquickjs::Context::full(&runtime).map_err(JsError::from)?;
+
+    context.with(|ctx| {
+        for module in &bundle.modules {
+            validate_module_bytecode_in(&ctx, &module.name, &module.bytes)?;
+        }
+        Ok(())
+    })
 }
 
 pub(crate) fn load_module_bytecode_checked<'js>(
