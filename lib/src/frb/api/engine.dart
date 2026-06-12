@@ -12,7 +12,7 @@ import 'source.dart';
 import 'value.dart';
 part 'engine.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `begin_close`, `begin_init`, `ensure_running`, `ensure_runtime_accessible`, `finish_init`, `first_duplicate_name`, `new_bridge_call`, `register_fjs`, `rollback_init`
+// These functions are ignored because they are not marked as `pub`: `already_loaded_error`, `begin_close`, `begin_init`, `declare_dynamic_modules`, `ensure_no_unhandled_job_errors`, `ensure_running`, `ensure_runtime_accessible`, `ensure_unique_module_names`, `evaluate_dynamic_module`, `finish_init`, `first_duplicate_name`, `format_unhandled_job_errors`, `new_bridge_call`, `register_fjs`, `rollback_init`, `with_foreground_js_result`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngine>>
@@ -77,12 +77,15 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// and triggers a garbage collection pass, but it does not directly
   /// release the underlying runtime or context objects.
   ///
+  /// Closing always wins: it succeeds even while `init()` is still in
+  /// flight (the interrupted `init()` reports the failure to its caller).
+  ///
   /// Pending timers, Promise callbacks, and other runtime tasks may run during
-  /// this drain step. Unhandled Promise errors collected by the runtime can be
-  /// read with `drain_unhandled_job_errors()`.
+  /// this drain step. Unhandled background JavaScript errors are surfaced
+  /// automatically by `close()` or by the next engine operation.
   ///
   /// ## Throws
-  /// - If initialization is still in progress
+  /// - If unhandled background JavaScript errors are pending
   ///
   /// ## Example
   /// ```dart
@@ -136,7 +139,7 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// final bytecode = await JsBytecode.compile(
   ///   module: JsModule.code(
   ///     module: 'feature/config',
-  ///     code: 'export const version = "2.2.0";',
+  ///     code: 'export const version = "3.0.0";',
   ///   ),
   /// );
   ///
@@ -213,14 +216,24 @@ abstract class JsEngine implements RustOpaqueInterface {
 
   /// Drains unhandled asynchronous JavaScript errors captured by the engine runtime.
   ///
-  /// This is useful for logging failures from detached Promise chains, timers,
-  /// and other background work that cannot return an error to the original Dart call.
-  Future<List<String>> drainUnhandledJobErrors();
-
-  /// Returns whether the engine-owned runtime background driver is running.
+  /// Background JavaScript failures (detached Promise chains, timer callbacks,
+  /// spawned async work) cannot return an error to the original Dart call. They
+  /// are queued instead and surfaced either by the next engine operation, by
+  /// `close()`, or by this method.
   ///
-  /// Engine initialization starts the driver automatically. `close()` stops it.
-  Future<bool> driverRunning();
+  /// Call this periodically when you want to log background failures without
+  /// letting them fail an unrelated engine call. Draining is destructive: the
+  /// returned errors are removed from the queue. This method works in every
+  /// engine state, including after `close()`.
+  ///
+  /// ## Example
+  /// ```dart
+  /// final errors = engine.drainUnhandledJobErrors();
+  /// for (final error in errors) {
+  ///   print('Background JS error: \$error');
+  /// }
+  /// ```
+  List<String> drainUnhandledJobErrors();
 
   /// Evaluates JavaScript code and returns the result.
   ///
@@ -341,16 +354,13 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// ```dart
   /// final script = await JsBytecode.compileScript(
   ///   name: 'bootstrap.js',
-  ///   source: JsCode.code('globalThis.appVersion = "2.2.0";'),
+  ///   source: JsCode.code('globalThis.appVersion = "3.0.0";'),
   /// );
   ///
   /// await engine.evaluateScriptBytecode(script: script);
   /// final version = await engine.eval(source: JsCode.code('globalThis.appVersion'));
   /// ```
   Future<JsValue> evaluateScriptBytecode({required JsScriptBytecode script});
-
-  /// Advances the engine-owned runtime by one scheduler step.
-  Future<bool> executePendingJob();
 
   /// Gets all modules available to this engine.
   ///
@@ -388,9 +398,6 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// print('Declared modules: $modules');
   /// ```
   Future<List<String>> getDeclaredModules();
-
-  /// Runs the engine-owned runtime until quiescent.
-  Future<void> idle();
 
   /// Initializes the engine with a bridge callback for Dart-JS communication.
   ///
@@ -430,9 +437,6 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// await engine.initWithoutBridge();
   /// ```
   Future<void> initWithoutBridge();
-
-  /// Returns whether the engine-owned runtime still has work pending.
-  Future<bool> isJobPending();
 
   /// Checks if a module is available to the engine.
   ///

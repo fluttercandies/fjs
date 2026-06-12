@@ -275,7 +275,7 @@ extension JsErrorPatterns on JsError {
     TResult Function(String field0)? bridge,
     TResult Function(String from, String to, String message)? conversion,
     TResult Function(String operation, BigInt timeoutMs)? timeout,
-    TResult Function(BigInt current, BigInt limit)? memoryLimit,
+    TResult Function(String field0)? memoryLimit,
     TResult Function(String field0)? stackOverflow,
     TResult Function(int? line, int? column, String message)? syntax,
     TResult Function(String field0)? reference,
@@ -308,7 +308,7 @@ extension JsErrorPatterns on JsError {
       case JsError_Timeout() when timeout != null:
         return timeout(_that.operation, _that.timeoutMs);
       case JsError_MemoryLimit() when memoryLimit != null:
-        return memoryLimit(_that.current, _that.limit);
+        return memoryLimit(_that.field0);
       case JsError_StackOverflow() when stackOverflow != null:
         return stackOverflow(_that.field0);
       case JsError_Syntax() when syntax != null:
@@ -352,7 +352,7 @@ extension JsErrorPatterns on JsError {
     required TResult Function(String from, String to, String message)
         conversion,
     required TResult Function(String operation, BigInt timeoutMs) timeout,
-    required TResult Function(BigInt current, BigInt limit) memoryLimit,
+    required TResult Function(String field0) memoryLimit,
     required TResult Function(String field0) stackOverflow,
     required TResult Function(int? line, int? column, String message) syntax,
     required TResult Function(String field0) reference,
@@ -384,7 +384,7 @@ extension JsErrorPatterns on JsError {
       case JsError_Timeout():
         return timeout(_that.operation, _that.timeoutMs);
       case JsError_MemoryLimit():
-        return memoryLimit(_that.current, _that.limit);
+        return memoryLimit(_that.field0);
       case JsError_StackOverflow():
         return stackOverflow(_that.field0);
       case JsError_Syntax():
@@ -423,7 +423,7 @@ extension JsErrorPatterns on JsError {
     TResult? Function(String field0)? bridge,
     TResult? Function(String from, String to, String message)? conversion,
     TResult? Function(String operation, BigInt timeoutMs)? timeout,
-    TResult? Function(BigInt current, BigInt limit)? memoryLimit,
+    TResult? Function(String field0)? memoryLimit,
     TResult? Function(String field0)? stackOverflow,
     TResult? Function(int? line, int? column, String message)? syntax,
     TResult? Function(String field0)? reference,
@@ -455,7 +455,7 @@ extension JsErrorPatterns on JsError {
       case JsError_Timeout() when timeout != null:
         return timeout(_that.operation, _that.timeoutMs);
       case JsError_MemoryLimit() when memoryLimit != null:
-        return memoryLimit(_that.current, _that.limit);
+        return memoryLimit(_that.field0);
       case JsError_StackOverflow() when stackOverflow != null:
         return stackOverflow(_that.field0);
       case JsError_Syntax() when syntax != null:
@@ -1187,14 +1187,9 @@ class _$JsError_TimeoutCopyWithImpl<$Res>
 /// @nodoc
 
 class JsError_MemoryLimit extends JsError {
-  const JsError_MemoryLimit({required this.current, required this.limit})
-      : super._();
+  const JsError_MemoryLimit(this.field0) : super._();
 
-  /// Current memory usage in bytes
-  final BigInt current;
-
-  /// Memory limit in bytes
-  final BigInt limit;
+  final String field0;
 
   /// Create a copy of JsError
   /// with the given fields replaced by the non-null parameter values.
@@ -1208,12 +1203,11 @@ class JsError_MemoryLimit extends JsError {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is JsError_MemoryLimit &&
-            (identical(other.current, current) || other.current == current) &&
-            (identical(other.limit, limit) || other.limit == limit));
+            (identical(other.field0, field0) || other.field0 == field0));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, current, limit);
+  int get hashCode => Object.hash(runtimeType, field0);
 }
 
 /// @nodoc
@@ -1223,7 +1217,7 @@ abstract mixin class $JsError_MemoryLimitCopyWith<$Res>
           JsError_MemoryLimit value, $Res Function(JsError_MemoryLimit) _then) =
       _$JsError_MemoryLimitCopyWithImpl;
   @useResult
-  $Res call({BigInt current, BigInt limit});
+  $Res call({String field0});
 }
 
 /// @nodoc
@@ -1238,18 +1232,13 @@ class _$JsError_MemoryLimitCopyWithImpl<$Res>
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   $Res call({
-    Object? current = null,
-    Object? limit = null,
+    Object? field0 = null,
   }) {
     return _then(JsError_MemoryLimit(
-      current: null == current
-          ? _self.current
-          : current // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      limit: null == limit
-          ? _self.limit
-          : limit // ignore: cast_nullable_to_non_nullable
-              as BigInt,
+      null == field0
+          ? _self.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
