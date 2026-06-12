@@ -25,15 +25,16 @@
 //!
 //! ## Usage
 //!
-//! ```rust
-//! use libfjs::api::js::{JsRuntime, JsContext};
+//! ```rust,ignore
+//! use libfjs::api::{JsContext, JsRuntime};
 //!
 //! // Create a runtime and context
 //! let runtime = JsRuntime::new()?;
-//! let context = JsContext::new(&runtime)?;
+//! let context = JsContext::from(&runtime)?;
 //!
-//! // Execute JavaScript code
-//! let result = context.eval("console.log('Hello, World!'); 42;")?;
+//! // Execute JavaScript code (returns a JsResult)
+//! let result = context.eval("1 + 41".to_string());
+//! assert!(result.is_ok());
 //! ```
 
 pub mod api;

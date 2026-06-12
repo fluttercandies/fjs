@@ -3,6 +3,7 @@
 //! This module provides types for representing JavaScript source code,
 //! modules, and evaluation options.
 
+use crate::api::error::JsError;
 use flutter_rust_bridge::frb;
 use rquickjs::{WriteOptions, WriteOptionsEndianness};
 
@@ -940,25 +941,19 @@ impl JsBuiltinOptions {
 
 /// Retrieves the raw source code from a JsCode source.
 #[frb(ignore)]
-pub async fn get_raw_source_code(source: JsCode) -> anyhow::Result<Vec<u8>> {
+pub async fn get_raw_source_code(source: JsCode) -> Result<Vec<u8>, JsError> {
     let code = match source {
         JsCode::Code(code) => code.into_bytes(),
         JsCode::Path(path) => {
             // Check file size before reading
-            let metadata = tokio::fs::metadata(&path).await?;
-            let file_size = metadata.len();
+            let metadata = tokio::fs::metadata(&path)
+                .await
+                .map_err(|e| JsError::io(Some(path.clone()), e.to_string()))?;
+            ensure_within_size_limit(&path, metadata.len())?;
 
-            if file_size > MAX_FILE_SIZE {
-                return Err(anyhow::anyhow!(
-                    "File size exceeds maximum allowed size: {} (size: {} bytes, max: {} bytes)",
-                    path,
-                    file_size,
-                    MAX_FILE_SIZE
-                ));
-            }
-
-            // Use tokio::fs::read directly for better efficiency
-            tokio::fs::read(&path).await?
+            tokio::fs::read(&path)
+                .await
+                .map_err(|e| JsError::io(Some(path.clone()), e.to_string()))?
         }
         JsCode::Bytes(bytes) => bytes,
     };
@@ -967,26 +962,31 @@ pub async fn get_raw_source_code(source: JsCode) -> anyhow::Result<Vec<u8>> {
 
 /// Synchronously retrieves the raw source code from a JsCode source.
 #[frb(ignore)]
-pub fn get_raw_source_code_sync(source: JsCode) -> anyhow::Result<Vec<u8>> {
+pub fn get_raw_source_code_sync(source: JsCode) -> Result<Vec<u8>, JsError> {
     let code = match source {
         JsCode::Code(code) => code.into_bytes(),
         JsCode::Path(path) => {
             // Check file size before reading
-            let metadata = std::fs::metadata(&path)?;
-            let file_size = metadata.len();
+            let metadata = std::fs::metadata(&path)
+                .map_err(|e| JsError::io(Some(path.clone()), e.to_string()))?;
+            ensure_within_size_limit(&path, metadata.len())?;
 
-            if file_size > MAX_FILE_SIZE {
-                return Err(anyhow::anyhow!(
-                    "File size exceeds maximum allowed size: {} (size: {} bytes, max: {} bytes)",
-                    path,
-                    file_size,
-                    MAX_FILE_SIZE
-                ));
-            }
-
-            std::fs::read(&path)?
+            std::fs::read(&path).map_err(|e| JsError::io(Some(path.clone()), e.to_string()))?
         }
         JsCode::Bytes(bytes) => bytes,
     };
     Ok(code)
+}
+
+fn ensure_within_size_limit(path: &str, file_size: u64) -> Result<(), JsError> {
+    if file_size > MAX_FILE_SIZE {
+        return Err(JsError::io(
+            Some(path.to_string()),
+            format!(
+                "File size exceeds maximum allowed size (size: {} bytes, max: {} bytes)",
+                file_size, MAX_FILE_SIZE
+            ),
+        ));
+    }
+    Ok(())
 }

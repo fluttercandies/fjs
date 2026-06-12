@@ -1,5 +1,6 @@
 //! QuickJS module bytecode utilities.
 
+use crate::api::error::JsError;
 use crate::api::source::{
     JsModule, JsModuleBytecode, JsModuleBytecodeBundle, JsModuleBytecodeOptions, JsScriptBytecode,
     JsScriptBytecodeOptions, get_raw_source_code, get_raw_source_code_sync,
@@ -8,7 +9,6 @@ use crate::bytecode_support::{
     compile_module_bundle_impl, compile_module_bytecode_impl, compile_script_bytecode_impl,
     validate_module_bundle_impl, validate_module_bytecode_impl, validate_script_bytecode_impl,
 };
-use anyhow::anyhow;
 use flutter_rust_bridge::frb;
 
 /// Stateless utility namespace for QuickJS bytecode operations.
@@ -50,12 +50,11 @@ impl JsBytecode {
         modules: Vec<JsModule>,
         entry: Option<String>,
         options: Option<JsModuleBytecodeOptions>,
-    ) -> anyhow::Result<JsModuleBytecodeBundle> {
+    ) -> Result<JsModuleBytecodeBundle, JsError> {
         let mut resolved_modules = Vec::with_capacity(modules.len());
         for module in modules {
             let JsModule { name, source } = module;
-            let source_code = get_raw_source_code_sync(source)
-                .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
+            let source_code = get_raw_source_code_sync(source)?;
             resolved_modules.push((name, source_code));
         }
         compile_module_bundle_impl(entry, resolved_modules, options.unwrap_or_default())
@@ -88,13 +87,11 @@ impl JsBytecode {
         modules: Vec<JsModule>,
         entry: Option<String>,
         options: Option<JsModuleBytecodeOptions>,
-    ) -> anyhow::Result<JsModuleBytecodeBundle> {
+    ) -> Result<JsModuleBytecodeBundle, JsError> {
         let mut resolved_modules = Vec::with_capacity(modules.len());
         for module in modules {
             let JsModule { name, source } = module;
-            let source_code = get_raw_source_code(source)
-                .await
-                .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
+            let source_code = get_raw_source_code(source).await?;
             resolved_modules.push((name, source_code));
         }
         compile_module_bundle_impl(entry, resolved_modules, options.unwrap_or_default())
@@ -119,13 +116,12 @@ impl JsBytecode {
     pub fn compile_sync(
         module: JsModule,
         options: Option<JsModuleBytecodeOptions>,
-    ) -> anyhow::Result<JsModuleBytecode> {
+    ) -> Result<JsModuleBytecode, JsError> {
         let JsModule {
             name: module_name,
             source,
         } = module;
-        let source_code = get_raw_source_code_sync(source)
-            .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
+        let source_code = get_raw_source_code_sync(source)?;
         compile_module_bytecode_impl(&module_name, source_code, options.unwrap_or_default())
     }
 
@@ -148,14 +144,12 @@ impl JsBytecode {
     pub async fn compile(
         module: JsModule,
         options: Option<JsModuleBytecodeOptions>,
-    ) -> anyhow::Result<JsModuleBytecode> {
+    ) -> Result<JsModuleBytecode, JsError> {
         let JsModule {
             name: module_name,
             source,
         } = module;
-        let source_code = get_raw_source_code(source)
-            .await
-            .map_err(|e| anyhow!("Failed to get module source: {}", e))?;
+        let source_code = get_raw_source_code(source).await?;
         compile_module_bytecode_impl(&module_name, source_code, options.unwrap_or_default())
     }
 
@@ -169,7 +163,7 @@ impl JsBytecode {
     /// JsBytecode.validateSync(module: compiledModuleBytecode);
     /// ```
     #[frb(sync)]
-    pub fn validate_sync(module: JsModuleBytecode) -> anyhow::Result<()> {
+    pub fn validate_sync(module: JsModuleBytecode) -> Result<(), JsError> {
         validate_module_bytecode_impl(&module.name, &module.bytes)
     }
 
@@ -185,7 +179,7 @@ impl JsBytecode {
     /// JsBytecode.validateBundleSync(bundle: compiledBundle);
     /// ```
     #[frb(sync)]
-    pub fn validate_bundle_sync(bundle: JsModuleBytecodeBundle) -> anyhow::Result<()> {
+    pub fn validate_bundle_sync(bundle: JsModuleBytecodeBundle) -> Result<(), JsError> {
         validate_module_bundle_impl(&bundle)
     }
 
@@ -200,7 +194,7 @@ impl JsBytecode {
     /// ```dart
     /// await JsBytecode.validate(module: compiledModuleBytecode);
     /// ```
-    pub async fn validate(module: JsModuleBytecode) -> anyhow::Result<()> {
+    pub async fn validate(module: JsModuleBytecode) -> Result<(), JsError> {
         validate_module_bytecode_impl(&module.name, &module.bytes)
     }
 
@@ -215,7 +209,7 @@ impl JsBytecode {
     /// ```dart
     /// await JsBytecode.validateBundle(bundle: compiledBundle);
     /// ```
-    pub async fn validate_bundle(bundle: JsModuleBytecodeBundle) -> anyhow::Result<()> {
+    pub async fn validate_bundle(bundle: JsModuleBytecodeBundle) -> Result<(), JsError> {
         validate_module_bundle_impl(&bundle)
     }
 
@@ -229,7 +223,7 @@ impl JsBytecode {
     /// ```dart
     /// final script = JsBytecode.compileScriptSync(
     ///   name: 'bootstrap.js',
-    ///   source: JsCode.code('globalThis.version = "2.2.0";'),
+    ///   source: JsCode.code('globalThis.version = "3.0.0";'),
     /// );
     /// ```
     #[frb(sync)]
@@ -237,9 +231,8 @@ impl JsBytecode {
         name: String,
         source: crate::api::source::JsCode,
         options: Option<JsScriptBytecodeOptions>,
-    ) -> anyhow::Result<JsScriptBytecode> {
-        let source_code = get_raw_source_code_sync(source)
-            .map_err(|e| anyhow!("Failed to get script source: {}", e))?;
+    ) -> Result<JsScriptBytecode, JsError> {
+        let source_code = get_raw_source_code_sync(source)?;
         compile_script_bytecode_impl(&name, source_code, options.unwrap_or_default())
     }
 
@@ -261,10 +254,8 @@ impl JsBytecode {
         name: String,
         source: crate::api::source::JsCode,
         options: Option<JsScriptBytecodeOptions>,
-    ) -> anyhow::Result<JsScriptBytecode> {
-        let source_code = get_raw_source_code(source)
-            .await
-            .map_err(|e| anyhow!("Failed to get script source: {}", e))?;
+    ) -> Result<JsScriptBytecode, JsError> {
+        let source_code = get_raw_source_code(source).await?;
         compile_script_bytecode_impl(&name, source_code, options.unwrap_or_default())
     }
 
@@ -279,7 +270,7 @@ impl JsBytecode {
     /// JsBytecode.validateScriptSync(script: compiledScriptBytecode);
     /// ```
     #[frb(sync)]
-    pub fn validate_script_sync(script: JsScriptBytecode) -> anyhow::Result<()> {
+    pub fn validate_script_sync(script: JsScriptBytecode) -> Result<(), JsError> {
         validate_script_bytecode_impl(&script.name, &script.bytes)
     }
 
@@ -293,7 +284,7 @@ impl JsBytecode {
     /// ```dart
     /// await JsBytecode.validateScript(script: compiledScriptBytecode);
     /// ```
-    pub async fn validate_script(script: JsScriptBytecode) -> anyhow::Result<()> {
+    pub async fn validate_script(script: JsScriptBytecode) -> Result<(), JsError> {
         validate_script_bytecode_impl(&script.name, &script.bytes)
     }
 }
