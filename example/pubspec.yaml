@@ -5,7 +5,8 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 3.1.0+1
 
 environment:
-  sdk: ^3.5.3
+  sdk: ^3.8.0
+  flutter: '>=3.35.0'
 
 dependencies:
   flutter:
@@ -30,6 +31,9 @@ dependencies:
   collection: ^1.18.0
 
 dev_dependencies:
+  cockpit: ^1.0.0
+  flutter_cockpit: ^1.0.0
+
   flutter_test:
     sdk: flutter
   integration_test:

@@ -162,6 +162,38 @@ jobs:
             mv app-release.apk ${{ env.PROJECT_SLUG }}-android-${{ matrix.arch }}.apk
           fi
 
+      - name: Enable Android emulator acceleration
+        if: matrix.arch == 'universal'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run Android cockpit verification
+        if: matrix.arch == 'universal'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: Pixel 6
+          script: |
+            cd ${{ env.EXAMPLE_DIR }}
+            dart run tool/ci_cockpit_verify.dart \
+              --platform android \
+              --device-id emulator-5554 \
+              --output-dir .dart_tool/flutter_cockpit/ci-android \
+              --launch-timeout-seconds 1200
+
+      - name: Upload Android cockpit evidence
+        if: always() && matrix.arch == 'universal'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cockpit-android
+          path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-android
+          retention-days: 14
+          if-no-files-found: ignore
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -205,6 +237,36 @@ jobs:
         run: |
           cd ${{ env.EXAMPLE_DIR }}
           flutter build ios --release --no-codesign
+
+      - name: Run iOS cockpit verification
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json, sys
+data = json.load(sys.stdin)
+for runtime, devices in data["devices"].items():
+    if "iOS" not in runtime:
+        continue
+    for device in devices:
+        if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+            print(device["udid"])
+            raise SystemExit(0)
+raise SystemExit("No available iPhone simulator found")')
+          xcrun simctl boot "$DEVICE_ID" || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          cd ${{ env.EXAMPLE_DIR }}
+          dart run tool/ci_cockpit_verify.dart \
+            --platform ios \
+            --device-id "$DEVICE_ID" \
+            --output-dir .dart_tool/flutter_cockpit/ci-ios \
+            --launch-timeout-seconds 1200
+
+      - name: Upload iOS cockpit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cockpit-ios
+          path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-ios
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: Create iOS bundle (zip)
         run: |
@@ -260,6 +322,23 @@ jobs:
         run: |
           cd ${{ env.EXAMPLE_DIR }}
           flutter build windows --release
+
+      - name: Run Windows cockpit verification
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          dart run tool/ci_cockpit_verify.dart `
+            --platform windows `
+            --output-dir .dart_tool/flutter_cockpit/ci-windows `
+            --launch-timeout-seconds 1200
+
+      - name: Upload Windows cockpit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cockpit-windows
+          path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-windows
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: Create Inno Setup script
         shell: pwsh
@@ -339,6 +418,23 @@ jobs:
           cd ${{ env.EXAMPLE_DIR }}
           xvfb-run -a flutter test integration_test/smoke_test.dart -d linux
 
+      - name: Run Linux cockpit verification
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          xvfb-run -a dart run tool/ci_cockpit_verify.dart \
+            --platform linux \
+            --output-dir .dart_tool/flutter_cockpit/ci-linux \
+            --launch-timeout-seconds 1200
+
+      - name: Upload Linux cockpit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cockpit-linux
+          path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-linux
+          retention-days: 14
+          if-no-files-found: ignore
+
       - name: Create Linux tarball
         run: |
           cd ${{ env.EXAMPLE_DIR }}
@@ -384,6 +480,23 @@ jobs:
         run: |
           cd ${{ env.EXAMPLE_DIR }}
           flutter build macos --release
+
+      - name: Run macOS cockpit verification
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          dart run tool/ci_cockpit_verify.dart \
+            --platform macos \
+            --output-dir .dart_tool/flutter_cockpit/ci-macos \
+            --launch-timeout-seconds 1200
+
+      - name: Upload macOS cockpit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cockpit-macos
+          path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-macos
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: Create macOS zip
         run: |

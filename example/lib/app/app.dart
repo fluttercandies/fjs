@@ -12,12 +12,14 @@ class FjsExampleApp extends StatefulWidget {
   final StorageService storageService;
   final FjsService fjsService;
   final JsExamplesService jsExamplesService;
+  final List<NavigatorObserver> navigatorObservers;
 
   const FjsExampleApp({
     super.key,
     required this.storageService,
     required this.fjsService,
     required this.jsExamplesService,
+    this.navigatorObservers = const <NavigatorObserver>[],
   });
 
   @override
@@ -51,6 +53,7 @@ class _FjsExampleAppState extends State<FjsExampleApp> {
             themeMode: storageService.themeMode,
             home: const HomeScreen(),
             onGenerateRoute: AppRouter.onGenerateRoute,
+            navigatorObservers: widget.navigatorObservers,
           );
         },
       ),
