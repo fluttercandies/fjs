@@ -240,16 +240,8 @@ jobs:
 
       - name: Run iOS cockpit verification
         run: |
-          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json, sys
-data = json.load(sys.stdin)
-for runtime, devices in data["devices"].items():
-    if "iOS" not in runtime:
-        continue
-    for device in devices:
-        if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
-            print(device["udid"])
-            raise SystemExit(0)
-raise SystemExit("No available iPhone simulator found")')
+          xcrun simctl list devices available -j > /tmp/ios-devices.json
+          DEVICE_ID=$(python3 -c 'import json; data=json.load(open("/tmp/ios-devices.json", encoding="utf-8")); print(next(d["udid"] for runtime, devices in data["devices"].items() if "iOS" in runtime for d in devices if d.get("isAvailable") and d.get("name", "").startswith("iPhone")))')
           xcrun simctl boot "$DEVICE_ID" || true
           xcrun simctl bootstatus "$DEVICE_ID" -b
           cd ${{ env.EXAMPLE_DIR }}
