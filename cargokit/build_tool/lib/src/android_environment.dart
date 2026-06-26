@@ -161,8 +161,11 @@ class AndroidEnvironment {
     );
 
     final bindgenKey = "BINDGEN_EXTRA_CLANG_ARGS_${target.rust}";
+    final sysrootForClang = _clangPath(sysroot);
+    final includeForClang =
+        _clangPath(path.join(sysroot, 'usr', 'include', target.rust));
     final bindgenValue =
-        "--sysroot=$sysroot -I${path.join(sysroot, 'usr', 'include', target.rust)}";
+        "$targetArg --sysroot=$sysrootForClang -I$includeForClang";
 
     final env = {
       arKey: arValue,
@@ -182,6 +185,10 @@ class AndroidEnvironment {
 
     log.info(JsonEncoder.withIndent('  ').convert(env));
     return env;
+  }
+
+  String _clangPath(String value) {
+    return value.replaceAll(r'\', '/');
   }
 
   // Workaround for libgcc missing in NDK23, inspired by cargo-ndk

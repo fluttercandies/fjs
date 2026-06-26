@@ -57,10 +57,37 @@ void main() {
       isNot(contains('link-arg=-Wl,-z,max-page-size=16384')),
     );
   });
+
+  test('bindgen clang args use libclang-safe android paths', () async {
+    final sdkPath = _createFakeAndroidSdk(
+      sdkPathSegment: r'C:\Users\test\AppData\Local\Android\Sdk',
+    );
+    final target = Target.forRustTriple('aarch64-linux-android')!;
+    final env = await AndroidEnvironment(
+      sdkPath: sdkPath,
+      ndkVersion: '26.3.11579264',
+      minSdkVersion: 24,
+      targetTempDir: '/tmp/fjs-cargokit-test',
+      target: target,
+    ).buildEnvironment();
+
+    final bindgenArgs = env['BINDGEN_EXTRA_CLANG_ARGS_aarch64-linux-android'];
+    expect(bindgenArgs, isNotNull);
+    expect(bindgenArgs, startsWith('--target=aarch64-linux-android24 '));
+    expect(bindgenArgs, isNot(contains(r'\')));
+    expect(
+      bindgenArgs,
+      contains('/C:/Users/test/AppData/Local/Android/Sdk/ndk/26.3.11579264/'),
+    );
+  });
 }
 
-String _createFakeAndroidSdk() {
-  final sdk = Directory.systemTemp.createTempSync('fjs-cargokit-android-sdk-');
+String _createFakeAndroidSdk({String? sdkPathSegment}) {
+  final temp = Directory.systemTemp.createTempSync('fjs-cargokit-android-sdk-');
+  final sdk = sdkPathSegment == null
+      ? temp
+      : Directory(path.join(temp.path, sdkPathSegment))
+    ..createSync(recursive: true);
   final toolchainBin = Directory(path.join(
     sdk.path,
     'ndk',

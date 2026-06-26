@@ -93,6 +93,12 @@ fi
 if [ -z "$OUTPUT_DIR" ]; then
   OUTPUT_DIR="$ROOT_DIR/darwin/fjs/Binaries"
 fi
+if [ -n "$ZIP_OUTPUT" ]; then
+  case "$ZIP_OUTPUT" in
+    /*) ;;
+    *) ZIP_OUTPUT="$(pwd)/$ZIP_OUTPUT" ;;
+  esac
+fi
 BUILD_ROOT="$ROOT_DIR/build/darwin-xcframework"
 MANIFEST_DIR="$ROOT_DIR/libfjs"
 TOOL_TEMP_DIR="$BUILD_ROOT/build_tool"

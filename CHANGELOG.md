@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.1.0
+
+* **FIX**: Normalized Android Cargokit bindgen sysroot/include paths to forward slashes and passed the Android clang target explicitly, fixing Windows Android builds that failed to find NDK headers such as `stdio.h`.
+* **FIX**: Pinned Cargokit cargo builds to the selected rustup toolchain's `rustc`, avoiding host `PATH` contamination from other Rust installations during cross-compilation.
+* **FIX**: Made `tool/build_fjs_xcframework.sh --zip-output` handle relative output paths correctly.
+* **INTERNAL**: Strengthened Darwin CocoaPods/SwiftPM release validation so local XCFramework artifacts must match the package version before release checks pass.
+
 ## 3.0.0
 
 * **BREAKING**: `JsEngine`, `JsBytecode`, `JsRuntime`, `JsContext`, `JsAsyncRuntime`, and `JsAsyncContext` methods now throw a typed `JsError` instead of `AnyhowException`; catch with `on JsError` and match `code()` or the freezed variants

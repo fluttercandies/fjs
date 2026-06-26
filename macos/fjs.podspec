@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'fjs'
-  s.version          = '3.0.0'
+  s.version          = '3.1.0'
   s.summary          = 'A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS.'
   s.description      = <<-DESC
 A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS.

@@ -45,6 +45,13 @@ require_contains() {
   grep -F -- "$text" "$file" >/dev/null || fail "$file does not contain: $text"
 }
 
+require_plist_version() {
+  plist="$1"
+  require_contains "$plist" "<key>CFBundleShortVersionString</key>"
+  require_contains "$plist" "<key>CFBundleVersion</key>"
+  require_contains "$plist" "<string>$PACKAGE_VERSION</string>"
+}
+
 PACKAGE_VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
 [ -n "$PACKAGE_VERSION" ] || fail "unable to read package version from pubspec.yaml"
 
@@ -97,10 +104,13 @@ fi
 if [ -d "darwin/fjs/Binaries/fjs.xcframework" ]; then
   require_file "darwin/fjs/Binaries/fjs.xcframework/ios-arm64/fjs.framework/fjs"
   require_file "darwin/fjs/Binaries/fjs.xcframework/ios-arm64/fjs.framework/Info.plist"
+  require_plist_version "darwin/fjs/Binaries/fjs.xcframework/ios-arm64/fjs.framework/Info.plist"
   require_file "darwin/fjs/Binaries/fjs.xcframework/ios-arm64_x86_64-simulator/fjs.framework/fjs"
   require_file "darwin/fjs/Binaries/fjs.xcframework/ios-arm64_x86_64-simulator/fjs.framework/Info.plist"
+  require_plist_version "darwin/fjs/Binaries/fjs.xcframework/ios-arm64_x86_64-simulator/fjs.framework/Info.plist"
   require_file "darwin/fjs/Binaries/fjs.xcframework/macos-arm64_x86_64/fjs.framework/Versions/A/fjs"
   require_file "darwin/fjs/Binaries/fjs.xcframework/macos-arm64_x86_64/fjs.framework/Versions/A/Resources/Info.plist"
+  require_plist_version "darwin/fjs/Binaries/fjs.xcframework/macos-arm64_x86_64/fjs.framework/Versions/A/Resources/Info.plist"
   [ -L "darwin/fjs/Binaries/fjs.xcframework/macos-arm64_x86_64/fjs.framework/Versions/Current" ] ||
     fail "macOS fjs.framework must be versioned with Versions/Current symlink"
   [ -L "darwin/fjs/Binaries/fjs.xcframework/macos-arm64_x86_64/fjs.framework/fjs" ] ||

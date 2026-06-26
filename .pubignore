@@ -21,6 +21,7 @@ migrate_working_dir/
 **/doc/api/
 .dart_tool/
 build/
+android/bin/
 
 # Internal planning artifacts are useful in Git but not in the pub package.
 /docs/
