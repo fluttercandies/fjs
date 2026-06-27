@@ -13,6 +13,8 @@ class FjsExampleApp extends StatefulWidget {
   final FjsService fjsService;
   final JsExamplesService jsExamplesService;
   final List<NavigatorObserver> navigatorObservers;
+  final String? initialCode;
+  final bool showSmokeResult;
 
   const FjsExampleApp({
     super.key,
@@ -20,6 +22,8 @@ class FjsExampleApp extends StatefulWidget {
     required this.fjsService,
     required this.jsExamplesService,
     this.navigatorObservers = const <NavigatorObserver>[],
+    this.initialCode,
+    this.showSmokeResult = false,
   });
 
   @override
@@ -51,7 +55,10 @@ class _FjsExampleAppState extends State<FjsExampleApp> {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: storageService.themeMode,
-            home: const HomeScreen(),
+            home: HomeScreen(
+              initialCode: widget.initialCode,
+              showSmokeResult: widget.showSmokeResult,
+            ),
             onGenerateRoute: AppRouter.onGenerateRoute,
             navigatorObservers: widget.navigatorObservers,
           );

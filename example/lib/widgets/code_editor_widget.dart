@@ -9,6 +9,7 @@ class CodeEditorWidget extends StatefulWidget {
   final double? height;
   final VoidCallback? onExecute;
   final bool isLoading;
+  final Key? editorKey;
 
   const CodeEditorWidget({
     super.key,
@@ -18,6 +19,7 @@ class CodeEditorWidget extends StatefulWidget {
     this.height,
     this.onExecute,
     this.isLoading = false,
+    this.editorKey,
   });
 
   @override
@@ -46,8 +48,9 @@ class _CodeEditorWidgetState extends State<CodeEditorWidget> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(11)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(11),
+              ),
             ),
             child: Row(
               children: [
@@ -115,6 +118,7 @@ class _CodeEditorWidgetState extends State<CodeEditorWidget> {
           // Editor
           Expanded(
             child: TextField(
+              key: widget.editorKey,
               controller: widget.controller,
               maxLines: null,
               expands: true,
@@ -129,8 +133,9 @@ class _CodeEditorWidgetState extends State<CodeEditorWidget> {
                 contentPadding: const EdgeInsets.all(16),
                 hintText: widget.hintText,
                 hintStyle: TextStyle(
-                  color:
-                      theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.5,
+                  ),
                 ),
               ),
             ),
@@ -168,15 +173,15 @@ class ResultDisplayWidget extends StatelessWidget {
         color: hasError
             ? Colors.red.shade50
             : hasContent
-                ? Colors.green.shade50
-                : theme.colorScheme.surfaceContainerHighest,
+            ? Colors.green.shade50
+            : theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: hasError
               ? Colors.red.shade200
               : hasContent
-                  ? Colors.green.shade200
-                  : theme.colorScheme.outline.withValues(alpha: 0.3),
+              ? Colors.green.shade200
+              : theme.colorScheme.outline.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -188,10 +193,11 @@ class ResultDisplayWidget extends StatelessWidget {
               color: hasError
                   ? Colors.red.shade100
                   : hasContent
-                      ? Colors.green.shade100
-                      : theme.colorScheme.surfaceContainerHighest,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(11)),
+                  ? Colors.green.shade100
+                  : theme.colorScheme.surfaceContainerHighest,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(11),
+              ),
             ),
             child: Row(
               children: [
@@ -199,14 +205,14 @@ class ResultDisplayWidget extends StatelessWidget {
                   hasError
                       ? Icons.error_outline
                       : hasContent
-                          ? Icons.check_circle_outline
-                          : Icons.output,
+                      ? Icons.check_circle_outline
+                      : Icons.output,
                   size: 16,
                   color: hasError
                       ? Colors.red.shade700
                       : hasContent
-                          ? Colors.green.shade700
-                          : theme.colorScheme.onSurfaceVariant,
+                      ? Colors.green.shade700
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -215,8 +221,8 @@ class ResultDisplayWidget extends StatelessWidget {
                     color: hasError
                         ? Colors.red.shade700
                         : hasContent
-                            ? Colors.green.shade700
-                            : theme.colorScheme.onSurfaceVariant,
+                        ? Colors.green.shade700
+                        : theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -267,8 +273,9 @@ class ResultDisplayWidget extends StatelessWidget {
                   : Text(
                       'Result will appear here...',
                       style: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.5,
+                        ),
                         fontStyle: FontStyle.italic,
                       ),
                     ),

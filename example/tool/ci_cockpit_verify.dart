@@ -9,24 +9,20 @@ Future<void> main(List<String> args) async {
   final appJson = '${outputDir.path}${Platform.pathSeparator}app.json';
   final launchJson = '${outputDir.path}${Platform.pathSeparator}launch.json';
   final readJson = '${outputDir.path}${Platform.pathSeparator}read.json';
-  final assertJson = '${outputDir.path}${Platform.pathSeparator}assert.json';
+  final workflowJson =
+      '${outputDir.path}${Platform.pathSeparator}workflow.json';
+  final runScriptJson =
+      '${outputDir.path}${Platform.pathSeparator}run_script.json';
+  final bundleSummaryJson =
+      '${outputDir.path}${Platform.pathSeparator}bundle_summary.json';
+  final bundleRoot = '${outputDir.path}${Platform.pathSeparator}task_bundle';
   final errorsJson = '${outputDir.path}${Platform.pathSeparator}errors.json';
   final stopJson = '${outputDir.path}${Platform.pathSeparator}stop.json';
-  final commandJson =
-      '${outputDir.path}${Platform.pathSeparator}assert_command.json';
 
-  final commandFile = File(commandJson);
-  commandFile.writeAsStringSync(
-    const JsonEncoder.withIndent('  ').convert(<String, Object?>{
-      'commandId': 'assert-fjs-home',
-      'commandType': 'assertText',
-      'parameters': <String, Object?>{'text': options.expectedText},
-      'timeoutMs': options.assertTimeoutMs,
-    }),
-  );
+  _writeJson(workflowJson, _buildWorkflow(options));
 
   try {
-    await _run(<String>[
+    await _runWithRetry(<String>[
       'dart',
       'run',
       'cockpit',
@@ -53,7 +49,7 @@ Future<void> main(List<String> args) async {
       launchJson,
       '--output-format',
       'json',
-    ]);
+    ], attempts: 2);
 
     await _runWithRetry(<String>[
       'dart',
@@ -70,22 +66,42 @@ Future<void> main(List<String> args) async {
       'json',
     ], attempts: 6);
 
-    await _runWithRetry(<String>[
+    await _run(<String>[
       'dart',
       'run',
       'cockpit',
-      'run-command',
+      'run-script',
       '--app-json',
       appJson,
-      '--command-file',
-      commandJson,
-      '--profile',
-      'standard',
+      '--script',
+      workflowJson,
+      '--platform',
+      options.platform,
+      '--output-root',
+      bundleRoot,
       '--output',
-      assertJson,
+      runScriptJson,
       '--output-format',
       'json',
-    ], attempts: 6);
+    ]);
+
+    final bundleDir = _findBundleDir(
+      runScriptResult: File(runScriptJson),
+      outputRoot: Directory(bundleRoot),
+    );
+    await _run(<String>[
+      'dart',
+      'run',
+      'cockpit',
+      'read-task-bundle-summary',
+      '--bundle-dir',
+      bundleDir,
+      '--output',
+      bundleSummaryJson,
+      '--output-format',
+      'json',
+    ]);
+    _ensureBundleEvidence(File(bundleSummaryJson));
 
     await _runWithRetry(<String>[
       'dart',
@@ -123,6 +139,90 @@ Future<void> main(List<String> args) async {
   }
 }
 
+Map<String, Object?> _buildWorkflow(_Options options) {
+  final retryDelayMs = (options.assertTimeoutMs ~/ 10).clamp(500, 3000);
+  return <String, Object?>{
+    'schemaVersion': 1,
+    'sessionId': 'fjs-ci-${options.platform}',
+    'taskId': 'fjs-example-smoke',
+    'platform': options.platform,
+    'failFast': true,
+    'steps': <Object?>[
+      <String, Object?>{
+        'stepId': 'assert-home',
+        'stepType': 'retry',
+        'maxAttempts': 6,
+        'delayMs': retryDelayMs,
+        'step': <String, Object?>{
+          'stepType': 'command',
+          'command': <String, Object?>{
+            'commandId': 'assert-fjs-home',
+            'commandType': 'assertText',
+            'parameters': <String, Object?>{'text': options.expectedText},
+            'timeoutMs': options.assertTimeoutMs,
+          },
+        },
+      },
+      <String, Object?>{
+        'stepId': 'tap-execute',
+        'stepType': 'command',
+        'command': <String, Object?>{
+          'commandId': 'tap-fjs-execute',
+          'commandType': 'tap',
+          'locator': <String, Object?>{
+            'key': 'fjs_execute_button',
+            'fallbacks': <Object?>[
+              <String, Object?>{'key': 'fjs_execute_app_bar_button'},
+              <String, Object?>{'text': 'Execute Code'},
+              <String, Object?>{'tooltip': 'Execute Code'},
+            ],
+          },
+          'parameters': <String, Object?>{
+            'actionExpectationTimeoutMs': options.assertTimeoutMs,
+          },
+          'timeoutMs': options.assertTimeoutMs,
+        },
+      },
+      <String, Object?>{
+        'stepId': 'assert-result',
+        'stepType': 'retry',
+        'maxAttempts': 6,
+        'delayMs': retryDelayMs,
+        'step': <String, Object?>{
+          'stepType': 'command',
+          'command': <String, Object?>{
+            'commandId': 'assert-fjs-smoke-result',
+            'commandType': 'assertText',
+            'parameters': <String, Object?>{'text': options.expectedResult},
+            'timeoutMs': options.assertTimeoutMs,
+          },
+        },
+      },
+      <String, Object?>{
+        'stepId': 'capture-result',
+        'stepType': 'command',
+        'command': <String, Object?>{
+          'commandId': 'capture-fjs-smoke-result',
+          'commandType': 'captureScreenshot',
+          'screenshotRequest': <String, Object?>{
+            'reason': 'acceptance',
+            'name': 'fjs-example-smoke-${options.platform}',
+            'includeSnapshot': true,
+            'attachToStep': true,
+          },
+          'timeoutMs': options.assertTimeoutMs,
+        },
+      },
+    ],
+  };
+}
+
+void _writeJson(String path, Map<String, Object?> json) {
+  File(
+    path,
+  ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(json));
+}
+
 Future<void> _runWithRetry(
   List<String> command, {
   required int attempts,
@@ -150,7 +250,9 @@ Future<void> _runWithRetry(
 
 bool _isRetriableCockpitFailure(ProcessException error) {
   final message = error.message;
-  return message.contains('remoteUnavailable') ||
+  return error.errorCode == -15 ||
+      message.contains('exit code -15') ||
+      message.contains('remoteUnavailable') ||
       message.contains('Remote session is temporarily unavailable') ||
       message.contains('/health') ||
       message.contains('TimeoutException');
@@ -191,6 +293,95 @@ void _ensureNoRuntimeErrors(File errorsFile) {
   );
 }
 
+void _ensureBundleEvidence(File summaryFile) {
+  final json =
+      jsonDecode(summaryFile.readAsStringSync()) as Map<String, Object?>;
+  final gateSummary = json['gateSummary'] as Map<String, Object?>? ?? const {};
+  final gates = gateSummary['gates'] as Map<String, Object?>? ?? const {};
+  final issueEvidence =
+      json['issueEvidence'] as Map<String, Object?>? ?? const {};
+  final counts = issueEvidence['counts'] as Map<String, Object?>? ?? const {};
+  final requiredGates = <String>[
+    'sessionReachable',
+    'targetReachable',
+    'executionFinished',
+    'bundleWritten',
+    'postconditionsSatisfied',
+    'artifactsReady',
+    'screenshotReady',
+    'finalAssertionPassed',
+  ];
+  final failedGates = requiredGates
+      .where((gate) => gates[gate] != true)
+      .toList(growable: false);
+  final failedCommandCount = counts['failedCommandCount'] as int? ?? 0;
+  final runtimeIssueCount = counts['runtimeIssueCount'] as int? ?? 0;
+  final artifactIssueCount = counts['artifactIssueCount'] as int? ?? 0;
+  if (failedGates.isEmpty &&
+      failedCommandCount == 0 &&
+      runtimeIssueCount == 0 &&
+      artifactIssueCount == 0) {
+    return;
+  }
+
+  throw StateError(
+    'Cockpit bundle evidence did not satisfy CI gates: '
+    '${const JsonEncoder.withIndent('  ').convert(<String, Object?>{'failedGates': failedGates, 'counts': counts, 'issueEvidence': issueEvidence})}',
+  );
+}
+
+String _findBundleDir({
+  required File runScriptResult,
+  required Directory outputRoot,
+}) {
+  if (runScriptResult.existsSync()) {
+    final json =
+        jsonDecode(runScriptResult.readAsStringSync()) as Map<String, Object?>;
+    final direct = _firstString(json, const <List<String>>[
+      <String>['bundleDir'],
+      <String>['bundle', 'bundleDir'],
+      <String>['result', 'bundleDir'],
+    ]);
+    if (direct != null && Directory(direct).existsSync()) {
+      return direct;
+    }
+  }
+
+  final manifestFiles = <File>[];
+  if (outputRoot.existsSync()) {
+    for (final entity in outputRoot.listSync(recursive: true)) {
+      if (entity is File && entity.uri.pathSegments.last == 'manifest.json') {
+        manifestFiles.add(entity);
+      }
+    }
+  }
+  if (manifestFiles.isEmpty) {
+    throw StateError('Cockpit run-script did not write a task bundle.');
+  }
+  manifestFiles.sort(
+    (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()),
+  );
+  return manifestFiles.first.parent.path;
+}
+
+String? _firstString(Map<String, Object?> json, List<List<String>> paths) {
+  for (final path in paths) {
+    Object? current = json;
+    for (final segment in path) {
+      if (current is Map<String, Object?>) {
+        current = current[segment];
+      } else {
+        current = null;
+        break;
+      }
+    }
+    if (current is String && current.isNotEmpty) {
+      return current;
+    }
+  }
+  return null;
+}
+
 final class _Options {
   const _Options({
     required this.platform,
@@ -199,6 +390,7 @@ final class _Options {
     required this.launchTimeoutSeconds,
     required this.assertTimeoutMs,
     required this.expectedText,
+    required this.expectedResult,
     this.deviceId,
   });
 
@@ -209,6 +401,7 @@ final class _Options {
   final int launchTimeoutSeconds;
   final int assertTimeoutMs;
   final String expectedText;
+  final String expectedResult;
 
   static _Options parse(List<String> args) {
     String? platform;
@@ -218,6 +411,7 @@ final class _Options {
     var launchTimeoutSeconds = 900;
     var assertTimeoutMs = 30000;
     var expectedText = 'Welcome to FJS';
+    var expectedResult = 'Cockpit smoke result: 42';
 
     for (var i = 0; i < args.length; i++) {
       final arg = args[i];
@@ -243,6 +437,8 @@ final class _Options {
           assertTimeoutMs = int.parse(readValue());
         case '--expected-text':
           expectedText = readValue();
+        case '--expected-result':
+          expectedResult = readValue();
         case '--help':
         case '-h':
           _printUsage();
@@ -265,6 +461,7 @@ final class _Options {
       launchTimeoutSeconds: launchTimeoutSeconds,
       assertTimeoutMs: assertTimeoutMs,
       expectedText: expectedText,
+      expectedResult: expectedResult,
     );
   }
 
@@ -279,6 +476,7 @@ Options:
   --launch-timeout-seconds <secs>  Defaults to 900.
   --assert-timeout-ms <ms>         Defaults to 30000.
   --expected-text <text>           Defaults to "Welcome to FJS".
+  --expected-result <text>         Defaults to "Cockpit smoke result: 42".
 ''');
   }
 }

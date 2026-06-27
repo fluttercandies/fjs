@@ -9,6 +9,8 @@ import 'app.dart';
 
 Future<Widget> buildFjsExampleApp({
   List<NavigatorObserver> navigatorObservers = const <NavigatorObserver>[],
+  String? initialCode,
+  bool showSmokeResult = false,
 }) async {
   await LibFjs.init();
 
@@ -22,6 +24,8 @@ Future<Widget> buildFjsExampleApp({
     fjsService: fjsService,
     jsExamplesService: JsExamplesService(),
     navigatorObservers: navigatorObservers,
+    initialCode: initialCode,
+    showSmokeResult: showSmokeResult,
   );
 }
 

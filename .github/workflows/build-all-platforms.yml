@@ -176,7 +176,7 @@ jobs:
           api-level: 35
           target: google_apis
           arch: x86_64
-          profile: Pixel 6
+          profile: pixel_7_pro
           script: |
             cd ${{ env.EXAMPLE_DIR }}
             dart run tool/ci_cockpit_verify.dart \
@@ -394,7 +394,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev xvfb
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev xvfb
 
       - name: Get dependencies
         run: flutter pub get

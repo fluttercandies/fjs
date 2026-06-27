@@ -10,7 +10,10 @@ import '../widgets/widgets.dart';
 
 /// Home screen with navigation to all features
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String? initialCode;
+  final bool showSmokeResult;
+
+  const HomeScreen({super.key, this.initialCode, this.showSmokeResult = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -23,6 +26,15 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isExecuting = false;
   bool _copiedToClipboard = false;
   int _selectedNavIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialCode = widget.initialCode;
+    if (initialCode != null && initialCode.trim().isNotEmpty) {
+      _codeController.text = initialCode;
+    }
+  }
 
   @override
   void dispose() {
@@ -168,8 +180,8 @@ class _HomeScreenState extends State<HomeScreen>
                   Text(
                     'FJS',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -286,13 +298,16 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context,
-      {bool showDrawer = true}) {
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context, {
+    bool showDrawer = true,
+  }) {
     return AppBar(
       title: const Text('FJS JavaScript Runtime'),
       automaticallyImplyLeading: showDrawer,
       actions: [
         IconButton(
+          key: const ValueKey<String>('fjs_execute_app_bar_button'),
           icon: const Icon(Icons.play_circle_outline),
           onPressed: _executeCode,
           tooltip: 'Execute Code',
@@ -391,18 +406,17 @@ class _HomeScreenState extends State<HomeScreen>
                 Text(
                   'FJS',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
                   'Flutter JavaScript Runtime',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onPrimary
-                            .withValues(alpha: 0.8),
-                      ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary.withValues(alpha: 0.8),
+                  ),
                 ),
               ],
             ),
@@ -426,10 +440,7 @@ class _HomeScreenState extends State<HomeScreen>
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
               'API Reference',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
             ),
           ),
           ListTile(
@@ -560,6 +571,17 @@ class _HomeScreenState extends State<HomeScreen>
               _FeatureChip(icon: Icons.view_module, label: 'Modules'),
             ],
           ),
+          if (widget.showSmokeResult && _result.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Cockpit smoke result: $_result',
+              key: const ValueKey<String>('fjs_cockpit_smoke_result'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -637,6 +659,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             const SizedBox(height: 12),
             CodeEditorWidget(
+              editorKey: const ValueKey<String>('fjs_code_editor'),
               controller: _codeController,
               hintText:
                   '// Enter your JavaScript code here...\nconsole.log("Hello, FJS!");',
@@ -647,6 +670,7 @@ class _HomeScreenState extends State<HomeScreen>
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
+                key: const ValueKey<String>('fjs_execute_button'),
                 onPressed: _isExecuting ? null : _executeCode,
                 icon: _isExecuting
                     ? const SizedBox(
@@ -679,10 +703,7 @@ class _HomeScreenState extends State<HomeScreen>
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Result',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text('Result', style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
                 if (_result.isNotEmpty)
                   IconButton(
@@ -741,8 +762,9 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 const SizedBox(height: 12),
                 ...JsExampleCategory.values.take(4).map((category) {
-                  final examples =
-                      examplesService.getExamplesByCategory(category);
+                  final examples = examplesService.getExamplesByCategory(
+                    category,
+                  );
                   if (examples.isEmpty) return const SizedBox.shrink();
 
                   return Column(
@@ -762,10 +784,12 @@ class _HomeScreenState extends State<HomeScreen>
                         runSpacing: 8,
                         children: examples
                             .take(4)
-                            .map((example) => ActionChip(
-                                  label: Text(example.label),
-                                  onPressed: () => _loadExample(example),
-                                ))
+                            .map(
+                              (example) => ActionChip(
+                                label: Text(example.label),
+                                onPressed: () => _loadExample(example),
+                              ),
+                            )
                             .toList(),
                       ),
                       const SizedBox(height: 12),
@@ -781,8 +805,10 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadExample(JsExample example) async {
-    final examplesService =
-        Provider.of<JsExamplesService>(context, listen: false);
+    final examplesService = Provider.of<JsExamplesService>(
+      context,
+      listen: false,
+    );
     final code = await examplesService.loadExampleCode(example.fileName);
     if (!mounted || code == null) {
       return;

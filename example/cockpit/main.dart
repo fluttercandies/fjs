@@ -29,6 +29,8 @@ Future<void> main() async {
   try {
     final app = await buildFjsExampleApp(
       navigatorObservers: <NavigatorObserver>[FlutterCockpit.navigatorObserver],
+      initialCode: '21 + 21',
+      showSmokeResult: true,
     );
     runApp(FlutterCockpitApp(config: config, child: app));
   } catch (error, stackTrace) {
