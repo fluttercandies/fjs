@@ -177,13 +177,13 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_7_pro
-          script: |
-            cd ${{ env.EXAMPLE_DIR }}
-            dart run tool/ci_cockpit_verify.dart \
-              --platform android \
-              --device-id emulator-5554 \
-              --output-dir .dart_tool/flutter_cockpit/ci-android \
-              --launch-timeout-seconds 1200
+          script: >-
+            cd ${{ env.EXAMPLE_DIR }} &&
+            dart run tool/ci_cockpit_verify.dart
+            --platform android
+            --device-id emulator-5554
+            --output-dir .dart_tool/flutter_cockpit/ci-android
+            --launch-timeout-seconds 1200
 
       - name: Upload Android cockpit evidence
         if: always() && matrix.arch == 'universal'
