@@ -1,13 +1,16 @@
 //! Tests for the production runtime execution architecture.
 
 use crate::api::engine::JsEngine;
-use crate::api::error::JsResult;
+use crate::api::error::{JsError, JsResult};
 use crate::api::runtime::{JsAsyncContext, JsAsyncRuntime};
-use crate::api::source::{JsBuiltinOptions, JsCode, JsModule};
+use crate::api::source::{
+    JsBuiltinOptions, JsCode, JsModule, JsModuleBytecode, JsModuleBytecodeBundle, JsScriptBytecode,
+};
 use crate::api::value::JsValue;
 use rquickjs::CatchResultExt;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::oneshot;
 
 const DEEP_RECURSION_PROBE: &str = r#"
 globalThis.__fjsDepthProbe = function(limit) {
@@ -619,7 +622,7 @@ async fn engine_close_surfaces_unhandled_background_error() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn engine_close_surfaces_background_timer_error_raised_during_teardown() {
+async fn engine_close_gracefully_surfaces_background_timer_error_raised_during_teardown() {
     let engine = JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
         .await
         .unwrap();
@@ -641,7 +644,7 @@ async fn engine_close_surfaces_background_timer_error_raised_during_teardown() {
         .await
         .unwrap();
 
-    let error = engine.close().await.unwrap_err().to_string();
+    let error = engine.close_gracefully().await.unwrap_err().to_string();
     assert!(error.contains("fjs close teardown timer failure"));
     assert!(engine.closed());
     assert!(!engine.driver_running().await.unwrap());
@@ -1005,6 +1008,591 @@ async fn engine_close_is_idempotent_and_stops_driver() {
 
     engine.close().await.unwrap();
     assert!(!engine.driver_running().await.unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_cancels_pending_eval_without_draining_timer_work() {
+    let engine = Arc::new(
+        JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+            .await
+            .unwrap(),
+    );
+    engine.init_without_bridge().await.unwrap();
+
+    let pending_engine = engine.clone();
+    let pending = tokio::spawn(async move {
+        pending_engine
+            .eval(
+                JsCode::Code(
+                    r#"
+                    await new Promise((resolve) => setTimeout(resolve, 700));
+                    "done";
+                    "#
+                    .to_string(),
+                ),
+                None,
+            )
+            .await
+    });
+
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let started = Instant::now();
+    engine.close().await.unwrap();
+    let elapsed = started.elapsed();
+
+    assert!(
+        elapsed < Duration::from_millis(200),
+        "close should not drain pending timer work, elapsed {elapsed:?}"
+    );
+
+    let result = tokio::time::timeout(Duration::from_millis(200), pending)
+        .await
+        .expect("pending eval should be cancelled promptly")
+        .expect("eval task should not panic");
+    assert!(
+        matches!(result, Err(JsError::Cancelled(_))),
+        "pending eval should be cancelled, got {result:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_gracefully_drains_pending_eval_work() {
+    let engine = Arc::new(
+        JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+            .await
+            .unwrap(),
+    );
+    engine.init_without_bridge().await.unwrap();
+
+    let pending_engine = engine.clone();
+    let pending = tokio::spawn(async move {
+        pending_engine
+            .eval(
+                JsCode::Code(
+                    r#"
+                    await new Promise((resolve) => setTimeout(resolve, 80));
+                    "done";
+                    "#
+                    .to_string(),
+                ),
+                None,
+            )
+            .await
+    });
+
+    tokio::time::sleep(Duration::from_millis(20)).await;
+
+    let started = Instant::now();
+    engine.close_gracefully().await.unwrap();
+    let elapsed = started.elapsed();
+
+    assert!(
+        elapsed >= Duration::from_millis(40),
+        "closeGracefully should drain pending timer work, elapsed {elapsed:?}"
+    );
+
+    let result = pending.await.expect("eval task should not panic").unwrap();
+    assert!(matches!(result, JsValue::String(ref value) if value == "done"));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_interrupts_cpu_bound_eval() {
+    let engine = Arc::new(JsEngine::create(None, None, None).await.unwrap());
+    engine.init_without_bridge().await.unwrap();
+
+    let pending_engine = engine.clone();
+    let pending = tokio::spawn(async move {
+        pending_engine
+            .eval(
+                JsCode::Code(
+                    r#"
+                    while (true) {}
+                    "#
+                    .to_string(),
+                ),
+                None,
+            )
+            .await
+    });
+
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    tokio::time::timeout(Duration::from_millis(500), engine.close())
+        .await
+        .expect("close should interrupt CPU-bound JavaScript promptly")
+        .unwrap();
+
+    let result = tokio::time::timeout(Duration::from_millis(200), pending)
+        .await
+        .expect("CPU-bound eval should finish after close")
+        .expect("eval task should not panic");
+    assert!(
+        matches!(result, Err(JsError::Cancelled(_))),
+        "CPU-bound eval should be cancelled, got {result:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_cancels_pending_module_call() {
+    let engine = Arc::new(
+        JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+            .await
+            .unwrap(),
+    );
+    engine.init_without_bridge().await.unwrap();
+    engine
+        .evaluate_module(JsModule::code(
+            "/slow-call".to_string(),
+            r#"
+            export async function run() {
+              await new Promise((resolve) => setTimeout(resolve, 700));
+              return "done";
+            }
+            "#
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let pending_engine = engine.clone();
+    let pending = tokio::spawn(async move {
+        pending_engine
+            .call("/slow-call".to_string(), "run".to_string(), None)
+            .await
+    });
+
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    engine.close().await.unwrap();
+
+    let result = tokio::time::timeout(Duration::from_millis(200), pending)
+        .await
+        .expect("pending call should be cancelled promptly")
+        .expect("call task should not panic");
+    assert!(
+        matches!(result, Err(JsError::Cancelled(_))),
+        "pending call should be cancelled, got {result:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_cancels_pending_bridge_call() {
+    let engine = Arc::new(JsEngine::create(None, None, None).await.unwrap());
+    let (started_tx, started_rx) = oneshot::channel::<()>();
+    let started_tx = Arc::new(std::sync::Mutex::new(Some(started_tx)));
+    let (_release_tx, release_rx) = oneshot::channel::<()>();
+    let release_rx = Arc::new(std::sync::Mutex::new(Some(release_rx)));
+
+    engine
+        .init({
+            let started_tx = started_tx.clone();
+            let release_rx = release_rx.clone();
+            move |_value| {
+                let started_tx = started_tx
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take();
+                let release_rx = release_rx
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take();
+                Box::pin(async move {
+                    if let Some(started_tx) = started_tx {
+                        let _ = started_tx.send(());
+                    }
+                    if let Some(release_rx) = release_rx {
+                        let _ = release_rx.await;
+                    }
+                    JsResult::Ok(JsValue::String("bridge done".to_string()))
+                })
+            }
+        })
+        .await
+        .unwrap();
+
+    let pending_engine = engine.clone();
+    let pending = tokio::spawn(async move {
+        pending_engine
+            .eval(
+                JsCode::Code(r#"await fjs.bridge_call("wait")"#.to_string()),
+                None,
+            )
+            .await
+    });
+
+    started_rx.await.expect("bridge callback should start");
+    engine.close().await.unwrap();
+
+    let result = tokio::time::timeout(Duration::from_millis(200), pending)
+        .await
+        .expect("pending bridge eval should be cancelled promptly")
+        .expect("eval task should not panic");
+    assert!(
+        matches!(result, Err(JsError::Cancelled(_))),
+        "pending bridge eval should be cancelled, got {result:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_drops_pending_bridge_future_without_host_release() {
+    struct PendingBridgeFuture {
+        dropped: Option<oneshot::Sender<()>>,
+    }
+
+    impl std::future::Future for PendingBridgeFuture {
+        type Output = JsResult;
+
+        fn poll(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Self::Output> {
+            std::task::Poll::Pending
+        }
+    }
+
+    impl Drop for PendingBridgeFuture {
+        fn drop(&mut self) {
+            if let Some(dropped) = self.dropped.take() {
+                let _ = dropped.send(());
+            }
+        }
+    }
+
+    let engine = Arc::new(JsEngine::create(None, None, None).await.unwrap());
+    let (started_tx, started_rx) = oneshot::channel::<()>();
+    let started_tx = Arc::new(std::sync::Mutex::new(Some(started_tx)));
+    let (dropped_tx, dropped_rx) = oneshot::channel::<()>();
+    let dropped_tx = Arc::new(std::sync::Mutex::new(Some(dropped_tx)));
+
+    engine
+        .init({
+            let started_tx = started_tx.clone();
+            let dropped_tx = dropped_tx.clone();
+            move |_value| {
+                let started_tx = started_tx
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take();
+                let dropped = dropped_tx
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take();
+                Box::pin(async move {
+                    if let Some(started_tx) = started_tx {
+                        let _ = started_tx.send(());
+                    }
+                    PendingBridgeFuture { dropped }.await
+                })
+            }
+        })
+        .await
+        .unwrap();
+
+    let pending_engine = engine.clone();
+    let pending = tokio::spawn(async move {
+        pending_engine
+            .eval(
+                JsCode::Code(r#"await fjs.bridge_call("wait")"#.to_string()),
+                None,
+            )
+            .await
+    });
+
+    started_rx.await.expect("bridge callback should start");
+    engine.close().await.unwrap();
+
+    let result = tokio::time::timeout(Duration::from_millis(200), pending)
+        .await
+        .expect("pending bridge eval should be cancelled promptly")
+        .expect("eval task should not panic");
+    assert!(
+        matches!(result, Err(JsError::Cancelled(_))),
+        "pending bridge eval should be cancelled, got {result:?}"
+    );
+
+    tokio::time::timeout(Duration::from_millis(300), dropped_rx)
+        .await
+        .expect("pending bridge callback future should be dropped after close")
+        .expect("drop notification should be sent");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn engine_close_cancels_mixed_in_flight_eval_call_and_bridge_operations() {
+    let engine = Arc::new(
+        JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+            .await
+            .unwrap(),
+    );
+    let (bridge_started_tx, bridge_started_rx) = oneshot::channel::<()>();
+    let bridge_started_tx = Arc::new(std::sync::Mutex::new(Some(bridge_started_tx)));
+
+    engine
+        .init({
+            let bridge_started_tx = bridge_started_tx.clone();
+            move |_value| {
+                let bridge_started_tx = bridge_started_tx
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take();
+                Box::pin(async move {
+                    if let Some(bridge_started_tx) = bridge_started_tx {
+                        let _ = bridge_started_tx.send(());
+                    }
+                    std::future::pending::<JsResult>().await
+                })
+            }
+        })
+        .await
+        .unwrap();
+
+    engine
+        .evaluate_module(JsModule::code(
+            "/mixed-close".to_string(),
+            r#"
+            export async function slow() {
+              await new Promise((resolve) => setTimeout(resolve, 700));
+              return "call done";
+            }
+            "#
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let eval_task = {
+        let engine = engine.clone();
+        tokio::spawn(async move {
+            engine
+                .eval(
+                    JsCode::Code(
+                        r#"
+                        await new Promise((resolve) => setTimeout(resolve, 700));
+                        "eval done";
+                        "#
+                        .to_string(),
+                    ),
+                    None,
+                )
+                .await
+        })
+    };
+    let call_task = {
+        let engine = engine.clone();
+        tokio::spawn(async move {
+            engine
+                .call("/mixed-close".to_string(), "slow".to_string(), None)
+                .await
+        })
+    };
+    let bridge_task = {
+        let engine = engine.clone();
+        tokio::spawn(async move {
+            engine
+                .eval(
+                    JsCode::Code(r#"await fjs.bridge_call("mixed")"#.to_string()),
+                    None,
+                )
+                .await
+        })
+    };
+
+    bridge_started_rx
+        .await
+        .expect("bridge operation should be in flight");
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    engine.close().await.unwrap();
+
+    for (name, task) in [
+        ("eval", eval_task),
+        ("call", call_task),
+        ("bridge", bridge_task),
+    ] {
+        let result = tokio::time::timeout(Duration::from_millis(250), task)
+            .await
+            .unwrap_or_else(|_| panic!("{name} operation should finish after close"))
+            .unwrap_or_else(|error| panic!("{name} task should not panic: {error}"));
+        assert!(
+            matches!(result, Err(JsError::Cancelled(_))),
+            "{name} operation should be cancelled, got {result:?}"
+        );
+    }
+
+    assert!(engine.closed());
+    assert!(!engine.driver_running().await.unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_gracefully_allows_pending_module_call_to_complete() {
+    let engine = Arc::new(
+        JsEngine::create(Some(JsBuiltinOptions::essential()), None, None)
+            .await
+            .unwrap(),
+    );
+    engine.init_without_bridge().await.unwrap();
+    engine
+        .evaluate_module(JsModule::code(
+            "/graceful-call".to_string(),
+            r#"
+            export async function run() {
+              await new Promise((resolve) => setTimeout(resolve, 60));
+              return "done";
+            }
+            "#
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let pending_engine = engine.clone();
+    let pending = tokio::spawn(async move {
+        pending_engine
+            .call("/graceful-call".to_string(), "run".to_string(), None)
+            .await
+    });
+
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    engine.close_gracefully().await.unwrap();
+
+    let result = pending.await.expect("call task should not panic").unwrap();
+    assert!(matches!(result, JsValue::String(ref value) if value == "done"));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_close_and_close_gracefully_are_cross_idempotent() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine.close().await.unwrap();
+    engine.close_gracefully().await.unwrap();
+    engine.close().await.unwrap();
+    assert!(engine.closed());
+    assert!(!engine.driver_running().await.unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_rejects_high_level_apis_after_close() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+    engine.close().await.unwrap();
+
+    assert!(
+        engine
+            .eval(JsCode::Code("1 + 1".to_string()), None)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("Engine is closed")
+    );
+    assert!(
+        engine
+            .declare_new_module(JsModule::code(
+                "/closed".to_string(),
+                "export {}".to_string()
+            ))
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("Engine is closed")
+    );
+    assert!(
+        engine
+            .call("/closed".to_string(), "run".to_string(), None)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("Engine is closed")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_rejects_all_public_work_apis_after_close() {
+    fn assert_engine_closed<T>(result: Result<T, JsError>) {
+        match result {
+            Err(error) => assert!(
+                error.to_string().contains("Engine is closed"),
+                "expected closed engine error, got {error}"
+            ),
+            Ok(_) => panic!("expected closed engine error"),
+        }
+    }
+
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+    engine.close().await.unwrap();
+
+    let module = JsModule::code("/closed".to_string(), "export const value = 1;".to_string());
+    let bytecode = JsModuleBytecode::new("/closed-bytecode".to_string(), vec![0]);
+    let bundle = JsModuleBytecodeBundle::new(Some("/closed-entry".to_string()), vec![]);
+    let script = JsScriptBytecode::new("closed.js".to_string(), vec![0]);
+
+    assert_engine_closed(engine.memory_usage().await);
+    assert_engine_closed(engine.run_gc().await);
+    assert_engine_closed(engine.set_gc_threshold(1024).await);
+    assert_engine_closed(engine.set_info("closed".to_string()).await);
+    assert_engine_closed(engine.set_max_stack_size(1024).await);
+    assert_engine_closed(engine.set_memory_limit(1024).await);
+    assert_engine_closed(engine.eval(JsCode::Code("1 + 1".to_string()), None).await);
+    assert_engine_closed(engine.declare_new_bytecode_module(bytecode.clone()).await);
+    assert_engine_closed(
+        engine
+            .declare_new_bytecode_modules(vec![bytecode.clone()])
+            .await,
+    );
+    assert_engine_closed(engine.declare_new_bytecode_bundle(bundle.clone()).await);
+    assert_engine_closed(engine.declare_new_module(module.clone()).await);
+    assert_engine_closed(engine.declare_new_modules(vec![module.clone()]).await);
+    assert_engine_closed(engine.evaluate_module(module.clone()).await);
+    assert_engine_closed(engine.evaluate_bytecode_module(bytecode.clone()).await);
+    assert_engine_closed(engine.evaluate_bytecode_bundle(bundle).await);
+    assert_engine_closed(engine.evaluate_script_bytecode(script).await);
+    assert_engine_closed(engine.clear_pending_modules().await);
+    assert_engine_closed(engine.get_declared_modules().await);
+    assert_engine_closed(engine.get_available_modules().await);
+    assert_engine_closed(engine.is_module_declared("/closed".to_string()).await);
+    assert_engine_closed(engine.is_module_available("/closed".to_string()).await);
+    assert_engine_closed(
+        engine
+            .call("/closed".to_string(), "run".to_string(), None)
+            .await,
+    );
+
+    assert!(engine.closed());
+    assert!(!engine.running());
+    assert!(engine.drain_unhandled_job_errors().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn async_context_eval_observes_runtime_shutdown_token() {
+    let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::essential()), None)
+        .await
+        .unwrap();
+    let context = Arc::new(JsAsyncContext::from(&runtime).await.unwrap());
+
+    let pending_context = context.clone();
+    let pending = tokio::spawn(async move {
+        pending_context
+            .eval(
+                r#"
+                await new Promise((resolve) => setTimeout(resolve, 700));
+                "done";
+                "#
+                .to_string(),
+            )
+            .await
+    });
+
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    runtime.request_shutdown();
+    runtime.stop_driver().await;
+
+    let result = tokio::time::timeout(Duration::from_millis(200), pending)
+        .await
+        .expect("pending context eval should be cancelled promptly")
+        .expect("eval task should not panic");
+    assert!(
+        matches!(result, JsResult::Err(JsError::Cancelled(_))),
+        "pending context eval should be cancelled, got {result:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

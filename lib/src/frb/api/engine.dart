@@ -12,7 +12,8 @@ import 'source.dart';
 import 'value.dart';
 part 'engine.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `already_loaded_error`, `begin_close`, `begin_init`, `declare_dynamic_modules`, `ensure_no_unhandled_job_errors`, `ensure_running`, `ensure_runtime_accessible`, `ensure_unique_module_names`, `evaluate_dynamic_module`, `finish_init`, `first_duplicate_name`, `format_unhandled_job_errors`, `new_bridge_call`, `register_fjs`, `rollback_init`, `with_foreground_js_result`
+// These functions are ignored because they are not marked as `pub`: `already_loaded_error`, `begin_close`, `begin_init`, `close_with_mode`, `declare_dynamic_modules`, `ensure_no_unhandled_job_errors`, `ensure_running`, `ensure_runtime_accessible`, `ensure_unique_module_names`, `evaluate_dynamic_module`, `finish_init`, `first_duplicate_name`, `format_unhandled_job_errors`, `new_bridge_call`, `register_fjs`, `resources`, `retire_resources_after_immediate_close`, `rollback_init`, `take_resources`, `with_foreground_js_result`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `JsEngineResources`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsEngine>>
@@ -70,28 +71,51 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// ```
   Future<void> clearPendingModules();
 
-  /// Closes the engine and releases resources.
+  /// Closes the engine immediately and releases its owned resources.
   ///
-  /// After close, the engine wrapper cannot be used anymore.
-  /// This detaches the `fjs` bridge object, drains pending runtime work,
-  /// and triggers a garbage collection pass, but it does not directly
-  /// release the underlying runtime or context objects.
+  /// After close, the engine wrapper cannot be used anymore. This method
+  /// marks the engine closed, requests runtime cancellation, stops the
+  /// background driver, detaches the `fjs` bridge object, skips the full
+  /// blocking runtime drain, and retires the remaining QuickJS resources on
+  /// the JS executor. In-flight foreground operations fail with
+  /// `JsError::Cancelled` instead of waiting for timers, Promise callbacks,
+  /// fetches, bridge calls, or spawned work to complete.
+  ///
+  /// Use `closeGracefully()` when shutdown must let already-scheduled
+  /// JavaScript work finish before resources are released.
   ///
   /// Closing always wins: it succeeds even while `init()` is still in
   /// flight (the interrupted `init()` reports the failure to its caller).
   ///
-  /// Pending timers, Promise callbacks, and other runtime tasks may run during
-  /// this drain step. Unhandled background JavaScript errors are surfaced
-  /// automatically by `close()` or by the next engine operation.
-  ///
   /// ## Throws
-  /// - If unhandled background JavaScript errors are pending
+  /// - If unhandled background JavaScript errors were already pending
   ///
   /// ## Example
   /// ```dart
   /// await engine.close();
   /// ```
   Future<void> close();
+
+  /// Closes the engine after draining pending runtime work.
+  ///
+  /// This preserves the pre-3.2 graceful teardown behavior: the engine stops
+  /// accepting new work, detaches the bridge, runs pending timers, Promise
+  /// callbacks, fetches, and spawned runtime tasks until the runtime becomes
+  /// quiescent, and then runs GC. In-flight foreground operations may complete
+  /// successfully during this drain.
+  ///
+  /// Use `close()` for normal disposal paths where shutdown should not wait
+  /// for arbitrary JavaScript background work.
+  ///
+  /// ## Throws
+  /// - If unhandled background JavaScript errors are pending or raised during
+  ///   the drain
+  ///
+  /// ## Example
+  /// ```dart
+  /// await engine.closeGracefully();
+  /// ```
+  Future<void> closeGracefully();
 
   /// Returns whether the engine has been closed.
   ///

@@ -203,8 +203,12 @@ try {
 ```
 
 这样用户侧生命周期保持很小：创建 engine，执行 JavaScript，owner 结束时调用
-`close()`。如果使用更底层的异步 runtime/context，也会得到相同的自动 driver 行为；
-Dart 应用代码不需要启动、停止、轮询或 drain 这个 driver。
+`close()`。从 `3.2.0` 开始，`close()` 是立即关闭：它会停止接受新工作，并让进行中的
+前台操作以 `JsError.cancelled` 失败，不再为了 timer、Promise callback、fetch、
+bridge call 或 runtime spawn 任务做完整 drain。只有在明确需要旧的等待语义、且愿意
+等待已经排队的 JavaScript 工作完成时，才使用 `closeGracefully()`。如果使用更底层的
+异步 runtime/context，也会得到相同的自动 driver 行为；Dart 应用代码不需要启动、停止、
+轮询或 drain 这个 driver。
 
 ### 同步 Runtime 与 Context
 
@@ -351,7 +355,8 @@ print('console: $hasConsole, llrt:xml: $hasXml');
 ## 🔄 Engine 生命周期说明
 
 - `JsEngine` 通过 `create()` 创建时会自己持有内部 runtime/context
-- `close()` 会先移除 `fjs` bridge、推进待处理的 runtime 工作，再执行 GC，之后 engine 不能再使用
+- `close()` 会立即把 engine 标记为关闭、请求 runtime shutdown、停止 driver、移除 `fjs` bridge，并让进行中的前台操作以 `JsError.cancelled` 失败
+- `closeGracefully()` 保留 3.2 之前的 drain 行为：等待已经排队的 timer、Promise callback、fetch、bridge call 和 runtime spawn 任务完成后再执行 GC
 - `clearPendingModules()` 只会清掉还没有被当前 context 真正加载过的动态模块
 - `declareNewModules()` 和 `declareNewBytecodeModules()` 会拒绝同一批请求里的重复模块名
 
@@ -662,7 +667,8 @@ abstract class JsEngine {
   Future<void> setMaxStackSize({required BigInt limit});
   Future<void> setMemoryLimit({required BigInt limit});
   List<String> drainUnhandledJobErrors(); // 后台 JS 错误；任何状态下都可调用
-  Future<void> close(); // 会推进待处理的 runtime 工作，然后执行 GC
+  Future<void> close(); // 立即关闭；取消进行中的前台操作
+  Future<void> closeGracefully(); // 推进待处理的 runtime 工作，然后执行 GC
   bool get running;
   bool get closed;
 }
