@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.2.0
+
+* **BREAKING**: `JsEngine.close()` is now immediate/non-draining. It marks the engine closed, requests runtime shutdown, stops the driver, detaches host globals, and causes in-flight foreground work to fail with `JsError.cancelled` instead of waiting for timers, Promise callbacks, bridge calls, fetches, or spawned work to complete.
+* **FEATURE**: Added `JsEngine.closeGracefully()` for the previous draining shutdown behavior. Use it when already-scheduled JavaScript work must be allowed to finish before teardown completes.
+* **FIX**: Runtime shutdown now installs a QuickJS interrupt handler at runtime creation, so CPU-bound JavaScript can be interrupted when the engine is closed.
+* **FIX**: Pending `fjs.bridge_call(...)` futures now observe engine shutdown and release their Dart-side callback future instead of keeping the runtime alive until the host future completes.
+* **INTERNAL**: Added shutdown lifecycle coverage for pending evals, module calls, bridge calls, CPU-bound JavaScript, closed-state API rejection, and mixed multi-API close integration.
+
 ## 3.1.0
 
 * **FIX**: Normalized Android Cargokit bindgen sysroot/include paths to forward slashes and passed the Android clang target explicitly, fixing Windows Android builds that failed to find NDK headers such as `stdio.h`.

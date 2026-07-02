@@ -12,6 +12,7 @@ use crate::api::source::{
     JsBuiltinOptions, JsCode, JsModule, JsModuleBytecode, JsScriptBytecode, JsScriptBytecodeOptions,
 };
 use crate::api::value::JsValue;
+use crate::runtime::shutdown::RuntimeShutdown;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 
@@ -182,6 +183,7 @@ async fn test_engine_init_failure_rolls_back_state() {
             GlobalAttachment::default().add_function(failing_global_attachment),
         ),
         driver: crate::runtime::driver::DriverController::default(),
+        shutdown: RuntimeShutdown::default(),
         cleaned: Arc::new(AtomicBool::new(false)),
         runtime_lifetime: Arc::new(()),
     };
@@ -215,6 +217,7 @@ async fn test_engine_runtime_proxy_methods_fail_while_initializing() {
             GlobalAttachment::default().add_function(blocking_global_attachment),
         ),
         driver: crate::runtime::driver::DriverController::default(),
+        shutdown: RuntimeShutdown::default(),
         cleaned: Arc::new(AtomicBool::new(false)),
         runtime_lifetime: Arc::new(()),
     };
@@ -342,9 +345,10 @@ async fn test_engine_close_drains_pending_runtime_work() {
     assert!(matches!(scheduled, JsValue::String(ref value) if value == "scheduled"));
     assert!(engine.is_job_pending().await.unwrap());
 
-    engine.close().await.unwrap();
+    let runtime = engine.runtime_for_test();
+    engine.close_gracefully().await.unwrap();
 
-    assert!(!engine.runtime_for_test().is_job_pending().await);
+    assert!(!runtime.is_job_pending().await);
 }
 
 #[tokio::test]

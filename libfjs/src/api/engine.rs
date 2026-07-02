@@ -41,8 +41,8 @@ use crate::bytecode_support::{
 use flutter_rust_bridge::{DartFnFuture, frb};
 use rquickjs::{CatchResultExt, FromJs, Module, Object, Promise};
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::{Arc, RwLock};
 
 /// Type alias for the bridge callback function.
 pub type BridgeCallback = dyn Fn(JsValue) -> DartFnFuture<JsResult> + Sync + Send + 'static;
@@ -88,9 +88,13 @@ const STATE_CLOSED: u8 = 3;
 /// ```
 #[frb(opaque)]
 pub struct JsEngine {
-    runtime: JsAsyncRuntime,
-    context: JsAsyncContext,
+    resources: RwLock<Option<Arc<JsEngineResources>>>,
     state: AtomicU8,
+}
+
+struct JsEngineResources {
+    context: JsAsyncContext,
+    runtime: JsAsyncRuntime,
 }
 
 impl JsEngine {
@@ -124,8 +128,7 @@ impl JsEngine {
         let context = JsAsyncContext::from(&runtime).await?;
 
         Ok(Self {
-            runtime,
-            context,
+            resources: RwLock::new(Some(Arc::new(JsEngineResources { runtime, context }))),
             state: AtomicU8::new(STATE_CREATED),
         })
     }
@@ -133,15 +136,40 @@ impl JsEngine {
     #[cfg(test)]
     pub(crate) fn new_for_test(runtime: JsAsyncRuntime, context: JsAsyncContext) -> Self {
         Self {
-            runtime,
-            context,
+            resources: RwLock::new(Some(Arc::new(JsEngineResources { runtime, context }))),
             state: AtomicU8::new(STATE_CREATED),
         }
     }
 
     #[cfg(test)]
     pub(crate) fn runtime_for_test(&self) -> JsAsyncRuntime {
-        self.runtime.clone()
+        self.resources_for_test().runtime.clone()
+    }
+
+    #[cfg(test)]
+    fn resources_for_test(&self) -> Arc<JsEngineResources> {
+        self.resources
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .expect("engine resources were already released")
+            .clone()
+    }
+
+    fn resources(&self) -> Result<Arc<JsEngineResources>, JsError> {
+        self.resources
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| JsError::engine("Engine is closed"))
+    }
+
+    fn take_resources(&self) -> Option<Arc<JsEngineResources>> {
+        self.resources
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
     }
 
     /// Returns whether the engine has been closed.
@@ -162,10 +190,14 @@ impl JsEngine {
     }
 
     /// Ensures runtime-level controls can be used on this engine.
-    fn ensure_runtime_accessible(&self) -> Result<(), JsError> {
+    fn ensure_runtime_accessible(&self) -> Result<Arc<JsEngineResources>, JsError> {
+        let resources = self.resources()?;
         match self.state.load(Ordering::Acquire) {
-            STATE_CREATED => Ok(()),
-            STATE_RUNNING => self.ensure_no_unhandled_job_errors(),
+            STATE_CREATED => Ok(resources),
+            STATE_RUNNING => {
+                self.ensure_no_unhandled_job_errors(&resources.runtime)?;
+                Ok(resources)
+            }
             STATE_CLOSED => Err(JsError::engine("Engine is closed")),
             STATE_INITIALIZING => Err(JsError::engine("Engine is initializing")),
             _ => Err(JsError::engine("Engine is in an invalid state")),
@@ -173,9 +205,13 @@ impl JsEngine {
     }
 
     /// Ensures the engine is in running state.
-    fn ensure_running(&self) -> Result<(), JsError> {
+    fn ensure_running(&self) -> Result<Arc<JsEngineResources>, JsError> {
+        let resources = self.resources()?;
         match self.state.load(Ordering::Acquire) {
-            STATE_RUNNING => self.ensure_no_unhandled_job_errors(),
+            STATE_RUNNING => {
+                self.ensure_no_unhandled_job_errors(&resources.runtime)?;
+                Ok(resources)
+            }
             STATE_CLOSED => Err(JsError::engine("Engine is closed")),
             STATE_INITIALIZING => Err(JsError::engine("Engine is initializing")),
             STATE_CREATED => Err(JsError::engine("Engine is not initialized")),
@@ -190,8 +226,8 @@ impl JsEngine {
         )
     }
 
-    fn ensure_no_unhandled_job_errors(&self) -> Result<(), JsError> {
-        let errors = self.runtime.take_unhandled_job_errors();
+    fn ensure_no_unhandled_job_errors(&self, runtime: &JsAsyncRuntime) -> Result<(), JsError> {
+        let errors = runtime.take_unhandled_job_errors();
         if errors.is_empty() {
             Ok(())
         } else {
@@ -203,7 +239,9 @@ impl JsEngine {
     where
         F: for<'js> AsyncFnOnce(rquickjs::Ctx<'js>, u64) -> JsResult + Send + 'static,
     {
-        self.context
+        let resources = self.ensure_running()?;
+        resources
+            .context
             .with_foreground_js_result(f)
             .await
             .into_result()
@@ -276,28 +314,36 @@ impl JsEngine {
         module_name: String,
         entry: DynamicModuleEntry,
     ) -> Result<JsValue, JsError> {
-        let driver = self.runtime.driver.clone();
-        self.with_foreground_js_result(async move |ctx, checkpoint| {
-            if is_dynamic_module_loaded(&ctx, &module_name) {
-                return JsResult::Err(Self::already_loaded_error(module_name));
-            }
-            let Some(storage) = ctx.userdata::<DynamicModuleStorage>() else {
-                return JsResult::Err(JsError::storage("Module storage not initialized"));
-            };
-
-            let res = match entry {
-                DynamicModuleEntry::Source(source) => {
-                    storage
-                        .write()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .insert(
-                            module_name.clone(),
-                            DynamicModuleEntry::Source(source.clone()),
-                        );
-                    Module::evaluate(ctx.clone(), module_name.clone(), source)
+        let resources = self.ensure_running()?;
+        let driver = resources.runtime.driver.clone();
+        let shutdown = resources.runtime.shutdown();
+        resources
+            .context
+            .with_foreground_js_result(async move |ctx, checkpoint| {
+                if is_dynamic_module_loaded(&ctx, &module_name) {
+                    return JsResult::Err(Self::already_loaded_error(module_name));
                 }
-                DynamicModuleEntry::Bytecode(bytes) => {
-                    let loaded = load_module_bytecode_checked(ctx.clone(), &module_name, &bytes)
+                let Some(storage) = ctx.userdata::<DynamicModuleStorage>() else {
+                    return JsResult::Err(JsError::storage("Module storage not initialized"));
+                };
+
+                let res = match entry {
+                    DynamicModuleEntry::Source(source) => {
+                        storage
+                            .write()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .insert(
+                                module_name.clone(),
+                                DynamicModuleEntry::Source(source.clone()),
+                            );
+                        Module::evaluate(ctx.clone(), module_name.clone(), source)
+                    }
+                    DynamicModuleEntry::Bytecode(bytes) => {
+                        let loaded = load_module_bytecode_checked(
+                            ctx.clone(),
+                            &module_name,
+                            &bytes,
+                        )
                         .and_then(|module| {
                             let embedded_name: String = module.name()?;
                             if embedded_name != module_name {
@@ -312,26 +358,27 @@ impl JsEngine {
                             let (_module, promise) = module.eval()?;
                             Ok(promise)
                         });
-                    if loaded.is_ok() {
-                        storage
-                            .write()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner)
-                            .insert(module_name.clone(), DynamicModuleEntry::Bytecode(bytes));
+                        if loaded.is_ok() {
+                            storage
+                                .write()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                                .insert(module_name.clone(), DynamicModuleEntry::Bytecode(bytes));
+                        }
+                        loaded
                     }
-                    loaded
-                }
-            };
+                };
 
-            if res.is_ok() {
-                mark_dynamic_module_loaded(&ctx, &module_name);
-            }
-            let driver = driver.clone();
-            result_from_promise(&ctx, res, move |source| {
-                driver.remove_error_source_since(checkpoint, source);
+                if res.is_ok() {
+                    mark_dynamic_module_loaded(&ctx, &module_name);
+                }
+                let driver = driver.clone();
+                result_from_promise(&ctx, res, shutdown, move |source| {
+                    driver.remove_error_source_since(checkpoint, source);
+                })
+                .await
             })
             .await
-        })
-        .await
+            .into_result()
     }
 
     /// Transitions the engine into the initializing state.
@@ -361,62 +408,62 @@ impl JsEngine {
     /// Advances the engine-owned runtime by one scheduler step.
     #[cfg(test)]
     pub(crate) async fn execute_pending_job(&self) -> Result<bool, JsError> {
-        self.ensure_runtime_accessible()?;
-        self.runtime.execute_pending_job().await
+        let resources = self.ensure_runtime_accessible()?;
+        resources.runtime.execute_pending_job().await
     }
 
     /// Runs the engine-owned runtime until quiescent.
     #[cfg(test)]
     pub(crate) async fn idle(&self) -> Result<(), JsError> {
-        self.ensure_runtime_accessible()?;
-        self.runtime.idle().await;
+        let resources = self.ensure_runtime_accessible()?;
+        resources.runtime.idle().await;
         Ok(())
     }
 
     /// Returns whether the engine-owned runtime still has work pending.
     #[cfg(test)]
     pub(crate) async fn is_job_pending(&self) -> Result<bool, JsError> {
-        self.ensure_runtime_accessible()?;
-        Ok(self.runtime.is_job_pending().await)
+        let resources = self.ensure_runtime_accessible()?;
+        Ok(resources.runtime.is_job_pending().await)
     }
 
     /// Returns memory usage statistics for the engine-owned runtime.
     pub async fn memory_usage(&self) -> Result<MemoryUsage, JsError> {
-        self.ensure_runtime_accessible()?;
-        Ok(self.runtime.memory_usage().await)
+        let resources = self.ensure_runtime_accessible()?;
+        Ok(resources.runtime.memory_usage().await)
     }
 
     /// Forces a garbage collection pass on the engine-owned runtime.
     pub async fn run_gc(&self) -> Result<(), JsError> {
-        self.ensure_runtime_accessible()?;
-        self.runtime.run_gc().await;
+        let resources = self.ensure_runtime_accessible()?;
+        resources.runtime.run_gc().await;
         Ok(())
     }
 
     /// Sets the garbage collection threshold on the engine-owned runtime.
     pub async fn set_gc_threshold(&self, threshold: usize) -> Result<(), JsError> {
-        self.ensure_runtime_accessible()?;
-        self.runtime.set_gc_threshold(threshold).await;
+        let resources = self.ensure_runtime_accessible()?;
+        resources.runtime.set_gc_threshold(threshold).await;
         Ok(())
     }
 
     /// Sets runtime metadata on the engine-owned runtime.
     pub async fn set_info(&self, info: String) -> Result<(), JsError> {
-        self.ensure_runtime_accessible()?;
-        self.runtime.set_info(info).await
+        let resources = self.ensure_runtime_accessible()?;
+        resources.runtime.set_info(info).await
     }
 
     /// Sets the max stack size on the engine-owned runtime.
     pub async fn set_max_stack_size(&self, limit: usize) -> Result<(), JsError> {
-        self.ensure_runtime_accessible()?;
-        self.runtime.set_max_stack_size(limit).await;
+        let resources = self.ensure_runtime_accessible()?;
+        resources.runtime.set_max_stack_size(limit).await;
         Ok(())
     }
 
     /// Sets the memory limit on the engine-owned runtime.
     pub async fn set_memory_limit(&self, limit: usize) -> Result<(), JsError> {
-        self.ensure_runtime_accessible()?;
-        self.runtime.set_memory_limit(limit).await;
+        let resources = self.ensure_runtime_accessible()?;
+        resources.runtime.set_memory_limit(limit).await;
         Ok(())
     }
 
@@ -499,10 +546,18 @@ impl JsEngine {
     ) -> Result<(), JsError> {
         self.begin_init()?;
 
+        let resources = match self.resources() {
+            Ok(resources) => resources,
+            Err(error) => {
+                self.rollback_init();
+                return Err(error);
+            }
+        };
         let bridge = Arc::new(bridge);
-        let attachment = self.context.global_attachment.clone();
+        let attachment = resources.context.global_attachment.clone();
+        let shutdown = resources.runtime.shutdown();
 
-        let init_result = self
+        let init_result = resources
             .context
             .with_js(async move |ctx| {
                 if let Some(attachment) = &attachment
@@ -512,7 +567,7 @@ impl JsEngine {
                         "Failed to attach global context: {e}"
                     )));
                 }
-                if let Err(e) = register_fjs(ctx.clone(), bridge) {
+                if let Err(e) = register_fjs(ctx.clone(), bridge, shutdown) {
                     return Err(JsError::bridge(format!(
                         "Failed to register fjs bridge: {e}"
                     )));
@@ -532,7 +587,11 @@ impl JsEngine {
             // context; undo our setup so the closed engine does not keep the
             // bridge object (and any captured Dart closure) alive.
             if self.closed() {
-                crate::runtime::teardown::cleanup_async_engine(&self.context, &self.runtime).await;
+                crate::runtime::teardown::cleanup_async_engine_immediately(
+                    &resources.context,
+                    &resources.runtime,
+                )
+                .await;
             }
             return Err(error);
         }
@@ -556,8 +615,15 @@ impl JsEngine {
     pub async fn init_without_bridge(&self) -> Result<(), JsError> {
         self.begin_init()?;
 
-        let attachment = self.context.global_attachment.clone();
-        let init_result = self
+        let resources = match self.resources() {
+            Ok(resources) => resources,
+            Err(error) => {
+                self.rollback_init();
+                return Err(error);
+            }
+        };
+        let attachment = resources.context.global_attachment.clone();
+        let init_result = resources
             .context
             .with_js(async move |ctx| {
                 if let Some(attachment) = &attachment
@@ -582,43 +648,50 @@ impl JsEngine {
             // context; undo our setup so the closed engine does not keep the
             // bridge object (and any captured Dart closure) alive.
             if self.closed() {
-                crate::runtime::teardown::cleanup_async_engine(&self.context, &self.runtime).await;
+                crate::runtime::teardown::cleanup_async_engine_immediately(
+                    &resources.context,
+                    &resources.runtime,
+                )
+                .await;
             }
             return Err(error);
         }
         Ok(())
     }
 
-    /// Closes the engine and releases resources.
-    ///
-    /// After close, the engine wrapper cannot be used anymore.
-    /// This detaches the `fjs` bridge object, drains pending runtime work,
-    /// and triggers a garbage collection pass, but it does not directly
-    /// release the underlying runtime or context objects.
-    ///
-    /// Closing always wins: it succeeds even while `init()` is still in
-    /// flight (the interrupted `init()` reports the failure to its caller).
-    ///
-    /// Pending timers, Promise callbacks, and other runtime tasks may run during
-    /// this drain step. Unhandled background JavaScript errors are surfaced
-    /// automatically by `close()` or by the next engine operation.
-    ///
-    /// ## Throws
-    /// - If unhandled background JavaScript errors are pending
-    ///
-    /// ## Example
-    /// ```dart
-    /// await engine.close();
-    /// ```
-    pub async fn close(&self) -> Result<(), JsError> {
+    async fn close_with_mode(&self, graceful: bool) -> Result<(), JsError> {
         let previous_state = self.begin_close()?;
-        let mut unhandled_errors = self.runtime.take_unhandled_job_errors();
+        let resources = if previous_state == STATE_CLOSED {
+            None
+        } else {
+            self.take_resources()
+        };
 
-        if previous_state != STATE_CLOSED {
-            crate::runtime::teardown::cleanup_async_engine(&self.context, &self.runtime).await;
+        let mut unhandled_errors = resources
+            .as_ref()
+            .map(|resources| resources.runtime.take_unhandled_job_errors())
+            .unwrap_or_default();
+
+        if let Some(resources) = resources {
+            if graceful {
+                crate::runtime::teardown::cleanup_async_engine_gracefully(
+                    &resources.context,
+                    &resources.runtime,
+                )
+                .await;
+            } else {
+                crate::runtime::teardown::cleanup_async_engine_immediately(
+                    &resources.context,
+                    &resources.runtime,
+                )
+                .await;
+            }
+            unhandled_errors.extend(resources.runtime.take_unhandled_job_errors());
+            if !graceful {
+                Self::retire_resources_after_immediate_close(resources);
+            }
         }
 
-        unhandled_errors.extend(self.runtime.take_unhandled_job_errors());
         if unhandled_errors.is_empty() {
             Ok(())
         } else {
@@ -628,12 +701,79 @@ impl JsEngine {
         }
     }
 
+    /// Closes the engine immediately and releases its owned resources.
+    ///
+    /// After close, the engine wrapper cannot be used anymore. This method
+    /// marks the engine closed, requests runtime cancellation, stops the
+    /// background driver, detaches the `fjs` bridge object, skips the full
+    /// blocking runtime drain, and retires the remaining QuickJS resources on
+    /// the JS executor. In-flight foreground operations fail with
+    /// `JsError::Cancelled` instead of waiting for timers, Promise callbacks,
+    /// fetches, bridge calls, or spawned work to complete.
+    ///
+    /// Use `closeGracefully()` when shutdown must let already-scheduled
+    /// JavaScript work finish before resources are released.
+    ///
+    /// Closing always wins: it succeeds even while `init()` is still in
+    /// flight (the interrupted `init()` reports the failure to its caller).
+    ///
+    /// ## Throws
+    /// - If unhandled background JavaScript errors were already pending
+    ///
+    /// ## Example
+    /// ```dart
+    /// await engine.close();
+    /// ```
+    pub async fn close(&self) -> Result<(), JsError> {
+        self.close_with_mode(false).await
+    }
+
+    /// Closes the engine after draining pending runtime work.
+    ///
+    /// This preserves the pre-3.2 graceful teardown behavior: the engine stops
+    /// accepting new work, detaches the bridge, runs pending timers, Promise
+    /// callbacks, fetches, and spawned runtime tasks until the runtime becomes
+    /// quiescent, and then runs GC. In-flight foreground operations may complete
+    /// successfully during this drain.
+    ///
+    /// Use `close()` for normal disposal paths where shutdown should not wait
+    /// for arbitrary JavaScript background work.
+    ///
+    /// ## Throws
+    /// - If unhandled background JavaScript errors are pending or raised during
+    ///   the drain
+    ///
+    /// ## Example
+    /// ```dart
+    /// await engine.closeGracefully();
+    /// ```
+    pub async fn close_gracefully(&self) -> Result<(), JsError> {
+        self.close_with_mode(true).await
+    }
+
+    fn retire_resources_after_immediate_close(resources: Arc<JsEngineResources>) {
+        crate::runtime::executor::spawn_js(async move {
+            resources.runtime.idle().await;
+            resources.runtime.run_gc().await;
+            drop(resources);
+        });
+    }
+
     /// Returns whether the engine-owned runtime background driver is running.
     ///
     /// Engine initialization starts the driver automatically. `close()` stops it.
     #[cfg(test)]
     pub(crate) async fn driver_running(&self) -> Result<bool, JsError> {
-        Ok(self.runtime.driver_running().await)
+        let Some(resources) = self
+            .resources
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .cloned()
+        else {
+            return Ok(false);
+        };
+        Ok(resources.runtime.driver_running().await)
     }
 
     /// Drains unhandled asynchronous JavaScript errors captured by the engine runtime.
@@ -657,7 +797,12 @@ impl JsEngine {
     /// ```
     #[frb(sync)]
     pub fn drain_unhandled_job_errors(&self) -> Vec<String> {
-        self.runtime.take_unhandled_job_errors()
+        self.resources
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .map(|resources| resources.runtime.take_unhandled_job_errors())
+            .unwrap_or_default()
     }
 
     /// Evaluates JavaScript code and returns the result.
@@ -693,23 +838,27 @@ impl JsEngine {
         source: JsCode,
         options: Option<JsEvalOptions>,
     ) -> Result<JsValue, JsError> {
-        self.ensure_running()?;
+        let resources = self.ensure_running()?;
 
         let mut options = options.unwrap_or_default();
         options.promise = Some(true);
 
         let source_code = get_raw_source_code(source).await?;
 
-        let driver = self.runtime.driver.clone();
-        self.with_foreground_js_result(async move |ctx, checkpoint| {
-            let res = ctx.eval_with_options(source_code, options.into());
-            let driver = driver.clone();
-            result_from_promise(&ctx, res, move |source| {
-                driver.remove_error_source_since(checkpoint, source);
+        let driver = resources.runtime.driver.clone();
+        let shutdown = resources.runtime.shutdown();
+        resources
+            .context
+            .with_foreground_js_result(async move |ctx, checkpoint| {
+                let res = ctx.eval_with_options(source_code, options.into());
+                let driver = driver.clone();
+                result_from_promise(&ctx, res, shutdown, move |source| {
+                    driver.remove_error_source_since(checkpoint, source);
+                })
+                .await
             })
             .await
-        })
-        .await
+            .into_result()
     }
 
     /// Declares a new bytecode-backed module without executing it.
@@ -1032,21 +1181,25 @@ impl JsEngine {
         &self,
         script: JsScriptBytecode,
     ) -> Result<JsValue, JsError> {
-        self.ensure_running()?;
+        let resources = self.ensure_running()?;
         validate_script_bytecode_impl(&script.name, &script.bytes)?;
 
         let script_name = script.name;
         let bytecode = script.bytes;
-        let driver = self.runtime.driver.clone();
-        self.with_foreground_js_result(async move |ctx, checkpoint| {
-            let res = eval_script_bytecode(&ctx, &script_name, &bytecode);
-            let driver = driver.clone();
-            result_from_maybe_promise(&ctx, res, move |source| {
-                driver.remove_error_source_since(checkpoint, source);
+        let driver = resources.runtime.driver.clone();
+        let shutdown = resources.runtime.shutdown();
+        resources
+            .context
+            .with_foreground_js_result(async move |ctx, checkpoint| {
+                let res = eval_script_bytecode(&ctx, &script_name, &bytecode);
+                let driver = driver.clone();
+                result_from_maybe_promise(&ctx, res, shutdown, move |source| {
+                    driver.remove_error_source_since(checkpoint, source);
+                })
+                .await
             })
             .await
-        })
-        .await
+            .into_result()
     }
 
     /// Clears dynamic modules that have not been loaded into the QuickJS module cache.
@@ -1102,9 +1255,10 @@ impl JsEngine {
     /// print('Declared modules: $modules');
     /// ```
     pub async fn get_declared_modules(&self) -> Result<Vec<String>, JsError> {
-        self.ensure_running()?;
+        let resources = self.ensure_running()?;
 
-        self.context
+        resources
+            .context
             .with_js(async |ctx| {
                 if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
                     let mut modules: Vec<_> = storage
@@ -1140,8 +1294,8 @@ impl JsEngine {
     /// print(modules);
     /// ```
     pub async fn get_available_modules(&self) -> Result<Vec<String>, JsError> {
-        self.ensure_running()?;
-        self.context.get_available_modules().await
+        let resources = self.ensure_running()?;
+        resources.context.get_available_modules().await
     }
 
     /// Checks if a module is declared.
@@ -1163,9 +1317,10 @@ impl JsEngine {
     /// }
     /// ```
     pub async fn is_module_declared(&self, module_name: String) -> Result<bool, JsError> {
-        self.ensure_running()?;
+        let resources = self.ensure_running()?;
 
-        self.context
+        resources
+            .context
             .with_js(async move |ctx| {
                 if let Some(storage) = ctx.userdata::<DynamicModuleStorage>() {
                     Ok(storage
@@ -1248,18 +1403,22 @@ impl JsEngine {
         method: String,
         params: Option<Vec<JsValue>>,
     ) -> Result<JsValue, JsError> {
-        self.ensure_running()?;
+        let resources = self.ensure_running()?;
 
         let params = params.unwrap_or_default();
-        let driver = self.runtime.driver.clone();
-        self.with_foreground_js_result(async move |ctx, checkpoint| {
-            let driver = driver.clone();
-            call_module_method(&ctx, module, method, params, move |source| {
-                driver.remove_error_source_since(checkpoint, source);
+        let driver = resources.runtime.driver.clone();
+        let shutdown = resources.runtime.shutdown();
+        resources
+            .context
+            .with_foreground_js_result(async move |ctx, checkpoint| {
+                let driver = driver.clone();
+                call_module_method(&ctx, module, method, params, shutdown, move |source| {
+                    driver.remove_error_source_since(checkpoint, source);
+                })
+                .await
             })
             .await
-        })
-        .await
+            .into_result()
     }
 }
 
@@ -1277,10 +1436,14 @@ fn first_duplicate_name<'a>(names: impl IntoIterator<Item = &'a str>) -> Option<
 fn register_fjs<'js>(
     ctx: rquickjs::Ctx<'js>,
     bridge: Arc<BridgeCallback>,
+    shutdown: crate::runtime::shutdown::RuntimeShutdown,
 ) -> rquickjs::CaughtResult<'js, ()> {
     let fjs = Object::new(ctx.clone()).catch(&ctx)?;
-    fjs.set("bridge_call", new_bridge_call(ctx.clone(), bridge)?)
-        .catch(&ctx)?;
+    fjs.set(
+        "bridge_call",
+        new_bridge_call(ctx.clone(), bridge, shutdown)?,
+    )
+    .catch(&ctx)?;
     ctx.globals().set("fjs", fjs).catch(&ctx)?;
     Ok(())
 }
@@ -1289,6 +1452,7 @@ fn register_fjs<'js>(
 fn new_bridge_call<'js>(
     ctx: rquickjs::Ctx<'js>,
     bridge: Arc<BridgeCallback>,
+    shutdown: crate::runtime::shutdown::RuntimeShutdown,
 ) -> rquickjs::CaughtResult<'js, rquickjs::Function<'js>> {
     let ctx_for_catch = ctx.clone();
     rquickjs::Function::new(
@@ -1316,14 +1480,24 @@ fn new_bridge_call<'js>(
 
             let js_value = JsValue::from_js(&call_ctx, arg.clone())?;
             let bridge_ref = bridge.clone();
+            let shutdown = shutdown.clone();
 
             Promise::wrap_future(&call_ctx, async move {
-                match bridge_ref(js_value).await {
-                    JsResult::Ok(value) => Ok::<JsValue, rquickjs::Error>(value),
-                    JsResult::Err(err) => Err(rquickjs::Error::new_from_js_message(
+                tokio::select! {
+                    result = bridge_ref(js_value) => {
+                        match result {
+                            JsResult::Ok(value) => Ok::<JsValue, rquickjs::Error>(value),
+                            JsResult::Err(err) => Err(rquickjs::Error::new_from_js_message(
+                                "bridge",
+                                "JsValue",
+                                err.to_string(),
+                            )),
+                        }
+                    }
+                    _ = shutdown.cancelled() => Err(rquickjs::Error::new_from_js_message(
                         "bridge",
                         "JsValue",
-                        err.to_string(),
+                        shutdown.error().to_string(),
                     )),
                 }
             })

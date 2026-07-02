@@ -11,6 +11,7 @@ use crate::api::module::{
 use crate::api::source::{JsBuiltinOptions, JsEvalOptions, JsModule, get_raw_source_code};
 use crate::api::value::{JsValue, install_value_intrinsics};
 use crate::runtime::driver::DriverErrorSource;
+use crate::runtime::shutdown::RuntimeShutdown;
 use flutter_rust_bridge::frb;
 use rquickjs::loader::{BuiltinLoader, BuiltinResolver, FileResolver, NativeLoader, ScriptLoader};
 use rquickjs::promise::MaybePromise;
@@ -711,6 +712,7 @@ pub struct JsAsyncRuntime {
     pub(crate) rt: rquickjs::AsyncRuntime,
     pub(crate) global_attachment: Option<GlobalAttachment>,
     pub(crate) driver: crate::runtime::driver::DriverController,
+    pub(crate) shutdown: RuntimeShutdown,
     pub(crate) cleaned: Arc<AtomicBool>,
     pub(crate) runtime_lifetime: Arc<()>,
 }
@@ -763,11 +765,17 @@ impl JsAsyncRuntime {
         );
         let driver = crate::runtime::driver::DriverController::default();
         futures::executor::block_on(Self::install_error_tracker(&runtime, driver.clone()));
+        let shutdown = RuntimeShutdown::default();
+        let interrupt_shutdown = shutdown.clone();
+        futures::executor::block_on(
+            runtime.set_interrupt_handler(Some(Box::new(move || interrupt_shutdown.requested()))),
+        );
         install_default_async_loaders(&runtime);
         let runtime = Self {
             rt: runtime,
             global_attachment: None,
             driver,
+            shutdown,
             cleaned: Arc::new(AtomicBool::new(false)),
             runtime_lifetime: Arc::new(()),
         };
@@ -809,6 +817,11 @@ impl JsAsyncRuntime {
             .await;
         let driver = crate::runtime::driver::DriverController::default();
         Self::install_error_tracker(&runtime, driver.clone()).await;
+        let shutdown = RuntimeShutdown::default();
+        let interrupt_shutdown = shutdown.clone();
+        runtime
+            .set_interrupt_handler(Some(Box::new(move || interrupt_shutdown.requested())))
+            .await;
         let (
             module_resolver,
             module_loader,
@@ -829,6 +842,7 @@ impl JsAsyncRuntime {
             rt: runtime,
             global_attachment: Some(global_attachment),
             driver,
+            shutdown,
             cleaned: Arc::new(AtomicBool::new(false)),
             runtime_lifetime: Arc::new(()),
         };
@@ -839,13 +853,18 @@ impl JsAsyncRuntime {
     pub(crate) async fn cleanup_once(
         runtime: rquickjs::AsyncRuntime,
         driver: crate::runtime::driver::DriverController,
+        shutdown: RuntimeShutdown,
         cleaned: Arc<AtomicBool>,
     ) {
         if cleaned.swap(true, Ordering::AcqRel) {
             return;
         }
 
+        shutdown.request();
         driver.stop().await;
+        if runtime.is_job_pending().await {
+            runtime.idle().await;
+        }
         runtime.run_gc().await;
     }
 
@@ -860,12 +879,13 @@ impl JsAsyncRuntime {
     fn finalize_runtime_drop(
         runtime: rquickjs::AsyncRuntime,
         driver: crate::runtime::driver::DriverController,
+        shutdown: RuntimeShutdown,
         cleaned: Arc<AtomicBool>,
     ) {
         // Drop must never block the calling thread (often the Dart main
         // thread); cleanup runs detached on the JS executor instead.
         crate::runtime::executor::spawn_js(async move {
-            JsAsyncRuntime::cleanup_once(runtime, driver, cleaned).await;
+            JsAsyncRuntime::cleanup_once(runtime, driver, shutdown, cleaned).await;
         });
     }
 
@@ -873,6 +893,7 @@ impl JsAsyncRuntime {
         context: rquickjs::AsyncContext,
         runtime: rquickjs::AsyncRuntime,
         driver: crate::runtime::driver::DriverController,
+        shutdown: RuntimeShutdown,
         cleaned: Arc<AtomicBool>,
         is_last_runtime_owner: bool,
     ) {
@@ -880,9 +901,17 @@ impl JsAsyncRuntime {
             drop(context);
             JsAsyncRuntime::cleanup_after_context_drop(runtime.clone()).await;
             if is_last_runtime_owner {
-                JsAsyncRuntime::cleanup_once(runtime, driver, cleaned).await;
+                JsAsyncRuntime::cleanup_once(runtime, driver, shutdown, cleaned).await;
             }
         });
+    }
+
+    pub(crate) fn request_shutdown(&self) {
+        self.shutdown.request();
+    }
+
+    pub(crate) fn shutdown(&self) -> RuntimeShutdown {
+        self.shutdown.clone()
     }
 
     /// Sets the memory limit.
@@ -1107,8 +1136,9 @@ impl Drop for JsAsyncRuntime {
 
         let runtime = self.rt.clone();
         let driver = self.driver.clone();
+        let shutdown = self.shutdown.clone();
         let cleaned = self.cleaned.clone();
-        JsAsyncRuntime::finalize_runtime_drop(runtime, driver, cleaned);
+        JsAsyncRuntime::finalize_runtime_drop(runtime, driver, shutdown, cleaned);
     }
 }
 
@@ -1132,6 +1162,7 @@ pub struct JsAsyncContext {
     pub(crate) ctx: Option<rquickjs::AsyncContext>,
     pub(crate) runtime: rquickjs::AsyncRuntime,
     pub(crate) driver: crate::runtime::driver::DriverController,
+    pub(crate) shutdown: RuntimeShutdown,
     pub(crate) cleaned: Arc<AtomicBool>,
     pub(crate) runtime_lifetime: Arc<()>,
     pub(crate) context_lifetime: Arc<()>,
@@ -1152,6 +1183,9 @@ impl JsAsyncContext {
     }
 
     fn ensure_no_unhandled_job_errors(&self) -> Result<(), JsError> {
+        if self.shutdown.requested() {
+            return Err(self.shutdown.error());
+        }
         if let Some(error) = self.take_unhandled_job_error() {
             Err(error)
         } else {
@@ -1163,9 +1197,18 @@ impl JsAsyncContext {
     where
         F: for<'js> AsyncFnOnce(rquickjs::Ctx<'js>, u64) -> JsResult + Send + 'static,
     {
+        if self.shutdown.requested() {
+            return JsResult::Err(self.shutdown.error());
+        }
         let checkpoint = self.driver.error_checkpoint();
-        self.with_js(async move |ctx| f(ctx, checkpoint).await)
-            .await
+        let shutdown = self.shutdown.clone();
+        self.with_js(async move |ctx| {
+            if shutdown.requested() {
+                return JsResult::Err(shutdown.error());
+            }
+            f(ctx, checkpoint).await
+        })
+        .await
     }
 
     pub(crate) async fn with_js<F, R>(&self, f: F) -> R
@@ -1255,6 +1298,7 @@ impl JsAsyncContext {
             ctx: Some(context),
             runtime: runtime.rt.clone(),
             driver: runtime.driver.clone(),
+            shutdown: runtime.shutdown.clone(),
             cleaned: runtime.cleaned.clone(),
             runtime_lifetime: runtime.runtime_lifetime.clone(),
             context_lifetime: Arc::new(()),
@@ -1305,12 +1349,16 @@ impl JsAsyncContext {
     /// - If code evaluation fails
     /// - If global attachment fails
     pub async fn eval_with_options(&self, code: String, options: JsEvalOptions) -> JsResult {
+        if self.shutdown.requested() {
+            return JsResult::Err(self.shutdown.error());
+        }
         if let Some(error) = self.take_unhandled_job_error() {
             return JsResult::Err(error);
         }
 
         let attachment = self.global_attachment.clone();
         let driver = self.driver.clone();
+        let shutdown = self.shutdown.clone();
         self.with_foreground_js_result(async move |ctx, checkpoint| {
             if let Some(attachment) = &attachment
                 && let Err(e) = attachment.attach(&ctx)
@@ -1321,7 +1369,7 @@ impl JsAsyncContext {
             options.promise = Some(true);
             let res = ctx.eval_with_options(code, options.into());
             let driver = driver.clone();
-            result_from_promise(&ctx, res, move |source| {
+            result_from_promise(&ctx, res, shutdown, move |source| {
                 driver.remove_error_source_since(checkpoint, source);
             })
             .await
@@ -1376,12 +1424,16 @@ impl JsAsyncContext {
     /// - If file cannot be read
     /// - If code evaluation fails
     pub async fn eval_file_with_options(&self, path: String, options: JsEvalOptions) -> JsResult {
+        if self.shutdown.requested() {
+            return JsResult::Err(self.shutdown.error());
+        }
         if let Some(error) = self.take_unhandled_job_error() {
             return JsResult::Err(error);
         }
 
         let attachment = self.global_attachment.clone();
         let driver = self.driver.clone();
+        let shutdown = self.shutdown.clone();
         self.with_foreground_js_result(async move |ctx, checkpoint| {
             if let Some(attachment) = &attachment
                 && let Err(e) = attachment.attach(&ctx)
@@ -1392,7 +1444,7 @@ impl JsAsyncContext {
             options.promise = Some(true);
             let res = ctx.eval_file_with_options(path, options.into());
             let driver = driver.clone();
-            result_from_promise(&ctx, res, move |source| {
+            result_from_promise(&ctx, res, shutdown, move |source| {
                 driver.remove_error_source_since(checkpoint, source);
             })
             .await
@@ -1436,6 +1488,9 @@ impl JsAsyncContext {
         method: String,
         params: Option<Vec<JsValue>>,
     ) -> JsResult {
+        if self.shutdown.requested() {
+            return JsResult::Err(self.shutdown.error());
+        }
         if let Some(error) = self.take_unhandled_job_error() {
             return JsResult::Err(error);
         }
@@ -1443,6 +1498,7 @@ impl JsAsyncContext {
         let params = params.unwrap_or_default();
         let attachment = self.global_attachment.clone();
         let driver = self.driver.clone();
+        let shutdown = self.shutdown.clone();
         self.with_foreground_js_result(async move |ctx, checkpoint| {
             if let Some(attachment) = &attachment
                 && let Err(e) = attachment.attach(&ctx)
@@ -1453,7 +1509,7 @@ impl JsAsyncContext {
                 )));
             }
             let driver = driver.clone();
-            call_module_method(&ctx, module, method, params, move |source| {
+            call_module_method(&ctx, module, method, params, shutdown, move |source| {
                 driver.remove_error_source_since(checkpoint, source);
             })
             .await
@@ -1491,12 +1547,14 @@ impl Drop for JsAsyncContext {
         };
         let runtime = self.runtime.clone();
         let driver = self.driver.clone();
+        let shutdown = self.shutdown.clone();
         let cleaned = self.cleaned.clone();
         let is_last_runtime_owner = Arc::strong_count(&self.runtime_lifetime) == 1;
         JsAsyncRuntime::finalize_context_drop(
             context,
             runtime,
             driver,
+            shutdown,
             cleaned,
             is_last_runtime_owner,
         );
@@ -1509,6 +1567,7 @@ pub(crate) async fn call_module_method<'js>(
     module: String,
     method: String,
     params: Vec<JsValue>,
+    shutdown: RuntimeShutdown,
     acknowledge_error_source: impl Fn(DriverErrorSource),
 ) -> JsResult {
     let promise = match Module::import(ctx, module.clone()).catch(ctx) {
@@ -1523,14 +1582,16 @@ pub(crate) async fn call_module_method<'js>(
     };
 
     let import_source = DriverErrorSource::promise(promise.as_ref());
-    let module_value = match promise.into_future::<rquickjs::Value>().await.catch(ctx) {
+    let module_value = match promise_value(ctx, promise, shutdown.clone()).await {
         Ok(v) => v,
         Err(e) => {
-            acknowledge_error_source(import_source);
+            if !matches!(e, JsError::Cancelled(_)) {
+                acknowledge_error_source(import_source);
+            }
             return JsResult::Err(JsError::module(
                 Some(module),
                 None,
-                format!("Failed to import: {}", e),
+                format!("Failed to import: {e}"),
             ));
         }
     };
@@ -1575,7 +1636,7 @@ pub(crate) async fn call_module_method<'js>(
     };
 
     let res = func.call::<_, MaybePromise>((rquickjs::function::Rest(params),));
-    result_from_maybe_promise(ctx, res, acknowledge_error_source).await
+    result_from_maybe_promise(ctx, res, shutdown, acknowledge_error_source).await
 }
 
 /// Helper function to convert sync result.
@@ -1596,19 +1657,25 @@ fn result_from_sync<'js>(
 pub(crate) async fn result_from_promise<'js>(
     ctx: &rquickjs::Ctx<'js>,
     res: rquickjs::Result<Promise<'js>>,
+    shutdown: RuntimeShutdown,
     acknowledge_error_source: impl Fn(DriverErrorSource),
 ) -> JsResult {
     match res.catch(ctx) {
         Ok(promise) => {
             let source = DriverErrorSource::promise(promise.as_ref());
-            match promise.into_future::<rquickjs::Value>().await.catch(ctx) {
-                Ok(value) => result_from_value(ctx, value, acknowledge_error_source).await,
+            match promise_value(ctx, promise, shutdown.clone()).await {
+                Ok(value) => {
+                    result_from_value(ctx, value, shutdown, acknowledge_error_source).await
+                }
                 Err(e) => {
-                    acknowledge_error_source(source);
-                    JsResult::Err(JsError::from_caught(ctx, e))
+                    if !matches!(e, JsError::Cancelled(_)) {
+                        acknowledge_error_source(source);
+                    }
+                    JsResult::Err(e)
                 }
             }
         }
+        Err(_) if shutdown.requested() => JsResult::Err(shutdown.error()),
         Err(e) => JsResult::Err(JsError::from_caught(ctx, e)),
     }
 }
@@ -1616,6 +1683,7 @@ pub(crate) async fn result_from_promise<'js>(
 pub(crate) async fn result_from_maybe_promise<'js>(
     ctx: &rquickjs::Ctx<'js>,
     res: rquickjs::Result<MaybePromise<'js>>,
+    shutdown: RuntimeShutdown,
     acknowledge_error_source: impl Fn(DriverErrorSource),
 ) -> JsResult {
     match res.catch(ctx) {
@@ -1624,16 +1692,21 @@ pub(crate) async fn result_from_maybe_promise<'js>(
                 .as_value()
                 .as_promise()
                 .map(|promise| DriverErrorSource::promise(promise.as_ref()));
-            match value.into_future::<rquickjs::Value>().await.catch(ctx) {
-                Ok(value) => result_from_value(ctx, value, acknowledge_error_source).await,
+            match maybe_promise_value(ctx, value, shutdown.clone()).await {
+                Ok(value) => {
+                    result_from_value(ctx, value, shutdown, acknowledge_error_source).await
+                }
                 Err(e) => {
-                    if let Some(source) = source {
+                    if !matches!(e, JsError::Cancelled(_))
+                        && let Some(source) = source
+                    {
                         acknowledge_error_source(source);
                     }
-                    JsResult::Err(JsError::from_caught(ctx, e))
+                    JsResult::Err(e)
                 }
             }
         }
+        Err(_) if shutdown.requested() => JsResult::Err(shutdown.error()),
         Err(e) => JsResult::Err(JsError::from_caught(ctx, e)),
     }
 }
@@ -1657,27 +1730,42 @@ fn unwrap_async_eval_value<'js>(value: &mut rquickjs::Value<'js>) -> rquickjs::R
 async fn result_from_value<'js>(
     ctx: &rquickjs::Ctx<'js>,
     mut value: rquickjs::Value<'js>,
+    shutdown: RuntimeShutdown,
     acknowledge_error_source: impl Fn(DriverErrorSource),
 ) -> JsResult {
+    if shutdown.requested() {
+        return JsResult::Err(shutdown.error());
+    }
     if let Err(e) = unwrap_async_eval_value(&mut value).catch(ctx) {
+        if shutdown.requested() {
+            return JsResult::Err(shutdown.error());
+        }
         return JsResult::Err(JsError::from_caught(ctx, e));
     }
 
     while let Some(promise) = value.as_promise().cloned() {
         let source = DriverErrorSource::promise(promise.as_ref());
-        value = match promise.into_future::<rquickjs::Value>().await.catch(ctx) {
+        value = match promise_value(ctx, promise, shutdown.clone()).await {
             Ok(v) => v,
             Err(e) => {
-                acknowledge_error_source(source);
-                return JsResult::Err(JsError::from_caught(ctx, e));
+                if !matches!(e, JsError::Cancelled(_)) {
+                    acknowledge_error_source(source);
+                }
+                return JsResult::Err(e);
             }
         };
         if let Err(e) = unwrap_async_eval_value(&mut value).catch(ctx) {
+            if shutdown.requested() {
+                return JsResult::Err(shutdown.error());
+            }
             return JsResult::Err(JsError::from_caught(ctx, e));
         }
     }
 
     while ctx.execute_pending_job() {
+        if shutdown.requested() {
+            return JsResult::Err(shutdown.error());
+        }
         if ctx.has_exception() {
             return JsResult::Err(JsError::from_pending_exception(ctx));
         }
@@ -1685,7 +1773,50 @@ async fn result_from_value<'js>(
 
     match JsValue::from_js(ctx, value).catch(ctx) {
         Ok(v) => JsResult::Ok(v),
+        Err(_) if shutdown.requested() => JsResult::Err(shutdown.error()),
         Err(e) => JsResult::Err(JsError::from_caught(ctx, e)),
+    }
+}
+
+async fn promise_value<'js>(
+    ctx: &rquickjs::Ctx<'js>,
+    promise: Promise<'js>,
+    shutdown: RuntimeShutdown,
+) -> Result<rquickjs::Value<'js>, JsError> {
+    if shutdown.requested() {
+        return Err(shutdown.error());
+    }
+
+    tokio::select! {
+        result = promise.into_future::<rquickjs::Value>() => {
+            match result.catch(ctx) {
+                Ok(value) => Ok(value),
+                Err(_) if shutdown.requested() => Err(shutdown.error()),
+                Err(error) => Err(JsError::from_caught(ctx, error)),
+            }
+        }
+        _ = shutdown.cancelled() => Err(shutdown.error()),
+    }
+}
+
+async fn maybe_promise_value<'js>(
+    ctx: &rquickjs::Ctx<'js>,
+    value: MaybePromise<'js>,
+    shutdown: RuntimeShutdown,
+) -> Result<rquickjs::Value<'js>, JsError> {
+    if shutdown.requested() {
+        return Err(shutdown.error());
+    }
+
+    tokio::select! {
+        result = value.into_future::<rquickjs::Value>() => {
+            match result.catch(ctx) {
+                Ok(value) => Ok(value),
+                Err(_) if shutdown.requested() => Err(shutdown.error()),
+                Err(error) => Err(JsError::from_caught(ctx, error)),
+            }
+        }
+        _ = shutdown.cancelled() => Err(shutdown.error()),
     }
 }
 

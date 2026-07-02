@@ -205,7 +205,12 @@ try {
 ```
 
 This keeps the user-facing lifecycle small: create an engine, run JavaScript,
-and call `close()` when the owner is done. Lower-level async runtime/context
+and call `close()` when the owner is done. In `3.2.0+`, `close()` is immediate:
+it stops accepting work and cancels in-flight foreground operations with
+`JsError.cancelled` without draining arbitrary timers, Promise callbacks, fetches,
+bridge calls, or spawned runtime work. Use `closeGracefully()` only when you
+intentionally want the old draining behavior and are prepared to wait for
+already-scheduled JavaScript work to finish. Lower-level async runtime/context
 users still get the same automatic driver behavior; Dart application code does
 not start, stop, poll, or drain that driver.
 
@@ -354,7 +359,8 @@ print('console: $hasConsole, llrt:xml: $hasXml');
 ## 🔄 Engine Lifecycle Notes
 
 - `JsEngine` creates and owns its internal runtime/context when constructed via `create()`
-- `close()` detaches the `fjs` bridge object, drains pending runtime work, and then runs GC before the engine becomes unusable
+- `close()` marks the engine closed immediately, requests runtime shutdown, stops the driver, detaches the `fjs` bridge object, and cancels in-flight foreground work with `JsError.cancelled`
+- `closeGracefully()` keeps the pre-3.2 draining behavior: it waits for already-scheduled timers, Promise callbacks, fetches, bridge calls, and spawned runtime work to finish before GC
 - `clearPendingModules()` only removes dynamic modules that have not been loaded into the current context yet
 - `declareNewModules()` and `declareNewBytecodeModules()` reject duplicate module names in a single request
 
@@ -665,7 +671,8 @@ abstract class JsEngine {
   Future<void> setMaxStackSize({required BigInt limit});
   Future<void> setMemoryLimit({required BigInt limit});
   List<String> drainUnhandledJobErrors(); // background JS failures; usable in every state
-  Future<void> close(); // drains pending runtime work, then runs GC
+  Future<void> close(); // immediate shutdown; cancels in-flight foreground work
+  Future<void> closeGracefully(); // drains pending runtime work, then runs GC
   bool get running;
   bool get closed;
 }

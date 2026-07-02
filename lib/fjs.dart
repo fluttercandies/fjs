@@ -45,6 +45,9 @@
 /// `JsEngine.init()` or `JsEngine.initWithoutBridge()`. Use JavaScript
 /// `.catch()` for expected detached failures. Unhandled background failures are
 /// reported by a later `eval()`, `call()`, context operation, or `close()`.
+/// In `3.2.0+`, `JsEngine.close()` is immediate and cancels in-flight
+/// foreground work with `JsError.cancelled`; use `closeGracefully()` only when
+/// shutdown should wait for already-scheduled JavaScript work to finish.
 ///
 /// ## Module Usage
 ///
