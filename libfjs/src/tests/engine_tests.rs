@@ -86,6 +86,73 @@ fn release_blocking_init_attachment() {
 // ============================================================================
 
 #[tokio::test]
+async fn async_result_contract_normalizes_engine_eval_and_module_calls() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+    engine
+        .declare_new_module(JsModule::code(
+            "engine-async-result-contract".to_string(),
+            r#"
+                export function syncValue() {
+                    return { value: 42 };
+                }
+
+                export async function asyncValue() {
+                    return { value: 42 };
+                }
+
+                export async function multiKeyValue() {
+                    return { value: 42, extra: true };
+                }
+            "#
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let evaluated = engine
+        .eval(JsCode::Code("await Promise.resolve(42)".to_string()), None)
+        .await
+        .unwrap();
+    assert!(matches!(evaluated, JsValue::Integer(42)));
+
+    let sync_call = engine
+        .call(
+            "engine-async-result-contract".to_string(),
+            "syncValue".to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+    assert!(matches!(sync_call, JsValue::Integer(42)));
+
+    let async_call = engine
+        .call(
+            "engine-async-result-contract".to_string(),
+            "asyncValue".to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+    assert!(matches!(async_call, JsValue::Integer(42)));
+
+    let multi_key = engine
+        .call(
+            "engine-async-result-contract".to_string(),
+            "multiKeyValue".to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        multi_key,
+        JsValue::Object(ref object)
+            if matches!(object.get("value"), Some(JsValue::Integer(42)))
+                && matches!(object.get("extra"), Some(JsValue::Boolean(true)))
+    ));
+}
+
+#[tokio::test]
 async fn test_engine_create() {
     let engine = JsEngine::create(None, None, None).await;
     assert!(engine.is_ok());
@@ -1041,7 +1108,7 @@ async fn test_engine_evaluate_script_bytecode_roundtrip() {
 }
 
 #[tokio::test]
-async fn test_engine_evaluate_async_script_bytecode_roundtrip() {
+async fn async_result_contract_normalizes_async_script_bytecode() {
     let script = JsBytecode::compile_script(
         "async-script-bytecode.js".to_string(),
         JsCode::Code("await Promise.resolve(42)".to_string()),

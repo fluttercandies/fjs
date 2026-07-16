@@ -1711,7 +1711,13 @@ pub(crate) async fn result_from_maybe_promise<'js>(
     }
 }
 
-fn unwrap_async_eval_value<'js>(value: &mut rquickjs::Value<'js>) -> rquickjs::Result<()> {
+/// Normalizes the single-field wrapper produced by QuickJS async evaluation.
+///
+/// `JS_EVAL_FLAG_ASYNC` exposes its resolved result as an object whose only
+/// enumerable string key is `value`. Every asynchronous FJS result path uses
+/// this helper after resolving a Promise or MaybePromise. Objects with any
+/// additional enumerable string key are application values and stay intact.
+fn normalize_quickjs_async_result<'js>(value: &mut rquickjs::Value<'js>) -> rquickjs::Result<()> {
     let Some(obj) = value.as_object() else {
         return Ok(());
     };
@@ -1736,7 +1742,7 @@ async fn result_from_value<'js>(
     if shutdown.requested() {
         return JsResult::Err(shutdown.error());
     }
-    if let Err(e) = unwrap_async_eval_value(&mut value).catch(ctx) {
+    if let Err(e) = normalize_quickjs_async_result(&mut value).catch(ctx) {
         if shutdown.requested() {
             return JsResult::Err(shutdown.error());
         }
@@ -1754,7 +1760,7 @@ async fn result_from_value<'js>(
                 return JsResult::Err(e);
             }
         };
-        if let Err(e) = unwrap_async_eval_value(&mut value).catch(ctx) {
+        if let Err(e) = normalize_quickjs_async_result(&mut value).catch(ctx) {
             if shutdown.requested() {
                 return JsResult::Err(shutdown.error());
             }
@@ -1822,31 +1828,31 @@ async fn maybe_promise_value<'js>(
 
 #[cfg(test)]
 mod tests {
-    use super::unwrap_async_eval_value;
+    use super::normalize_quickjs_async_result;
     use crate::api::value::JsValue;
     use rquickjs::{Context, FromJs, Runtime};
 
     #[test]
-    fn test_unwrap_async_eval_value_wrapper_object() {
+    fn test_normalize_quickjs_async_result_wrapper_object() {
         let runtime = Runtime::new().unwrap();
         let context = Context::full(&runtime).unwrap();
 
         context.with(|ctx| {
             let mut value: rquickjs::Value = ctx.eval("({ value: 42 })").unwrap();
-            unwrap_async_eval_value(&mut value).unwrap();
+            normalize_quickjs_async_result(&mut value).unwrap();
             let js_value = JsValue::from_js(&ctx, value).unwrap();
             assert!(matches!(js_value, JsValue::Integer(42)));
         });
     }
 
     #[test]
-    fn test_unwrap_async_eval_value_preserves_multi_key_object() {
+    fn test_normalize_quickjs_async_result_preserves_multi_key_object() {
         let runtime = Runtime::new().unwrap();
         let context = Context::full(&runtime).unwrap();
 
         context.with(|ctx| {
             let mut value: rquickjs::Value = ctx.eval("({ value: 42, extra: true })").unwrap();
-            unwrap_async_eval_value(&mut value).unwrap();
+            normalize_quickjs_async_result(&mut value).unwrap();
             let js_value = JsValue::from_js(&ctx, value).unwrap();
 
             assert!(matches!(

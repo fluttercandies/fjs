@@ -9,9 +9,71 @@ use crate::api::runtime::{JsAsyncContext, JsAsyncRuntime};
 use crate::api::source::{JsCode, JsModule};
 use crate::api::value::JsValue;
 
+fn unwrap_js_result(result: JsResult) -> JsValue {
+    match result {
+        JsResult::Ok(value) => value,
+        JsResult::Err(error) => panic!("expected JsResult::Ok, got {error:?}"),
+    }
+}
+
 // ============================================================================
 // Basic Promise Tests
 // ============================================================================
+
+#[tokio::test]
+async fn async_result_contract_normalizes_context_eval_and_module_functions() {
+    let runtime = JsAsyncRuntime::create(
+        None,
+        Some(vec![JsModule::code(
+            "async-result-contract".to_string(),
+            r#"
+                export function syncValue() {
+                    return { value: 42 };
+                }
+
+                export async function asyncValue() {
+                    return { value: 42 };
+                }
+            "#
+            .to_string(),
+        )]),
+    )
+    .await
+    .unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    let awaited = unwrap_js_result(context.eval("await Promise.resolve(42)".to_string()).await);
+    assert!(matches!(awaited, JsValue::Integer(42)));
+
+    let nested = unwrap_js_result(
+        context
+            .eval("await Promise.resolve(Promise.resolve(42))".to_string())
+            .await,
+    );
+    assert!(matches!(nested, JsValue::Integer(42)));
+
+    let sync_call = unwrap_js_result(
+        context
+            .eval_function(
+                "async-result-contract".to_string(),
+                "syncValue".to_string(),
+                None,
+            )
+            .await,
+    );
+    assert!(matches!(sync_call, JsValue::Integer(42)));
+
+    let async_call = unwrap_js_result(
+        context
+            .eval_function(
+                "async-result-contract".to_string(),
+                "asyncValue".to_string(),
+                None,
+            )
+            .await,
+    );
+    assert!(matches!(async_call, JsValue::Integer(42)));
+}
 
 #[tokio::test]
 async fn test_promise_resolve_primitive() {
