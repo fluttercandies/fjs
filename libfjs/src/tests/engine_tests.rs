@@ -1003,6 +1003,47 @@ async fn test_engine_bytecode_modules_support_relative_imports() {
 }
 
 #[tokio::test]
+async fn rooted_relative_bytecode_modules_resolve_from_root() {
+    let dep = JsBytecode::compile(
+        JsModule::code(
+            "/pkg/dep.js".to_string(),
+            "export const value = 42;".to_string(),
+        ),
+        None,
+    )
+    .await
+    .unwrap();
+    let main = JsBytecode::compile(
+        JsModule::code(
+            "/pkg/main.js".to_string(),
+            "import { value } from './dep.js'; export default value;".to_string(),
+        ),
+        None,
+    )
+    .await
+    .unwrap();
+
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+    engine
+        .declare_new_bytecode_modules(vec![dep, main])
+        .await
+        .unwrap();
+
+    let result = engine
+        .eval(
+            JsCode::Code(
+                "const { default: value } = await import('/pkg/main.js'); value".to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert!(matches!(result, JsValue::Integer(42)));
+}
+
+#[tokio::test]
 async fn test_engine_declare_new_bytecode_modules_rejects_duplicate_names() {
     let first = JsBytecode::compile(
         JsModule::code(
@@ -1071,6 +1112,41 @@ async fn test_engine_declare_and_evaluate_bytecode_bundle() {
         .eval(
             JsCode::Code(
                 "const { default: value } = await import('bundle/main.js'); value".to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+    assert!(matches!(imported, JsValue::Integer(42)));
+}
+
+#[tokio::test]
+async fn rooted_relative_bytecode_bundle_resolves_from_root() {
+    let bundle = JsBytecode::compile_module_bundle(
+        vec![
+            JsModule::code(
+                "/bundle/dep.js".to_string(),
+                "export const value = 21;".to_string(),
+            ),
+            JsModule::code(
+                "/bundle/main.js".to_string(),
+                "import { value } from './dep.js'; export default value * 2;".to_string(),
+            ),
+        ],
+        Some("/bundle/main.js".to_string()),
+        None,
+    )
+    .await
+    .unwrap();
+
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+    engine.evaluate_bytecode_bundle(bundle).await.unwrap();
+
+    let imported = engine
+        .eval(
+            JsCode::Code(
+                "const { default: value } = await import('/bundle/main.js'); value".to_string(),
             ),
             None,
         )
@@ -1380,6 +1456,38 @@ async fn test_engine_dynamic_module_relative_import() {
         .eval(
             JsCode::Code(
                 "const { default: value } = await import('pkg/main.js'); value".to_string(),
+            ),
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert!(matches!(result, JsValue::Integer(42)));
+}
+
+#[tokio::test]
+async fn rooted_relative_source_modules_resolve_from_root() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    engine
+        .declare_new_modules(vec![
+            JsModule::code(
+                "/pkg/dep.js".to_string(),
+                "export const value = 42;".to_string(),
+            ),
+            JsModule::code(
+                "/pkg/main.js".to_string(),
+                "import { value } from './dep.js'; export default value;".to_string(),
+            ),
+        ])
+        .await
+        .unwrap();
+
+    let result = engine
+        .eval(
+            JsCode::Code(
+                "const { default: value } = await import('/pkg/main.js'); value".to_string(),
             ),
             None,
         )

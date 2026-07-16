@@ -254,10 +254,24 @@ fn test_builtin_options_none_to_module_builder() {
 // ============================================================================
 
 use super::test_utils::test_with;
-use crate::api::module::{DynamicModuleEntry, DynamicModuleLoader, DynamicModuleResolver};
+use crate::api::module::{
+    DynamicModuleEntry, DynamicModuleLoader, DynamicModuleResolver, resolve_relative_specifier,
+};
 use rquickjs::loader::{Loader, Resolver};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+
+#[test]
+fn resolve_relative_specifier_preserves_rooted_module_names() {
+    for (base, name, expected) in [
+        ("pkg/main.js", "./dep.js", "pkg/dep.js"),
+        ("/pkg/main.js", "./dep.js", "/pkg/dep.js"),
+        ("/pkg/nested/main.js", "../dep.js", "/pkg/dep.js"),
+        ("/main.js", "../../dep.js", "/dep.js"),
+    ] {
+        assert_eq!(resolve_relative_specifier(base, name), expected);
+    }
+}
 
 #[test]
 fn test_dynamic_module_resolver_not_found() {

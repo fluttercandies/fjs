@@ -117,8 +117,9 @@ pub(crate) fn get_loaded_dynamic_module_names(ctx: &Ctx<'_>) -> Vec<String> {
 
 /// Resolves a relative specifier (`./x`, `../y`) against the importing
 /// module's path. `base` is the importer; its last segment is dropped before
-/// applying `name`'s segments.
+/// applying `name`'s segments. A rooted base remains rooted after resolution.
 pub(crate) fn resolve_relative_specifier(base: &str, name: &str) -> String {
+    let rooted = base.starts_with('/');
     let mut segments: Vec<&str> = base
         .split('/')
         .filter(|segment| !segment.is_empty())
@@ -137,7 +138,12 @@ pub(crate) fn resolve_relative_specifier(base: &str, name: &str) -> String {
         }
     }
 
-    segments.join("/")
+    let resolved = segments.join("/");
+    if rooted {
+        format!("/{resolved}")
+    } else {
+        resolved
+    }
 }
 
 fn normalize_dynamic_module_name(base: &str, name: &str) -> Option<String> {
