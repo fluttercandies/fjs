@@ -6,6 +6,8 @@
 use crate::api::error::JsError;
 use flutter_rust_bridge::frb;
 use rquickjs::{WriteOptions, WriteOptionsEndianness};
+use std::io::Read;
+use tokio::io::AsyncReadExt;
 
 /// Maximum file size for JavaScript source files (10 MB).
 ///
@@ -944,17 +946,7 @@ impl JsBuiltinOptions {
 pub async fn get_raw_source_code(source: JsCode) -> Result<Vec<u8>, JsError> {
     let code = match source {
         JsCode::Code(code) => code.into_bytes(),
-        JsCode::Path(path) => {
-            // Check file size before reading
-            let metadata = tokio::fs::metadata(&path)
-                .await
-                .map_err(|e| JsError::io(Some(path.clone()), e.to_string()))?;
-            ensure_within_size_limit(&path, metadata.len())?;
-
-            tokio::fs::read(&path)
-                .await
-                .map_err(|e| JsError::io(Some(path.clone()), e.to_string()))?
-        }
+        JsCode::Path(path) => read_file_bounded(&path).await?,
         JsCode::Bytes(bytes) => bytes,
     };
     Ok(code)
@@ -965,17 +957,47 @@ pub async fn get_raw_source_code(source: JsCode) -> Result<Vec<u8>, JsError> {
 pub fn get_raw_source_code_sync(source: JsCode) -> Result<Vec<u8>, JsError> {
     let code = match source {
         JsCode::Code(code) => code.into_bytes(),
-        JsCode::Path(path) => {
-            // Check file size before reading
-            let metadata = std::fs::metadata(&path)
-                .map_err(|e| JsError::io(Some(path.clone()), e.to_string()))?;
-            ensure_within_size_limit(&path, metadata.len())?;
-
-            std::fs::read(&path).map_err(|e| JsError::io(Some(path.clone()), e.to_string()))?
-        }
+        JsCode::Path(path) => read_file_bounded_sync(&path)?,
         JsCode::Bytes(bytes) => bytes,
     };
     Ok(code)
+}
+
+async fn read_file_bounded(path: &str) -> Result<Vec<u8>, JsError> {
+    let file = tokio::fs::File::open(path)
+        .await
+        .map_err(|error| JsError::io(Some(path.to_string()), error.to_string()))?;
+    let capacity = file
+        .metadata()
+        .await
+        .map(|metadata| bounded_read_capacity(metadata.len()))
+        .unwrap_or_default();
+    let mut bytes = Vec::with_capacity(capacity);
+    file.take(MAX_FILE_SIZE + 1)
+        .read_to_end(&mut bytes)
+        .await
+        .map_err(|error| JsError::io(Some(path.to_string()), error.to_string()))?;
+    ensure_within_size_limit(path, bytes.len() as u64)?;
+    Ok(bytes)
+}
+
+fn read_file_bounded_sync(path: &str) -> Result<Vec<u8>, JsError> {
+    let file = std::fs::File::open(path)
+        .map_err(|error| JsError::io(Some(path.to_string()), error.to_string()))?;
+    let capacity = file
+        .metadata()
+        .map(|metadata| bounded_read_capacity(metadata.len()))
+        .unwrap_or_default();
+    let mut bytes = Vec::with_capacity(capacity);
+    file.take(MAX_FILE_SIZE + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| JsError::io(Some(path.to_string()), error.to_string()))?;
+    ensure_within_size_limit(path, bytes.len() as u64)?;
+    Ok(bytes)
+}
+
+fn bounded_read_capacity(metadata_len: u64) -> usize {
+    metadata_len.min(MAX_FILE_SIZE + 1) as usize
 }
 
 fn ensure_within_size_limit(path: &str, file_size: u64) -> Result<(), JsError> {

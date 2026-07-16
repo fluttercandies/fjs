@@ -38,9 +38,64 @@ impl TempJsFile {
         Self { path }
     }
 
+    fn with_len(name: &str, len: u64) -> Self {
+        let id = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "fjs-api-surface-{}-{id}-{name}",
+            std::process::id()
+        ));
+        let file = fs::File::create(&path).unwrap();
+        file.set_len(len).unwrap();
+        Self { path }
+    }
+
+    #[cfg(unix)]
+    fn fifo(name: &str) -> Self {
+        let id = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "fjs-api-surface-{}-{id}-{name}",
+            std::process::id()
+        ));
+        let status = std::process::Command::new("mkfifo")
+            .arg(&path)
+            .status()
+            .unwrap();
+        assert!(status.success(), "failed to create test FIFO at {path:?}");
+        Self { path }
+    }
+
     fn path_string(&self) -> String {
         self.path.to_string_lossy().into_owned()
     }
+}
+
+fn expect_source_size_error(result: Result<Vec<u8>, JsError>) {
+    let error = match result {
+        Ok(bytes) => panic!(
+            "expected an oversized source error, read {} bytes",
+            bytes.len()
+        ),
+        Err(error) => error,
+    };
+    assert!(matches!(error, JsError::Io { .. }));
+    assert!(error.to_string().contains("File size exceeds"));
+    assert!(error.to_string().contains(&MAX_FILE_SIZE.to_string()));
+}
+
+#[cfg(unix)]
+fn write_fifo(path: PathBuf, len: usize) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        use std::io::Write;
+
+        let mut file = fs::OpenOptions::new().write(true).open(path).unwrap();
+        let chunk = [0_u8; 8192];
+        let mut remaining = len;
+        while remaining > 0 {
+            let count = remaining.min(chunk.len());
+            file.write_all(&chunk[..count]).unwrap();
+            remaining -= count;
+        }
+    })
 }
 
 impl Drop for TempJsFile {
@@ -529,6 +584,50 @@ async fn source_value_error_and_result_public_helpers_cover_edge_cases() {
     expect_string(from_ok.into_result().unwrap(), "converted");
     let from_err: Result<JsValue, JsError> = JsResult::err(JsError::bridge("bridge down")).into();
     assert_eq!(from_err.unwrap_err().code(), "BRIDGE_ERROR");
+}
+
+#[test]
+fn file_backed_source_size_limit_sync_uses_bytes_read() {
+    let exact = TempJsFile::with_len("sync-exact-limit.js", MAX_FILE_SIZE);
+    let oversized = TempJsFile::with_len("sync-over-limit.js", MAX_FILE_SIZE + 1);
+
+    let exact_bytes = get_raw_source_code_sync(JsCode::path(exact.path_string())).unwrap();
+    assert_eq!(exact_bytes.len() as u64, MAX_FILE_SIZE);
+    expect_source_size_error(get_raw_source_code_sync(JsCode::path(
+        oversized.path_string(),
+    )));
+}
+
+#[tokio::test]
+async fn file_backed_source_size_limit_async_uses_bytes_read() {
+    let exact = TempJsFile::with_len("async-exact-limit.js", MAX_FILE_SIZE);
+    let oversized = TempJsFile::with_len("async-over-limit.js", MAX_FILE_SIZE + 1);
+
+    let exact_bytes = get_raw_source_code(JsCode::path(exact.path_string()))
+        .await
+        .unwrap();
+    assert_eq!(exact_bytes.len() as u64, MAX_FILE_SIZE);
+    expect_source_size_error(get_raw_source_code(JsCode::path(oversized.path_string())).await);
+}
+
+#[cfg(unix)]
+#[test]
+fn file_backed_source_size_limit_sync_ignores_stale_metadata() {
+    let source = TempJsFile::fifo("sync-growing-source.js");
+    let writer = write_fifo(source.path.clone(), MAX_FILE_SIZE as usize + 1);
+    let result = get_raw_source_code_sync(JsCode::path(source.path_string()));
+    writer.join().unwrap();
+    expect_source_size_error(result);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn file_backed_source_size_limit_async_ignores_stale_metadata() {
+    let source = TempJsFile::fifo("async-growing-source.js");
+    let writer = write_fifo(source.path.clone(), MAX_FILE_SIZE as usize + 1);
+    let result = get_raw_source_code(JsCode::path(source.path_string())).await;
+    writer.join().unwrap();
+    expect_source_size_error(result);
 }
 
 #[tokio::test]
