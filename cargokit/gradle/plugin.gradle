@@ -3,7 +3,9 @@
 
 
 import org.apache.tools.ant.taskdefs.condition.Os
+import org.gradle.process.ExecOperations
 
+import javax.inject.Inject
 import java.nio.file.Paths
 
 CargoKitPlugin.file = buildscript.sourceFile
@@ -16,6 +18,9 @@ class CargoKitExtension {
 }
 
 abstract class CargoKitBuildTask extends DefaultTask {
+
+    @Inject
+    abstract ExecOperations getExecOperations()
 
     @Input
     String buildMode
@@ -62,12 +67,12 @@ abstract class CargoKitBuildTask extends DefaultTask {
         def rootProjectDir = project.rootProject.projectDir
 
         if (!Os.isFamily(Os.FAMILY_WINDOWS)) {
-            project.exec {
+            execOperations.exec {
                 commandLine 'chmod', '+x', path
             }
         }
 
-        project.exec {
+        execOperations.exec {
             executable path
             args "build-gradle"
             environment "CARGOKIT_ROOT_PROJECT_DIR", rootProjectDir
@@ -120,7 +125,8 @@ class CargoKitPlugin implements Plugin<Project> {
             return;
         }
 
-        def cargoBuildDir = "${project.buildDir}/build"
+        def projectBuildDir = project.layout.buildDirectory.get().asFile
+        def cargoBuildDir = new File(projectBuildDir, "build").path
 
         // Determine if the project is an application or library
         def isApplication = plugin.project.plugins.hasPlugin('com.android.application')
@@ -130,7 +136,7 @@ class CargoKitPlugin implements Plugin<Project> {
 
             final buildType = variant.buildType.name
 
-            def cargoOutputDir = "${project.buildDir}/jniLibs/${buildType}";
+            def cargoOutputDir = new File(projectBuildDir, "jniLibs/${buildType}").path;
             def jniLibs = project.android.sourceSets.maybeCreate(buildType).jniLibs;
             jniLibs.srcDir(new File(cargoOutputDir))
 
