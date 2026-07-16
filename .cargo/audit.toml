@@ -1,0 +1,7 @@
+[advisories]
+ignore = [
+  # The pinned llrt_os revision uses current UID/GID and user-record lookup,
+  # not the affected supplementary-group authorization APIs in users 0.11.
+  # Revisit this exception when LLRT removes or replaces `users`.
+  "RUSTSEC-2025-0040",
+]
