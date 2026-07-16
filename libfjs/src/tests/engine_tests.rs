@@ -153,6 +153,28 @@ async fn async_result_contract_normalizes_engine_eval_and_module_calls() {
 }
 
 #[tokio::test]
+async fn value_conversion_errors_are_structured_at_engine_boundary() {
+    let engine = JsEngine::create(None, None, None).await.unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    let error = engine
+        .eval(
+            JsCode::Code("const value = {}; value.self = value; value".to_string()),
+            None,
+        )
+        .await
+        .unwrap_err();
+
+    assert!(matches!(
+        error,
+        crate::api::error::JsError::Conversion {
+            ref message,
+            ..
+        } if message.contains("cyclic JavaScript value")
+    ));
+}
+
+#[tokio::test]
 async fn test_engine_create() {
     let engine = JsEngine::create(None, None, None).await;
     assert!(engine.is_ok());

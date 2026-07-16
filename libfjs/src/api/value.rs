@@ -16,11 +16,13 @@
 use flutter_rust_bridge::frb;
 use rquickjs::function::Constructor;
 use rquickjs::{Ctx, FromAtom, FromJs, IntoJs, JsLifetime, Null, Type};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
 const JS_MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 const JS_MIN_SAFE_INTEGER: i64 = -JS_MAX_SAFE_INTEGER;
+const MAX_CONVERSION_DEPTH: usize = 128;
+const MAX_CONVERSION_NODES: usize = 100_000;
 
 #[frb(ignore)]
 pub(crate) struct ValueIntrinsics<'js> {
@@ -598,9 +600,84 @@ impl JsValue {
     }
 }
 
-impl<'js> FromJs<'js> for JsValue {
-    /// Converts a JavaScript value to a JsValue enum.
-    fn from_js(ctx: &Ctx<'js>, value: rquickjs::Value<'js>) -> rquickjs::Result<Self> {
+#[derive(Default)]
+struct ConversionState<'js> {
+    active_objects: HashSet<rquickjs::Object<'js>>,
+    depth: usize,
+    nodes: usize,
+}
+
+impl<'js> ConversionState<'js> {
+    fn node_limit_error() -> rquickjs::Error {
+        rquickjs::Error::new_from_js_message(
+            "JavaScript value",
+            "JsValue",
+            format!("maximum conversion node count of {MAX_CONVERSION_NODES} exceeded"),
+        )
+    }
+
+    fn depth_limit_error() -> rquickjs::Error {
+        rquickjs::Error::new_from_js_message(
+            "JavaScript value",
+            "JsValue",
+            format!("maximum conversion depth of {MAX_CONVERSION_DEPTH} exceeded"),
+        )
+    }
+
+    fn count_node(&mut self) -> rquickjs::Result<()> {
+        let next = self.nodes.checked_add(1).ok_or_else(|| {
+            rquickjs::Error::new_from_js_message(
+                "JavaScript value",
+                "JsValue",
+                "conversion node count overflowed",
+            )
+        })?;
+        if next > MAX_CONVERSION_NODES {
+            return Err(Self::node_limit_error());
+        }
+        self.nodes = next;
+        Ok(())
+    }
+
+    fn ensure_nodes_available(&self, additional: usize) -> rquickjs::Result<()> {
+        let remaining = MAX_CONVERSION_NODES.saturating_sub(self.nodes);
+        if additional > remaining {
+            return Err(Self::node_limit_error());
+        }
+        Ok(())
+    }
+
+    fn with_object<T>(
+        &mut self,
+        object: &rquickjs::Object<'js>,
+        convert: impl FnOnce(&mut Self) -> rquickjs::Result<T>,
+    ) -> rquickjs::Result<T> {
+        if self.depth >= MAX_CONVERSION_DEPTH {
+            return Err(Self::depth_limit_error());
+        }
+        if !self.active_objects.insert(object.clone()) {
+            return Err(rquickjs::Error::new_from_js_message(
+                "JavaScript value",
+                "JsValue",
+                "cyclic JavaScript value",
+            ));
+        }
+
+        self.depth += 1;
+        let result = convert(self);
+        self.depth -= 1;
+        self.active_objects.remove(object);
+        result
+    }
+}
+
+impl JsValue {
+    fn from_js_with_state<'js>(
+        ctx: &Ctx<'js>,
+        value: rquickjs::Value<'js>,
+        state: &mut ConversionState<'js>,
+    ) -> rquickjs::Result<Self> {
+        state.count_node()?;
         let v = match value.type_of() {
             Type::String => {
                 let s = value
@@ -612,12 +689,17 @@ impl<'js> FromJs<'js> for JsValue {
                 let arr = value
                     .as_array()
                     .ok_or_else(|| rquickjs::Error::new_from_js("value", "Array"))?;
-                let mut vec = Vec::with_capacity(arr.len());
-                for item in arr.iter() {
-                    let item = item?;
-                    let value = JsValue::from_js(ctx, item)?;
-                    vec.push(value);
-                }
+                state.ensure_nodes_available(arr.len())?;
+                let object = arr.as_object().clone();
+                let vec = state.with_object(&object, |state| {
+                    let mut vec = Vec::with_capacity(arr.len());
+                    for item in arr.iter() {
+                        let item = item?;
+                        let value = JsValue::from_js_with_state(ctx, item, state)?;
+                        vec.push(value);
+                    }
+                    Ok(vec)
+                })?;
                 JsValue::Array(vec)
             }
             Type::Object => {
@@ -651,12 +733,16 @@ impl<'js> FromJs<'js> for JsValue {
                 }
 
                 // Regular object
-                let mut map = HashMap::new();
-                for prop in obj.props() {
-                    let (k, v) = prop?;
-                    let value = JsValue::from_js(ctx, v)?;
-                    map.insert(String::from_atom(k)?, value);
-                }
+                let object = obj.clone();
+                let map = state.with_object(&object, |state| {
+                    let mut map = HashMap::new();
+                    for prop in obj.props() {
+                        let (k, v) = prop?;
+                        let value = JsValue::from_js_with_state(ctx, v, state)?;
+                        map.insert(String::from_atom(k)?, value);
+                    }
+                    Ok(map)
+                })?;
                 JsValue::Object(map)
             }
             Type::Int => {
@@ -728,6 +814,13 @@ impl<'js> FromJs<'js> for JsValue {
             | Type::Unknown => JsValue::None,
         };
         Ok(v)
+    }
+}
+
+impl<'js> FromJs<'js> for JsValue {
+    /// Converts a JavaScript value to a JsValue enum.
+    fn from_js(ctx: &Ctx<'js>, value: rquickjs::Value<'js>) -> rquickjs::Result<Self> {
+        JsValue::from_js_with_state(ctx, value, &mut ConversionState::default())
     }
 }
 

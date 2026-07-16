@@ -742,3 +742,145 @@ fn test_from_js_anonymous_function() {
         assert!(matches!(js_val, JsValue::Function(_)));
     });
 }
+
+#[test]
+fn value_conversion_rejects_cyclic_object() {
+    test_with(|ctx| {
+        let value: rquickjs::Value = ctx
+            .eval("const value = {}; value.self = value; value")
+            .unwrap();
+        let error = JsValue::from_js(&ctx, value).unwrap_err();
+        assert!(
+            error.to_string().contains("cyclic JavaScript value"),
+            "unexpected conversion error: {error}"
+        );
+    });
+}
+
+#[test]
+fn value_conversion_rejects_cyclic_array() {
+    test_with(|ctx| {
+        let value: rquickjs::Value = ctx
+            .eval("const value = []; value.push(value); value")
+            .unwrap();
+        let error = JsValue::from_js(&ctx, value).unwrap_err();
+        assert!(
+            error.to_string().contains("cyclic JavaScript value"),
+            "unexpected conversion error: {error}"
+        );
+    });
+}
+
+#[test]
+fn value_conversion_accepts_shared_reference() {
+    test_with(|ctx| {
+        let value: rquickjs::Value = ctx
+            .eval("const shared = { answer: 42 }; ({ left: shared, right: shared })")
+            .unwrap();
+        let converted = JsValue::from_js(&ctx, value).unwrap();
+
+        assert!(matches!(
+            converted,
+            JsValue::Object(ref object)
+                if matches!(object.get("left"), Some(JsValue::Object(left))
+                    if matches!(left.get("answer"), Some(JsValue::Integer(42))))
+                && matches!(object.get("right"), Some(JsValue::Object(right))
+                    if matches!(right.get("answer"), Some(JsValue::Integer(42))))
+        ));
+    });
+}
+
+#[test]
+fn value_conversion_accepts_maximum_depth() {
+    test_with(|ctx| {
+        let value: rquickjs::Value = ctx
+            .eval(
+                r#"
+                    const root = [];
+                    let cursor = root;
+                    for (let depth = 1; depth < 128; depth++) {
+                        const child = [];
+                        cursor.push(child);
+                        cursor = child;
+                    }
+                    root
+                "#,
+            )
+            .unwrap();
+        JsValue::from_js(&ctx, value).unwrap();
+    });
+}
+
+#[test]
+fn value_conversion_enforces_depth_limit() {
+    test_with(|ctx| {
+        let value: rquickjs::Value = ctx
+            .eval(
+                r#"
+                    const root = [];
+                    let cursor = root;
+                    for (let depth = 1; depth < 129; depth++) {
+                        const child = [];
+                        cursor.push(child);
+                        cursor = child;
+                    }
+                    root
+                "#,
+            )
+            .unwrap();
+        let error = JsValue::from_js(&ctx, value).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("maximum conversion depth of 128 exceeded"),
+            "unexpected conversion error: {error}"
+        );
+    });
+}
+
+#[test]
+fn value_conversion_accepts_maximum_node_count() {
+    test_with(|ctx| {
+        let value: rquickjs::Value = ctx.eval("Array(99999).fill(0)").unwrap();
+        let converted = JsValue::from_js(&ctx, value).unwrap();
+        assert!(matches!(converted, JsValue::Array(values) if values.len() == 99_999));
+    });
+}
+
+#[test]
+fn value_conversion_enforces_node_limit() {
+    test_with(|ctx| {
+        let value: rquickjs::Value = ctx.eval("Array(100000).fill(0)").unwrap();
+        let error = JsValue::from_js(&ctx, value).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("maximum conversion node count of 100000 exceeded"),
+            "unexpected conversion error: {error}"
+        );
+    });
+}
+
+#[test]
+fn value_conversion_enforces_node_limit_before_array_access() {
+    test_with(|ctx| {
+        let value: rquickjs::Value = ctx
+            .eval(
+                r#"
+                    const value = Array(100000);
+                    Object.defineProperty(value, 0, {
+                        get() { throw new Error('oversized array element was accessed'); }
+                    });
+                    value
+                "#,
+            )
+            .unwrap();
+        let error = JsValue::from_js(&ctx, value).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("maximum conversion node count of 100000 exceeded"),
+            "unexpected conversion error: {error}"
+        );
+    });
+}
