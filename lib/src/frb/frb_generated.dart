@@ -8246,131 +8246,157 @@ class MemoryUsageImpl extends RustOpaque implements MemoryUsage {
         LibFjs.instance.api.rust_arc_decrement_strong_count_MemoryUsagePtr,
   );
 
+  ///Returns the number of live JavaScript arrays.
   PlatformInt64 get arrayCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageArrayCount(
         that: this,
       );
 
+  ///Returns the number of live interned atoms.
   PlatformInt64 get atomCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageAtomCount(
         that: this,
       );
 
+  ///Returns the estimated memory occupied by interned atoms, in bytes.
   PlatformInt64 get atomSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageAtomSize(
         that: this,
       );
 
+  ///Returns the number of binary objects deserialized by QuickJS contexts in this runtime.
   PlatformInt64 get binaryObjectCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageBinaryObjectCount(
         that: this,
       );
 
+  ///Returns the total input size, in bytes, of binary objects deserialized by QuickJS contexts in this runtime.
   PlatformInt64 get binaryObjectSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageBinaryObjectSize(
         that: this,
       );
 
+  ///Returns the number of live native C function objects exposed to JavaScript.
   PlatformInt64 get cFuncCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageCFuncCount(
         that: this,
       );
 
+  ///Returns the number of live arrays using QuickJS's dense fast-array representation.
   PlatformInt64 get fastArrayCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageFastArrayCount(
         that: this,
       );
 
+  ///Returns the number of elements stored across dense fast arrays.
   PlatformInt64 get fastArrayElements =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageFastArrayElements(
         that: this,
       );
 
+  ///Returns the total JavaScript function bytecode size, in bytes.
   PlatformInt64 get jsFuncCodeSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageJsFuncCodeSize(
         that: this,
       );
 
+  ///Returns the number of live JavaScript bytecode functions.
   PlatformInt64 get jsFuncCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageJsFuncCount(
         that: this,
       );
 
+  ///Returns the number of JavaScript functions that have source-position tables.
   PlatformInt64 get jsFuncPc2LineCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageJsFuncPc2LineCount(
         that: this,
       );
 
+  ///Returns the total size of JavaScript source-position tables, in bytes.
   PlatformInt64 get jsFuncPc2LineSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageJsFuncPc2LineSize(
         that: this,
       );
 
+  ///Returns the estimated memory occupied by JavaScript function metadata and closures, in bytes.
   PlatformInt64 get jsFuncSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageJsFuncSize(
         that: this,
       );
 
+  ///Returns the number of live allocations tracked by QuickJS's allocator.
   PlatformInt64 get mallocCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageMallocCount(
         that: this,
       );
 
+  ///Returns the configured QuickJS allocator limit in bytes.
   PlatformInt64 get mallocLimit =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageMallocLimit(
         that: this,
       );
 
+  ///Returns the number of bytes currently reserved by QuickJS's allocator, including allocator overhead.
   PlatformInt64 get mallocSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageMallocSize(
         that: this,
       );
 
+  ///Returns the estimated number of live allocations represented by `memory_used_size`.
   PlatformInt64 get memoryUsedCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageMemoryUsedCount(
         that: this,
       );
 
+  ///Returns QuickJS's estimated live runtime memory in bytes, excluding allocator overhead.
   PlatformInt64 get memoryUsedSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageMemoryUsedSize(
         that: this,
       );
 
+  ///Returns the number of live JavaScript objects.
   PlatformInt64 get objCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageObjCount(
         that: this,
       );
 
+  ///Returns the estimated memory occupied by JavaScript object headers, in bytes.
   PlatformInt64 get objSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageObjSize(
         that: this,
       );
 
+  ///Returns the number of live object properties.
   PlatformInt64 get propCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsagePropCount(
         that: this,
       );
 
+  ///Returns the estimated memory occupied by object property storage, in bytes.
   PlatformInt64 get propSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsagePropSize(
         that: this,
       );
 
+  ///Returns the number of live QuickJS object shapes.
   PlatformInt64 get shapeCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageShapeCount(
         that: this,
       );
 
+  ///Returns the estimated memory occupied by object shapes, in bytes.
   PlatformInt64 get shapeSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageShapeSize(
         that: this,
       );
 
+  ///Returns the number of live JavaScript strings.
   PlatformInt64 get strCount =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageStrCount(
         that: this,
       );
 
+  ///Returns the estimated memory occupied by JavaScript strings, in bytes.
   PlatformInt64 get strSize =>
       LibFjs.instance.api.crateApiRuntimeMemoryUsageStrSize(
         that: this,

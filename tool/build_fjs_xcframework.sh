@@ -249,12 +249,23 @@ echo "Created $XCFRAMEWORK"
 if [ -n "$ZIP_OUTPUT" ]; then
   ZIP_OUTPUT_DIR="$(dirname -- "$ZIP_OUTPUT")"
   mkdir -p "$ZIP_OUTPUT_DIR"
-  rm -f "$ZIP_OUTPUT" "$ZIP_OUTPUT.checksum"
+  ZIP_TEMP_DIR="$(mktemp -d "$ZIP_OUTPUT_DIR/.fjs-xcframework-zip.XXXXXX")"
+  cleanup_zip_temp() {
+    rm -rf "$ZIP_TEMP_DIR"
+  }
+  trap cleanup_zip_temp EXIT
+  trap 'exit 130' HUP INT TERM
+  ZIP_TEMP="$ZIP_TEMP_DIR/fjs.xcframework.zip"
   (
     cd "$OUTPUT_DIR"
-    zip -qry "$ZIP_OUTPUT" fjs.xcframework
+    zip -qry -y "$ZIP_TEMP" fjs.xcframework
   )
-  swift package compute-checksum "$ZIP_OUTPUT" > "$ZIP_OUTPUT.checksum"
+  "$ROOT_DIR/tool/check_darwin_package_support.sh" --artifact "$ZIP_TEMP"
+  mv -f "$ZIP_TEMP" "$ZIP_OUTPUT"
+  swift package compute-checksum "$ZIP_OUTPUT" > "$ZIP_TEMP_DIR/fjs.xcframework.zip.checksum"
+  mv -f "$ZIP_TEMP_DIR/fjs.xcframework.zip.checksum" "$ZIP_OUTPUT.checksum"
+  cleanup_zip_temp
+  ZIP_TEMP_DIR=""
   echo "Created $ZIP_OUTPUT"
   echo "Created $ZIP_OUTPUT.checksum"
 fi

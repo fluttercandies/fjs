@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'source.dart';
 import 'value.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `cleanup_after_context_drop`, `cleanup_once`, `ensure_no_unhandled_job_errors`, `finalize_context_drop`, `finalize_runtime_drop`, `idle`, `install_default_async_loaders`, `install_error_tracker`, `is_job_pending`, `make_loader_stack`, `maybe_promise_value`, `promise_value`, `request_shutdown`, `result_from_maybe_promise`, `result_from_promise`, `result_from_sync`, `result_from_value`, `shutdown`, `start_driver_now`, `stop_driver`, `take_unhandled_job_error`, `take_unhandled_job_errors`, `unwrap_async_eval_value`, `with_foreground_js_result`, `with_js`
+// These functions are ignored because they are not marked as `pub`: `build_loaders`, `call_module_method`, `cleanup_after_context_drop`, `cleanup_once`, `ensure_no_unhandled_job_errors`, `finalize_context_drop`, `finalize_runtime_drop`, `idle`, `install_default_async_loaders`, `install_error_tracker`, `is_job_pending`, `make_loader_stack`, `maybe_promise_value`, `normalize_quickjs_async_result`, `promise_value`, `request_shutdown`, `result_from_maybe_promise`, `result_from_promise`, `result_from_sync`, `result_from_value`, `shutdown`, `start_driver_now`, `stop_driver`, `take_unhandled_job_error`, `take_unhandled_job_errors`, `with_foreground_js_result`, `with_js`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `drop`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsAsyncContext>>
@@ -597,56 +597,82 @@ abstract class JsRuntime implements RustOpaqueInterface {
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MemoryUsage>>
 abstract class MemoryUsage implements RustOpaqueInterface {
+  ///Returns the number of live JavaScript arrays.
   PlatformInt64 get arrayCount;
 
+  ///Returns the number of live interned atoms.
   PlatformInt64 get atomCount;
 
+  ///Returns the estimated memory occupied by interned atoms, in bytes.
   PlatformInt64 get atomSize;
 
+  ///Returns the number of binary objects deserialized by QuickJS contexts in this runtime.
   PlatformInt64 get binaryObjectCount;
 
+  ///Returns the total input size, in bytes, of binary objects deserialized by QuickJS contexts in this runtime.
   PlatformInt64 get binaryObjectSize;
 
+  ///Returns the number of live native C function objects exposed to JavaScript.
   PlatformInt64 get cFuncCount;
 
+  ///Returns the number of live arrays using QuickJS's dense fast-array representation.
   PlatformInt64 get fastArrayCount;
 
+  ///Returns the number of elements stored across dense fast arrays.
   PlatformInt64 get fastArrayElements;
 
+  ///Returns the total JavaScript function bytecode size, in bytes.
   PlatformInt64 get jsFuncCodeSize;
 
+  ///Returns the number of live JavaScript bytecode functions.
   PlatformInt64 get jsFuncCount;
 
+  ///Returns the number of JavaScript functions that have source-position tables.
   PlatformInt64 get jsFuncPc2LineCount;
 
+  ///Returns the total size of JavaScript source-position tables, in bytes.
   PlatformInt64 get jsFuncPc2LineSize;
 
+  ///Returns the estimated memory occupied by JavaScript function metadata and closures, in bytes.
   PlatformInt64 get jsFuncSize;
 
+  ///Returns the number of live allocations tracked by QuickJS's allocator.
   PlatformInt64 get mallocCount;
 
+  ///Returns the configured QuickJS allocator limit in bytes.
   PlatformInt64 get mallocLimit;
 
+  ///Returns the number of bytes currently reserved by QuickJS's allocator, including allocator overhead.
   PlatformInt64 get mallocSize;
 
+  ///Returns the estimated number of live allocations represented by `memory_used_size`.
   PlatformInt64 get memoryUsedCount;
 
+  ///Returns QuickJS's estimated live runtime memory in bytes, excluding allocator overhead.
   PlatformInt64 get memoryUsedSize;
 
+  ///Returns the number of live JavaScript objects.
   PlatformInt64 get objCount;
 
+  ///Returns the estimated memory occupied by JavaScript object headers, in bytes.
   PlatformInt64 get objSize;
 
+  ///Returns the number of live object properties.
   PlatformInt64 get propCount;
 
+  ///Returns the estimated memory occupied by object property storage, in bytes.
   PlatformInt64 get propSize;
 
+  ///Returns the number of live QuickJS object shapes.
   PlatformInt64 get shapeCount;
 
+  ///Returns the estimated memory occupied by object shapes, in bytes.
   PlatformInt64 get shapeSize;
 
+  ///Returns the number of live JavaScript strings.
   PlatformInt64 get strCount;
 
+  ///Returns the estimated memory occupied by JavaScript strings, in bytes.
   PlatformInt64 get strSize;
 
   /// Returns a human-readable summary of memory usage.

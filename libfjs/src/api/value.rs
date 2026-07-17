@@ -602,6 +602,7 @@ impl JsValue {
     }
 }
 
+#[frb(ignore)]
 #[derive(Default)]
 struct ConversionState<'js> {
     active_objects: HashSet<rquickjs::Object<'js>>,

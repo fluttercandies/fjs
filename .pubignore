@@ -26,5 +26,9 @@ android/bin/
 # Internal planning artifacts are useful in Git but not in the pub package.
 /docs/
 
+# Publish only the symlink-preserving SwiftPM archive, not its raw build tree.
+/darwin/fjs/Binaries/fjs.xcframework/
+/darwin/fjs/Binaries/fjs.xcframework.zip.checksum
+
 # Third-party dependencies (local clones)
 third/
