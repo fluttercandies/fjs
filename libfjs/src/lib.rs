@@ -37,8 +37,17 @@
 //! assert!(result.is_ok());
 //! ```
 
+#![deny(missing_docs)]
+#![deny(unsafe_op_in_unsafe_fn)]
+#![warn(clippy::undocumented_unsafe_blocks)]
+
 pub mod api;
 mod bytecode_support;
+#[allow(
+    missing_docs,
+    unsafe_op_in_unsafe_fn,
+    clippy::undocumented_unsafe_blocks
+)]
 mod frb_generated;
 mod runtime;
 

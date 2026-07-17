@@ -57,7 +57,11 @@ impl JsValueIdentity {
     fn from_value(value: &rquickjs::Value<'_>) -> Self {
         let raw = value.as_raw();
         Self {
+            // SAFETY: `raw` is the valid `JSValue` representation borrowed from
+            // `value`; reading its tag does not take ownership or mutate it.
             tag: unsafe { rquickjs::qjs::JS_VALUE_GET_TAG(raw) },
+            // SAFETY: `raw` is the same valid `JSValue` representation. QuickJS's
+            // accessor returns its payload bits without taking ownership.
             bits: unsafe { rquickjs::qjs::JS_VALUE_GET_FLOAT64(raw).to_bits() },
         }
     }

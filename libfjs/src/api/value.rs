@@ -33,6 +33,8 @@ pub(crate) struct ValueIntrinsics<'js> {
     _marker: PhantomData<&'js ()>,
 }
 
+// SAFETY: Every context-bound field (`Object` and `Function`) uses exactly the
+// same `'js` lifetime and `Changed` rebinds all of them uniformly to `'to`.
 unsafe impl<'js> JsLifetime<'js> for ValueIntrinsics<'js> {
     type Changed<'to> = ValueIntrinsics<'to>;
 }

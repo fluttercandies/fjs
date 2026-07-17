@@ -41,9 +41,10 @@ use std::sync::{Arc, RwLock};
 pub struct MemoryUsage(pub(crate) rquickjs::qjs::JSMemoryUsage);
 
 macro_rules! proxy_memory_usage_getter {
-    ($($name:ident),+) => {
+    ($($name:ident => $doc:literal),+ $(,)?) => {
         impl MemoryUsage {
             $(
+                #[doc = $doc]
                 #[frb(sync, getter)]
                 pub fn $name(&self) -> i64 { self.0.$name }
             )+
@@ -52,32 +53,32 @@ macro_rules! proxy_memory_usage_getter {
 }
 
 proxy_memory_usage_getter!(
-    malloc_size,
-    malloc_limit,
-    memory_used_size,
-    malloc_count,
-    memory_used_count,
-    atom_count,
-    atom_size,
-    str_count,
-    str_size,
-    obj_count,
-    obj_size,
-    prop_count,
-    prop_size,
-    shape_count,
-    shape_size,
-    js_func_count,
-    js_func_size,
-    js_func_code_size,
-    js_func_pc2line_count,
-    js_func_pc2line_size,
-    c_func_count,
-    array_count,
-    fast_array_count,
-    fast_array_elements,
-    binary_object_count,
-    binary_object_size
+    malloc_size => "Returns the number of bytes currently reserved by QuickJS's allocator, including allocator overhead.",
+    malloc_limit => "Returns the configured QuickJS allocator limit in bytes.",
+    memory_used_size => "Returns QuickJS's estimated live runtime memory in bytes, excluding allocator overhead.",
+    malloc_count => "Returns the number of live allocations tracked by QuickJS's allocator.",
+    memory_used_count => "Returns the estimated number of live allocations represented by `memory_used_size`.",
+    atom_count => "Returns the number of live interned atoms.",
+    atom_size => "Returns the estimated memory occupied by interned atoms, in bytes.",
+    str_count => "Returns the number of live JavaScript strings.",
+    str_size => "Returns the estimated memory occupied by JavaScript strings, in bytes.",
+    obj_count => "Returns the number of live JavaScript objects.",
+    obj_size => "Returns the estimated memory occupied by JavaScript object headers, in bytes.",
+    prop_count => "Returns the number of live object properties.",
+    prop_size => "Returns the estimated memory occupied by object property storage, in bytes.",
+    shape_count => "Returns the number of live QuickJS object shapes.",
+    shape_size => "Returns the estimated memory occupied by object shapes, in bytes.",
+    js_func_count => "Returns the number of live JavaScript bytecode functions.",
+    js_func_size => "Returns the estimated memory occupied by JavaScript function metadata and closures, in bytes.",
+    js_func_code_size => "Returns the total JavaScript function bytecode size, in bytes.",
+    js_func_pc2line_count => "Returns the number of JavaScript functions that have source-position tables.",
+    js_func_pc2line_size => "Returns the total size of JavaScript source-position tables, in bytes.",
+    c_func_count => "Returns the number of live native C function objects exposed to JavaScript.",
+    array_count => "Returns the number of live JavaScript arrays.",
+    fast_array_count => "Returns the number of live arrays using QuickJS's dense fast-array representation.",
+    fast_array_elements => "Returns the number of elements stored across dense fast arrays.",
+    binary_object_count => "Returns the number of binary objects deserialized by QuickJS contexts in this runtime.",
+    binary_object_size => "Returns the total input size, in bytes, of binary objects deserialized by QuickJS contexts in this runtime."
 );
 
 impl MemoryUsage {

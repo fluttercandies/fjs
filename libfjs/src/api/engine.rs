@@ -51,9 +51,22 @@ pub type BridgeCallback = dyn Fn(JsValue) -> DartFnFuture<JsResult> + Sync + Sen
 #[frb(dart_metadata = ("freezed"))]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct JsEngineRuntimeOptions {
+    /// Hard limit, in bytes, for memory allocated by the QuickJS runtime.
+    ///
+    /// `None` leaves QuickJS's default memory limit unchanged.
     pub memory_limit: Option<usize>,
+    /// Allocated-memory threshold, in bytes, that triggers a garbage-collection cycle.
+    ///
+    /// `None` leaves QuickJS's default threshold unchanged.
     pub gc_threshold: Option<usize>,
+    /// Maximum native stack space, in bytes, available to JavaScript execution.
+    ///
+    /// The runtime clamps this value to FJS's supported asynchronous stack range.
+    /// `None` keeps the FJS default.
     pub max_stack_size: Option<usize>,
+    /// Optional diagnostic label associated with the QuickJS runtime.
+    ///
+    /// The label is metadata for diagnostics and does not affect execution semantics.
     pub info: Option<String>,
 }
 

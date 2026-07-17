@@ -76,6 +76,9 @@ pub(crate) fn validate_module_bytecode_in(
         ));
     }
     drop(raw_value);
+    // SAFETY: `read_bytecode_value` just validated these bytes as QuickJS ES-module
+    // bytecode in this same context and runtime. The validation value was dropped
+    // before loading the module so ownership remains unambiguous.
     let module = unsafe { Module::load(ctx.clone(), bytecode) }
         .catch(ctx)
         .map_err(|e| module_error(module_name, format!("Failed to read bytecode module: {e}")))?;
@@ -269,6 +272,8 @@ pub(crate) fn load_module_bytecode_checked<'js>(
         ));
     }
     drop(value);
+    // SAFETY: `read_bytecode_value` validated these bytes as QuickJS ES-module
+    // bytecode in `ctx`; `Module::load` receives the same bytes and context.
     unsafe { Module::load(ctx, bytecode) }
 }
 
@@ -291,20 +296,29 @@ pub(crate) fn eval_script_bytecode<'js>(
         ));
     }
 
+    // SAFETY: `ctx` is live and belongs to the current thread. QuickJS requires
+    // its runtime stack top to be synchronized immediately before raw evaluation.
     unsafe {
         qjs::JS_UpdateStackTop(qjs::JS_GetRuntime(ctx.as_raw().as_ptr()));
     }
 
+    // SAFETY: `value` is an executable script bytecode value owned by `ctx`.
+    // `JS_DupValue` creates an owned reference, and `JS_EvalFunction` consumes
+    // exactly that duplicate while the original Rust wrapper remains valid.
     let evaluated = unsafe {
         let duplicated = qjs::JS_DupValue(ctx.as_raw().as_ptr(), value.as_raw());
         qjs::JS_EvalFunction(ctx.as_raw().as_ptr(), duplicated)
     };
     drop(value);
 
+    // SAFETY: `evaluated` is a valid `JSValue` returned by `JS_EvalFunction`;
+    // inspecting its normalized tag neither takes ownership nor mutates it.
     if unsafe { qjs::JS_VALUE_GET_NORM_TAG(evaluated) } == qjs::JS_TAG_EXCEPTION {
         return Err(rquickjs::Error::Exception);
     }
 
+    // SAFETY: A non-exception `JS_EvalFunction` result is an owned `JSValue`
+    // associated with `ctx`; the wrapper assumes its sole release obligation.
     let evaluated = unsafe { Value::from_raw(ctx.clone(), evaluated) };
     Ok(MaybePromise::from_value(evaluated))
 }
@@ -329,10 +343,15 @@ fn compile_script_value<'js>(
     }
     flag |= qjs::JS_EVAL_FLAG_COMPILE_ONLY;
 
+    // SAFETY: `ctx` is live and belongs to the current thread. QuickJS requires
+    // its runtime stack top to be synchronized immediately before raw evaluation.
     unsafe {
         qjs::JS_UpdateStackTop(qjs::JS_GetRuntime(ctx.as_raw().as_ptr()));
     }
 
+    // SAFETY: `ctx` is live; the source slice and NUL-terminated file name remain
+    // valid for the full synchronous call, and their lengths describe the same
+    // backing allocations. QuickJS copies any data retained by the compiled value.
     let raw = unsafe {
         qjs::JS_Eval(
             ctx.as_raw().as_ptr(),
@@ -343,19 +362,28 @@ fn compile_script_value<'js>(
         )
     };
 
+    // SAFETY: `raw` is a valid `JSValue` returned by `JS_Eval`; reading its tag
+    // neither takes ownership nor mutates the value.
     if unsafe { qjs::JS_VALUE_GET_NORM_TAG(raw) } == qjs::JS_TAG_EXCEPTION {
         return Err(rquickjs::Error::Exception);
     }
 
+    // SAFETY: A non-exception `JS_Eval` result is owned and associated with
+    // `ctx`; the new wrapper takes over its release obligation exactly once.
     Ok(unsafe { Value::from_raw(ctx.clone(), raw) })
 }
 
 fn is_executable_script_value(value: &Value<'_>) -> bool {
     value.is_function()
+        // SAFETY: `value.as_raw()` is a valid borrowed `JSValue`; inspecting its
+        // normalized tag does not change its ownership or representation.
         || unsafe { qjs::JS_VALUE_GET_NORM_TAG(value.as_raw()) } == qjs::JS_TAG_FUNCTION_BYTECODE
 }
 
 fn read_bytecode_value<'js>(ctx: &Ctx<'js>, bytecode: &[u8]) -> rquickjs::Result<Value<'js>> {
+    // SAFETY: `ctx` is live and the byte slice remains valid for the complete
+    // synchronous read. `JS_READ_OBJ_ROM_DATA` is zero in this QuickJS version,
+    // so the returned value does not retain a pointer into the Rust slice.
     let raw = unsafe {
         qjs::JS_ReadObject(
             ctx.as_raw().as_ptr(),
@@ -365,10 +393,14 @@ fn read_bytecode_value<'js>(ctx: &Ctx<'js>, bytecode: &[u8]) -> rquickjs::Result
         )
     };
 
+    // SAFETY: `raw` is a valid `JSValue` returned by `JS_ReadObject`; reading its
+    // tag neither takes ownership nor mutates it.
     if unsafe { qjs::JS_VALUE_GET_NORM_TAG(raw) } == qjs::JS_TAG_EXCEPTION {
         return Err(rquickjs::Error::Exception);
     }
 
+    // SAFETY: A non-exception `JS_ReadObject` result is owned and associated
+    // with `ctx`; the wrapper takes over its release obligation exactly once.
     Ok(unsafe { Value::from_raw(ctx.clone(), raw) })
 }
 
@@ -378,6 +410,9 @@ fn write_bytecode_value<'js>(
     options: WriteOptions,
 ) -> rquickjs::Result<Vec<u8>> {
     let mut len = std::mem::MaybeUninit::uninit();
+    // SAFETY: `ctx` and `value` belong to the same live context, and `len` points
+    // to writable storage. On success QuickJS initializes `len` and returns a
+    // buffer allocated by that context's allocator.
     let buf = unsafe {
         qjs::JS_WriteObject(
             ctx.as_raw().as_ptr(),
@@ -391,8 +426,14 @@ fn write_bytecode_value<'js>(
         return Err(rquickjs::Error::Exception);
     }
 
+    // SAFETY: A non-null `JS_WriteObject` result guarantees that it initialized
+    // the output length.
     let len = unsafe { len.assume_init() };
+    // SAFETY: QuickJS returned a non-null buffer containing exactly `len` bytes.
+    // The bytes are copied into Rust-owned storage before the QuickJS buffer is freed.
     let bytes = unsafe { std::slice::from_raw_parts(buf, len as _) }.to_vec();
+    // SAFETY: `buf` was allocated by `JS_WriteObject` for this exact context and
+    // is released once, after the last read, with QuickJS's matching allocator.
     unsafe { qjs::js_free(ctx.as_raw().as_ptr(), buf as _) };
     Ok(bytes)
 }
