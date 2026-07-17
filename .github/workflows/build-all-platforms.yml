@@ -78,6 +78,9 @@ jobs:
         run: flutter pub get
         working-directory: ${{ env.EXAMPLE_DIR }}
 
+      - name: Verify dependency resolution leaves tracked files unchanged
+        run: git diff HEAD --exit-code --
+
       - name: Check Rust formatting
         run: cargo fmt --manifest-path libfjs/Cargo.toml --check
 
