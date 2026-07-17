@@ -2,6 +2,7 @@
 set -eu
 
 RUN_STRUCTURE=1
+REQUIRE_CHECKSUM=0
 ARTIFACT=""
 PACKAGE_ARTIFACT="darwin/fjs/Binaries/fjs.xcframework.zip"
 
@@ -28,6 +29,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     --require-artifact)
       ARTIFACT="$PACKAGE_ARTIFACT"
+      REQUIRE_CHECKSUM=1
       shift
       ;;
     -h|--help)
@@ -156,15 +158,24 @@ check_structure() {
   require_contains "tool/build_fjs_xcframework.sh" "libfjs.dylib"
   require_contains "tool/build_fjs_xcframework.sh" "CFBundlePackageType"
   require_contains "tool/build_fjs_xcframework.sh" "MACOSX_DEPLOYMENT_TARGET"
+  if grep -F "source_dylibs" tool/build_fjs_xcframework.sh >/dev/null ||
+    grep -F "SC2086" tool/build_fjs_xcframework.sh >/dev/null; then
+    fail "tool/build_fjs_xcframework.sh must pass quoted lipo input paths"
+  fi
+  require_contains "tool/build_fjs_xcframework.sh" 'lipo -create "$first_dylib" "$second_dylib"'
   require_contains "tool/build_fjs_xcframework.sh" "zip -qry -y"
   require_contains "tool/build_fjs_xcframework.sh" "check_darwin_package_support.sh\" --artifact \"\$ZIP_TEMP"
   require_contains "tool/build_fjs_xcframework.sh" "mv -f \"\$ZIP_TEMP\" \"\$ZIP_OUTPUT\""
   awk '
     /check_darwin_package_support\.sh" --artifact "\$ZIP_TEMP/ { validation_line = NR }
+    /swift package compute-checksum "\$ZIP_TEMP"/ { checksum_line = NR }
     /mv -f "\$ZIP_TEMP" "\$ZIP_OUTPUT"/ { move_line = NR }
-    END { exit !(validation_line > 0 && move_line > validation_line) }
+    END {
+      if (validation_line <= 0 || checksum_line <= 0 ||
+          move_line <= validation_line || move_line <= checksum_line) exit 1
+    }
   ' tool/build_fjs_xcframework.sh ||
-    fail "temporary zip must be validated before replacing the final artifact"
+    fail "temporary zip must be validated and checksummed before final moves"
   require_contains "tool/build_fjs_xcframework.sh" "swift package compute-checksum"
   if grep -F 'rm -f "$ZIP_OUTPUT"' tool/build_fjs_xcframework.sh >/dev/null; then
     fail "tool/build_fjs_xcframework.sh must not delete the previous final archive"
@@ -237,6 +248,72 @@ require_symlink() {
     fail "$link points to '$actual_target', expected '$expected_target'"
 }
 
+require_artifact_checksum() {
+  artifact="$1"
+  sidecar="$artifact.checksum"
+  require_file "$sidecar"
+  recorded_checksum="$(cat "$sidecar")"
+  if ! printf '%s\n' "$recorded_checksum" | grep -Eq '^[0-9a-f]{64}$'; then
+    fail "malformed SwiftPM checksum sidecar: $sidecar"
+  fi
+  computed_checksum="$(swift package compute-checksum "$artifact")" ||
+    fail "unable to compute SwiftPM checksum for $artifact"
+  [ "$recorded_checksum" = "$computed_checksum" ] ||
+    fail "stale SwiftPM checksum sidecar for $artifact: recorded $recorded_checksum, computed $computed_checksum"
+}
+
+require_exported_hash_symbol() {
+  binary="$1"
+  architecture="$2"
+  symbols="$(nm -arch "$architecture" -gU "$binary")" ||
+    fail "unable to inspect exported symbols in $binary ($architecture)"
+  symbol_count="$(printf '%s\n' "$symbols" | awk '
+    $NF == "_frb_get_rust_content_hash" { count++ }
+    END { print count + 0 }
+  ')"
+  [ "$symbol_count" -eq 1 ] ||
+    fail "$binary ($architecture) must export exactly one _frb_get_rust_content_hash symbol"
+}
+
+require_install_name() {
+  binary="$1"
+  architecture="$2"
+  install_names="$(otool -arch "$architecture" -D "$binary")" ||
+    fail "unable to inspect LC_ID_DYLIB in $binary ($architecture)"
+  install_name="$(printf '%s\n' "$install_names" | sed -n '2p')"
+  extra_install_name="$(printf '%s\n' "$install_names" | sed -n '3p')"
+  [ "$install_name" = "@rpath/fjs.framework/fjs" ] && [ -z "$extra_install_name" ] ||
+    fail "$binary ($architecture) LC_ID_DYLIB is '$install_name', expected '@rpath/fjs.framework/fjs'"
+}
+
+require_build_version() {
+  binary="$1"
+  architecture="$2"
+  expected_platform="$3"
+  expected_minos="$4"
+  build_version="$(vtool -arch "$architecture" -show-build "$binary")" ||
+    fail "unable to inspect LC_BUILD_VERSION in $binary ($architecture)"
+  platform="$(printf '%s\n' "$build_version" | awk '$1 == "platform" { print $2; exit }')"
+  minos="$(printf '%s\n' "$build_version" | awk '$1 == "minos" { print $2; exit }')"
+  [ "$platform" = "$expected_platform" ] ||
+    fail "$binary ($architecture) platform is '$platform', expected '$expected_platform'"
+  [ "$minos" = "$expected_minos" ] ||
+    fail "$binary ($architecture) minos is '$minos', expected '$expected_minos'"
+}
+
+require_macho_slice() {
+  binary="$1"
+  architecture="$2"
+  expected_platform="$3"
+  expected_minos="$4"
+  require_exported_hash_symbol "$binary" "$architecture"
+  require_install_name "$binary" "$architecture"
+  require_build_version "$binary" "$architecture" "$expected_platform" "$expected_minos"
+  dart run tool/check_frb_content_hash.dart \
+    --otool-arch "$architecture" "$binary" "$EXPECTED_FRB_CONTENT_HASH" ||
+    fail "$binary ($architecture) FRB content hash does not match generated bindings"
+}
+
 TEMP_DIR=""
 cleanup() {
   if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
@@ -284,8 +361,14 @@ check_artifact() {
   require_symlink "$macos_framework/Modules" "Versions/Current/Modules"
   require_symlink "$macos_framework/Resources" "Versions/Current/Resources"
 
+  require_macho_slice "$ios_framework/fjs" "arm64" "IOS" "12.0"
+  require_macho_slice "$simulator_framework/fjs" "x86_64" "IOSSIMULATOR" "12.0"
+  require_macho_slice "$simulator_framework/fjs" "arm64" "IOSSIMULATOR" "14.0"
+  require_macho_slice "$macos_framework/Versions/A/fjs" "x86_64" "MACOS" "10.14"
+  require_macho_slice "$macos_framework/Versions/A/fjs" "arm64" "MACOS" "11.0"
+
   dart run tool/check_frb_content_hash.dart "$macos_framework/Versions/A/fjs" "$EXPECTED_FRB_CONTENT_HASH" ||
-    fail "artifact binary FRB content hash does not match generated bindings"
+    fail "host macOS binary FRB content hash does not match generated bindings"
 
   fixture="$TEMP_DIR/fixture"
   mkdir -p "$fixture/fjs/Binaries" "$fixture/FlutterFramework/Sources/FlutterFramework"
@@ -324,5 +407,8 @@ if [ "$RUN_STRUCTURE" -eq 1 ]; then
 fi
 
 if [ -n "$ARTIFACT" ]; then
+  if [ "$REQUIRE_CHECKSUM" -eq 1 ]; then
+    require_artifact_checksum "$ARTIFACT"
+  fi
   check_artifact "$ARTIFACT"
 fi

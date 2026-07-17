@@ -152,8 +152,9 @@ create_framework() {
     exit 2
   fi
   framework_binary="$framework_contents_dir/fjs"
-  source_dylibs=""
   first_dylib=""
+  second_dylib=""
+  dylib_count=0
 
   for rust_target in "$@"; do
     candidate="$BUILD_ROOT/$platform_output_name/temp/$rust_target/$RUST_CONFIGURATION/libfjs.dylib"
@@ -161,21 +162,27 @@ create_framework() {
       echo "error: missing dynamic library: $candidate" >&2
       exit 1
     fi
-    if [ -z "$first_dylib" ]; then
-      first_dylib="$candidate"
-    fi
-    source_dylibs="$source_dylibs $candidate"
+    dylib_count=$((dylib_count + 1))
+    case "$dylib_count" in
+      1) first_dylib="$candidate" ;;
+      2) second_dylib="$candidate" ;;
+      *)
+        echo "error: create_framework supports at most two input libraries" >&2
+        exit 2
+        ;;
+    esac
   done
 
   rm -rf "$framework_dir"
   mkdir -p "$framework_contents_dir/Headers" "$framework_contents_dir/Modules" "$framework_resources_dir"
 
-  # shellcheck disable=SC2086
-  if [ "$#" -eq 1 ]; then
+  if [ "$dylib_count" -eq 1 ]; then
     cp "$first_dylib" "$framework_binary"
+  elif [ "$dylib_count" -eq 2 ]; then
+    lipo -create "$first_dylib" "$second_dylib" -output "$framework_binary"
   else
-    # shellcheck disable=SC2086
-    lipo -create $source_dylibs -output "$framework_binary"
+    echo "error: create_framework requires one or two input libraries" >&2
+    exit 2
   fi
 
   install_name_tool -id "@rpath/fjs.framework/fjs" "$framework_binary"
@@ -261,8 +268,8 @@ if [ -n "$ZIP_OUTPUT" ]; then
     zip -qry -y "$ZIP_TEMP" fjs.xcframework
   )
   "$ROOT_DIR/tool/check_darwin_package_support.sh" --artifact "$ZIP_TEMP"
+  swift package compute-checksum "$ZIP_TEMP" > "$ZIP_TEMP_DIR/fjs.xcframework.zip.checksum"
   mv -f "$ZIP_TEMP" "$ZIP_OUTPUT"
-  swift package compute-checksum "$ZIP_OUTPUT" > "$ZIP_TEMP_DIR/fjs.xcframework.zip.checksum"
   mv -f "$ZIP_TEMP_DIR/fjs.xcframework.zip.checksum" "$ZIP_OUTPUT.checksum"
   cleanup_zip_temp
   ZIP_TEMP_DIR=""
