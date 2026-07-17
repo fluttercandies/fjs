@@ -139,6 +139,15 @@ prefer to observe them without failing an unrelated call, drain them explicitly
 with `engine.drainUnhandledJobErrors()` (works in every engine state, including
 after `close()`).
 
+### Security Boundary
+
+FJS is intended for application-owned or otherwise trusted scripts. Enabling
+filesystem, network, or process builtins grants scripts the corresponding native
+capabilities. Memory, stack, and value-conversion limits reduce accidental
+resource exhaustion, but they do not make QuickJS/LLRT a hostile-code sandbox.
+Consumers that execute untrusted code must add process or OS isolation and run
+with least privilege.
+
 ### Async Work and Error Handling
 
 Async runtimes own their background driver internally. Application code does not

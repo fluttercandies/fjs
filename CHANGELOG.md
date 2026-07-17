@@ -10,6 +10,8 @@
 * **INTERNAL**: Updated dependencies for resolved security advisories and recorded the remaining reviewed exception.
 * **INTERNAL**: Documented Rust public APIs plus handwritten unsafe, lifetime, runtime-driver, and error-sink invariants.
 * **INTERNAL**: Made Darwin release artifacts reproducible and self-verifying with an atomic symlink-preserving SwiftPM zip, synchronized 3.3.0 metadata, FRB codegen/content-hash checks, exact architecture and framework-version validation, and a real SwiftPM fixture build.
+* **INTERNAL**: Added production CI gates for strict Rust and Dart quality, Gradle 8/9 Android compatibility, and clean-HEAD Darwin release packaging.
+* **DOCS**: Clarified the trusted-script security boundary, native builtin capabilities, and isolation requirements for untrusted code.
 
 ## 3.2.0
 

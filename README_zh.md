@@ -138,6 +138,13 @@ await context.evalWithOptions(
 `engine.drainUnhandledJobErrors()` 取走这些错误（任何引擎状态下都可用，包括
 `close()` 之后）。
 
+### 安全边界
+
+FJS 适用于应用自身拥有或其他可信来源的脚本。启用文件系统、网络或进程相关的
+builtin，会向脚本授予对应的原生能力。内存、栈和值转换限制可以减少意外的资源
+耗尽，但不会让 QuickJS/LLRT 成为敌对代码沙箱。需要执行不可信代码的使用方必须
+增加进程或操作系统级隔离，并遵循最小权限原则。
+
 ### 异步任务与错误处理
 
 异步 runtime 会在内部管理后台 driver。正常业务代码不需要启动、停止、轮询或 drain
