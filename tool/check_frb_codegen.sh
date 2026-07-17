@@ -32,4 +32,9 @@ if ! git diff --exit-code -- lib/src/frb libfjs/src/frb_generated.rs; then
   exit 1
 fi
 
+if ! git diff HEAD --exit-code --; then
+  echo "error: FRB regeneration or Rust formatting changed committed tracked files" >&2
+  exit 1
+fi
+
 echo "FRB generated files are reproducible with codegen $EXPECTED_VERSION."
