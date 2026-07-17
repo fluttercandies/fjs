@@ -1031,7 +1031,7 @@ SwiftPM consumes `darwin/fjs/Package.swift`. The package exposes a small Swift
 target and links the binary target at:
 
 ```text
-darwin/fjs/Binaries/fjs.xcframework
+darwin/fjs/Binaries/fjs.xcframework.zip
 ```
 
 The XCFramework is a release artifact, not a file edited by hand. If you are

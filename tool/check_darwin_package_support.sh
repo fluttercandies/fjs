@@ -138,6 +138,7 @@ check_structure() {
   require_contains "darwin/fjs/Package.swift" ".package(name: \"FlutterFramework\", path: \"../FlutterFramework\")"
   require_contains "darwin/fjs/Package.swift" ".binaryTarget("
   require_contains "darwin/fjs/Package.swift" "path: \"Binaries/fjs.xcframework.zip\""
+  require_contains "README.md" "darwin/fjs/Binaries/fjs.xcframework.zip"
   if grep -F 'path: "Binaries/fjs.xcframework"' darwin/fjs/Package.swift >/dev/null; then
     fail "Package.swift must consume the package-local zip, not a raw XCFramework"
   fi
