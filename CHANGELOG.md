@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.3.0
+
+* **FIX**: Fixed issue 19 by making the embedded CargoKit Gradle plugin compatible with Gradle 9 while retaining Gradle 8 support.
+* **FIX**: Preserved QuickJS async result normalization for the single-field `{ value: ... }` wrapper and added focused regression coverage for wrapper and multi-key object behavior.
+* **SECURITY**: Made JavaScript value conversion depth- and node-bounded, cycle-safe, and explicit about conversion failures.
+* **SECURITY**: Bounded synchronous and asynchronous file-backed source reads so oversized inputs are rejected before unbounded allocation.
+* **FIX**: Preserved rooted module specifiers during resolution and normalized rooted bytecode modules consistently.
+* **INTERNAL**: Updated dependencies for resolved security advisories and recorded the remaining reviewed exception.
+* **INTERNAL**: Documented Rust public APIs plus handwritten unsafe, lifetime, runtime-driver, and error-sink invariants.
+* **INTERNAL**: Made Darwin release artifacts reproducible and self-verifying with an atomic symlink-preserving SwiftPM zip, synchronized 3.3.0 metadata, FRB codegen/content-hash checks, exact architecture and framework-version validation, and a real SwiftPM fixture build.
+
 ## 3.2.0
 
 * **BREAKING**: `JsEngine.close()` is now immediate/non-draining. It marks the engine closed, requests runtime shutdown, stops the driver, detaches host globals, and causes in-flight foreground work to fail with `JsError.cancelled` instead of waiting for timers, Promise callbacks, bridge calls, fetches, or spawned work to complete.
