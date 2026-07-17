@@ -8,7 +8,10 @@ use crate::api::module::{
     DynamicModuleEntry, DynamicModuleLoader, DynamicModuleResolver, DynamicModuleStorage,
     GlobalAttachment, LoadedDynamicModules, ModuleBuilder, get_available_module_names,
 };
-use crate::api::source::{JsBuiltinOptions, JsEvalOptions, JsModule, get_raw_source_code};
+use crate::api::source::{
+    JsBuiltinOptions, JsCode, JsEvalOptions, JsModule, get_raw_source_code,
+    get_raw_source_code_sync,
+};
 use crate::api::value::{JsValue, install_value_intrinsics};
 use crate::runtime::driver::DriverErrorSource;
 use crate::runtime::shutdown::RuntimeShutdown;
@@ -18,6 +21,117 @@ use rquickjs::promise::MaybePromise;
 use rquickjs::{CatchResultExt, FromJs, Module, Promise};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
+
+fn file_eval_options(path: &str, options: JsEvalOptions) -> rquickjs::context::EvalOptions {
+    let mut options: rquickjs::context::EvalOptions = options.into();
+    options.filename = Some(std::path::Path::new(path).file_name().map_or_else(
+        || path.to_string(),
+        |name| name.to_string_lossy().into_owned(),
+    ));
+    options
+}
+
+#[cfg(test)]
+struct RuntimeDropBarrier {
+    lifetime: std::sync::Weak<()>,
+    barrier: Arc<std::sync::Barrier>,
+}
+
+#[cfg(test)]
+static RUNTIME_DROP_BARRIER: std::sync::Mutex<Option<RuntimeDropBarrier>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(test)]
+struct ContextDropOrderBarrier {
+    lifetime: std::sync::Weak<()>,
+    first_paused: Arc<std::sync::Barrier>,
+    release_first: Arc<std::sync::Barrier>,
+}
+
+#[cfg(test)]
+static CONTEXT_DROP_ORDER_BARRIER: std::sync::Mutex<Option<ContextDropOrderBarrier>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(test)]
+fn wait_at_runtime_drop_barrier(lifetime: &Arc<()>) {
+    let barrier = RUNTIME_DROP_BARRIER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_ref()
+        .filter(|hook| hook.lifetime.as_ptr() == Arc::as_ptr(lifetime))
+        .map(|hook| hook.barrier.clone());
+    if let Some(barrier) = barrier {
+        barrier.wait();
+    }
+}
+
+fn take_last_owner(lifetime: &mut Option<Arc<()>>) -> bool {
+    // Unlike a strong-count check followed by drop, concurrent `into_inner`
+    // calls guarantee that exactly one consumed token becomes the final owner.
+    lifetime.take().and_then(Arc::into_inner).is_some()
+}
+
+#[cfg(test)]
+pub(crate) fn install_runtime_drop_barrier(lifetime: &Arc<()>) {
+    *RUNTIME_DROP_BARRIER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(RuntimeDropBarrier {
+        lifetime: Arc::downgrade(lifetime),
+        barrier: Arc::new(std::sync::Barrier::new(2)),
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn clear_runtime_drop_barrier() {
+    RUNTIME_DROP_BARRIER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take();
+}
+
+#[cfg(test)]
+fn pause_non_last_runtime_owner_before_context_drop(
+    context_lifetime: &Arc<()>,
+    is_last_runtime_owner: bool,
+) {
+    if is_last_runtime_owner {
+        return;
+    }
+    let barriers = CONTEXT_DROP_ORDER_BARRIER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_ref()
+        .filter(|hook| hook.lifetime.as_ptr() == Arc::as_ptr(context_lifetime))
+        .map(|hook| (hook.first_paused.clone(), hook.release_first.clone()));
+    if let Some((first_paused, release_first)) = barriers {
+        first_paused.wait();
+        release_first.wait();
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn install_context_drop_order_barrier(
+    context_lifetime: &Arc<()>,
+) -> (Arc<std::sync::Barrier>, Arc<std::sync::Barrier>) {
+    let first_paused = Arc::new(std::sync::Barrier::new(2));
+    let release_first = Arc::new(std::sync::Barrier::new(2));
+    *CONTEXT_DROP_ORDER_BARRIER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(ContextDropOrderBarrier {
+        lifetime: Arc::downgrade(context_lifetime),
+        first_paused: first_paused.clone(),
+        release_first: release_first.clone(),
+    });
+    (first_paused, release_first)
+}
+
+#[cfg(test)]
+pub(crate) fn clear_context_drop_order_barrier() {
+    CONTEXT_DROP_ORDER_BARRIER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take();
+}
 
 /// Memory usage statistics for the JavaScript runtime.
 ///
@@ -665,6 +779,11 @@ impl JsContext {
         if options.promise.unwrap_or(false) {
             return JsResult::Err(JsError::promise("Promise not supported in sync context"));
         }
+        let source = match get_raw_source_code_sync(JsCode::Path(path.clone())) {
+            Ok(source) => source,
+            Err(error) => return JsResult::Err(error),
+        };
+        let options = file_eval_options(&path, options);
         self.ctx.with(|ctx| {
             if let Some(attachment) = &self.global_attachment {
                 if let Err(e) = attachment.attach(&ctx) {
@@ -674,7 +793,7 @@ impl JsContext {
                     )));
                 }
             }
-            let res = ctx.eval_file_with_options(path, options.into());
+            let res = ctx.eval_with_options(source, options);
             result_from_sync(&ctx, res)
         })
     }
@@ -715,7 +834,7 @@ pub struct JsAsyncRuntime {
     pub(crate) driver: crate::runtime::driver::DriverController,
     pub(crate) shutdown: RuntimeShutdown,
     pub(crate) cleaned: Arc<AtomicBool>,
-    pub(crate) runtime_lifetime: Arc<()>,
+    pub(crate) runtime_lifetime: Option<Arc<()>>,
 }
 
 impl JsAsyncRuntime {
@@ -778,7 +897,7 @@ impl JsAsyncRuntime {
             driver,
             shutdown,
             cleaned: Arc::new(AtomicBool::new(false)),
-            runtime_lifetime: Arc::new(()),
+            runtime_lifetime: Some(Arc::new(())),
         };
         runtime.start_driver_now();
         Ok(runtime)
@@ -845,7 +964,7 @@ impl JsAsyncRuntime {
             driver,
             shutdown,
             cleaned: Arc::new(AtomicBool::new(false)),
-            runtime_lifetime: Arc::new(()),
+            runtime_lifetime: Some(Arc::new(())),
         };
         runtime.start_driver_now();
         Ok(runtime)
@@ -1131,7 +1250,11 @@ impl JsAsyncRuntime {
 
 impl Drop for JsAsyncRuntime {
     fn drop(&mut self) {
-        if Arc::strong_count(&self.runtime_lifetime) != 1 {
+        #[cfg(test)]
+        if let Some(lifetime) = &self.runtime_lifetime {
+            wait_at_runtime_drop_barrier(lifetime);
+        }
+        if !take_last_owner(&mut self.runtime_lifetime) {
             return;
         }
 
@@ -1165,8 +1288,8 @@ pub struct JsAsyncContext {
     pub(crate) driver: crate::runtime::driver::DriverController,
     pub(crate) shutdown: RuntimeShutdown,
     pub(crate) cleaned: Arc<AtomicBool>,
-    pub(crate) runtime_lifetime: Arc<()>,
-    pub(crate) context_lifetime: Arc<()>,
+    pub(crate) runtime_lifetime: Option<Arc<()>>,
+    pub(crate) context_lifetime: Option<Arc<()>>,
     pub(crate) global_attachment: Option<GlobalAttachment>,
 }
 
@@ -1302,7 +1425,7 @@ impl JsAsyncContext {
             shutdown: runtime.shutdown.clone(),
             cleaned: runtime.cleaned.clone(),
             runtime_lifetime: runtime.runtime_lifetime.clone(),
-            context_lifetime: Arc::new(()),
+            context_lifetime: Some(Arc::new(())),
             global_attachment: runtime.global_attachment.clone(),
         })
     }
@@ -1432,6 +1555,14 @@ impl JsAsyncContext {
             return JsResult::Err(error);
         }
 
+        let source = match get_raw_source_code(JsCode::Path(path.clone())).await {
+            Ok(source) => source,
+            Err(error) => return JsResult::Err(error),
+        };
+        let mut options = options;
+        options.promise = Some(true);
+        let options = file_eval_options(&path, options);
+
         let attachment = self.global_attachment.clone();
         let driver = self.driver.clone();
         let shutdown = self.shutdown.clone();
@@ -1441,9 +1572,7 @@ impl JsAsyncContext {
             {
                 return JsResult::Err(JsError::context(e.to_string()));
             }
-            let mut options = options;
-            options.promise = Some(true);
-            let res = ctx.eval_file_with_options(path, options.into());
+            let res = ctx.eval_with_options(source, options);
             let driver = driver.clone();
             result_from_promise(&ctx, res, shutdown, move |source| {
                 driver.remove_error_source_since(checkpoint, source);
@@ -1539,7 +1668,24 @@ impl JsAsyncContext {
 
 impl Drop for JsAsyncContext {
     fn drop(&mut self) {
-        if Arc::strong_count(&self.context_lifetime) != 1 {
+        #[cfg(test)]
+        if let Some(lifetime) = &self.runtime_lifetime {
+            wait_at_runtime_drop_barrier(lifetime);
+        }
+        let is_last_runtime_owner = take_last_owner(&mut self.runtime_lifetime);
+        #[cfg(test)]
+        if let Some(lifetime) = &self.context_lifetime {
+            pause_non_last_runtime_owner_before_context_drop(lifetime, is_last_runtime_owner);
+        }
+        if !take_last_owner(&mut self.context_lifetime) {
+            if is_last_runtime_owner {
+                JsAsyncRuntime::finalize_runtime_drop(
+                    self.runtime.clone(),
+                    self.driver.clone(),
+                    self.shutdown.clone(),
+                    self.cleaned.clone(),
+                );
+            }
             return;
         }
 
@@ -1550,7 +1696,6 @@ impl Drop for JsAsyncContext {
         let driver = self.driver.clone();
         let shutdown = self.shutdown.clone();
         let cleaned = self.cleaned.clone();
-        let is_last_runtime_owner = Arc::strong_count(&self.runtime_lifetime) == 1;
         JsAsyncRuntime::finalize_context_drop(
             context,
             runtime,

@@ -932,6 +932,68 @@ async fn background_driver_does_not_keep_runtime_alive_after_drop() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn concurrent_runtime_and_context_drop_stops_background_driver() {
+    let runtime = JsAsyncRuntime::new().unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let driver = runtime.driver.clone();
+    crate::api::runtime::install_runtime_drop_barrier(runtime.runtime_lifetime.as_ref().unwrap());
+
+    let runtime_drop = std::thread::spawn(move || drop(runtime));
+    let context_drop = std::thread::spawn(move || drop(context));
+    runtime_drop.join().unwrap();
+    context_drop.join().unwrap();
+    crate::api::runtime::clear_runtime_drop_barrier();
+
+    let deadline = Instant::now() + Duration::from_millis(300);
+    while driver.running() && Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let stopped_automatically = !driver.running();
+    if !stopped_automatically {
+        driver.stop().await;
+    }
+
+    assert!(
+        stopped_automatically,
+        "concurrent final runtime owners skipped background driver cleanup"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn opposite_context_and_runtime_drop_winners_still_stop_driver() {
+    let runtime = JsAsyncRuntime::new().unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+    let context_clone = context.clone();
+    let driver = runtime.driver.clone();
+    let (first_paused, release_first) = crate::api::runtime::install_context_drop_order_barrier(
+        context.context_lifetime.as_ref().unwrap(),
+    );
+
+    drop(runtime);
+    let first_drop = std::thread::spawn(move || drop(context));
+    first_paused.wait();
+    let second_drop = std::thread::spawn(move || drop(context_clone));
+    second_drop.join().unwrap();
+    release_first.wait();
+    first_drop.join().unwrap();
+    crate::api::runtime::clear_context_drop_order_barrier();
+
+    let deadline = Instant::now() + Duration::from_millis(300);
+    while driver.running() && Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let stopped_automatically = !driver.running();
+    if !stopped_automatically {
+        driver.stop().await;
+    }
+
+    assert!(
+        stopped_automatically,
+        "different runtime/context drop winners skipped background driver cleanup"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn runtime_driver_stop_returns_and_allows_restart() {
     let runtime = JsAsyncRuntime::create(Some(JsBuiltinOptions::essential()), None)
         .await

@@ -15,6 +15,7 @@
 
 use flutter_rust_bridge::frb;
 use rquickjs::function::Constructor;
+use rquickjs::object::Property;
 use rquickjs::{Ctx, FromAtom, FromJs, IntoJs, JsLifetime, Null, Type};
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
@@ -864,7 +865,10 @@ impl<'js> IntoJs<'js> for JsValue {
             JsValue::Object(v) => {
                 let obj = rquickjs::Object::new(ctx.clone())?;
                 for (k, val) in v.into_iter() {
-                    obj.set(k, val.into_js(ctx)?)?;
+                    obj.prop(
+                        k,
+                        Property::from(val).writable().enumerable().configurable(),
+                    )?;
                 }
                 obj.into_js(ctx)
             }

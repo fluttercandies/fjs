@@ -274,7 +274,7 @@ async fn test_engine_init_failure_rolls_back_state() {
         driver: crate::runtime::driver::DriverController::default(),
         shutdown: RuntimeShutdown::default(),
         cleaned: Arc::new(AtomicBool::new(false)),
-        runtime_lifetime: Arc::new(()),
+        runtime_lifetime: Some(Arc::new(())),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = JsEngine::new_for_test(runtime, context);
@@ -308,7 +308,7 @@ async fn test_engine_runtime_proxy_methods_fail_while_initializing() {
         driver: crate::runtime::driver::DriverController::default(),
         shutdown: RuntimeShutdown::default(),
         cleaned: Arc::new(AtomicBool::new(false)),
-        runtime_lifetime: Arc::new(()),
+        runtime_lifetime: Some(Arc::new(())),
     };
     let context = JsAsyncContext::from(&runtime).await.unwrap();
     let engine = std::sync::Arc::new(JsEngine::new_for_test(runtime, context));

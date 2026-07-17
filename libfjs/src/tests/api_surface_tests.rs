@@ -82,6 +82,15 @@ fn expect_source_size_error(result: Result<Vec<u8>, JsError>) {
     assert!(error.to_string().contains(&MAX_FILE_SIZE.to_string()));
 }
 
+fn expect_eval_size_error(result: JsResult) {
+    let error = result
+        .into_result()
+        .expect_err("expected an oversized eval file error");
+    assert!(matches!(error, JsError::Io { .. }));
+    assert!(error.to_string().contains("File size exceeds"));
+    assert!(error.to_string().contains(&MAX_FILE_SIZE.to_string()));
+}
+
 #[cfg(unix)]
 fn write_fifo(path: PathBuf, len: usize) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
@@ -608,6 +617,49 @@ async fn file_backed_source_size_limit_async_uses_bytes_read() {
         .unwrap();
     assert_eq!(exact_bytes.len() as u64, MAX_FILE_SIZE);
     expect_source_size_error(get_raw_source_code(JsCode::path(oversized.path_string())).await);
+}
+
+#[test]
+fn sync_context_eval_file_enforces_source_size_limit() {
+    let oversized = TempJsFile::with_len("sync-context-over-limit.js", MAX_FILE_SIZE + 1);
+    let runtime = JsRuntime::new().unwrap();
+    let context = JsContext::from(&runtime).unwrap();
+
+    expect_eval_size_error(
+        context.eval_file_with_options(oversized.path_string(), JsEvalOptions::defaults()),
+    );
+}
+
+#[test]
+fn sync_context_eval_file_preserves_filename_in_errors() {
+    let source = TempJsFile::new(
+        "sync-context-filename.js",
+        b"throw new Error('filename probe');",
+    );
+    let filename = source
+        .path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let runtime = JsRuntime::new().unwrap();
+    let context = JsContext::from(&runtime).unwrap();
+
+    let error = context
+        .eval_file(source.path_string())
+        .into_result()
+        .unwrap_err();
+    assert!(error.to_string().contains("filename probe"));
+    assert!(error.to_string().contains(&filename), "{error}");
+}
+
+#[tokio::test]
+async fn async_context_eval_file_enforces_source_size_limit() {
+    let oversized = TempJsFile::with_len("async-context-over-limit.js", MAX_FILE_SIZE + 1);
+    let runtime = JsAsyncRuntime::new().unwrap();
+    let context = JsAsyncContext::from(&runtime).await.unwrap();
+
+    expect_eval_size_error(context.eval_file(oversized.path_string()).await);
 }
 
 #[cfg(unix)]

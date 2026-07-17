@@ -1038,7 +1038,9 @@ The XCFramework is a release artifact, not a file edited by hand. If you are
 working from source and need to refresh it locally, run:
 
 ```sh
-tool/build_fjs_xcframework.sh --configuration Release
+tool/build_fjs_xcframework.sh \
+  --configuration Release \
+  --zip-output darwin/fjs/Binaries/fjs.xcframework.zip
 ```
 
 ### Release Checklist
@@ -1050,10 +1052,10 @@ tool/prepare_darwin_release.sh --configuration Release
 ```
 
 The script builds the XCFramework from the same Rust/Cargokit inputs used by
-CocoaPods, writes it to `darwin/fjs/Binaries/fjs.xcframework`, creates
-`build/darwin-release/fjs.xcframework.zip`, computes
-`build/darwin-release/fjs.xcframework.zip.checksum`, validates the Darwin
-package metadata, validates SwiftPM consumption, and runs
+CocoaPods, writes the raw framework to `darwin/fjs/Binaries/fjs.xcframework`,
+creates the package-local `darwin/fjs/Binaries/fjs.xcframework.zip` consumed by
+SwiftPM, copies the validated zip and checksum to `build/darwin-release`,
+validates the Darwin package metadata and SwiftPM consumption, and runs
 `flutter pub publish --dry-run`.
 
 Upload `build/darwin-release/fjs.xcframework.zip` to the GitHub Release for the

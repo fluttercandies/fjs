@@ -1023,13 +1023,15 @@ SwiftPM 使用 `darwin/fjs/Package.swift`。该 package 暴露一个很小的 Sw
 并链接下面的 binary target：
 
 ```text
-darwin/fjs/Binaries/fjs.xcframework
+darwin/fjs/Binaries/fjs.xcframework.zip
 ```
 
 XCFramework 是发布产物，不应手工编辑。如果你在源码仓库中需要本地刷新它，运行：
 
 ```sh
-tool/build_fjs_xcframework.sh --configuration Release
+tool/build_fjs_xcframework.sh \
+  --configuration Release \
+  --zip-output darwin/fjs/Binaries/fjs.xcframework.zip
 ```
 
 ### 发布检查清单
@@ -1040,11 +1042,11 @@ tool/build_fjs_xcframework.sh --configuration Release
 tool/prepare_darwin_release.sh --configuration Release
 ```
 
-该脚本会用 CocoaPods 相同的 Rust/Cargokit 输入构建 XCFramework，写入
-`darwin/fjs/Binaries/fjs.xcframework`，生成
-`build/darwin-release/fjs.xcframework.zip`，计算
-`build/darwin-release/fjs.xcframework.zip.checksum`，验证 Darwin 包元数据，
-验证 SwiftPM 可消费性，并运行 `flutter pub publish --dry-run`。
+该脚本会用 CocoaPods 相同的 Rust/Cargokit 输入构建 XCFramework，把原始 framework
+写入 `darwin/fjs/Binaries/fjs.xcframework`，生成 SwiftPM 实际消费的 package-local
+`darwin/fjs/Binaries/fjs.xcframework.zip`，再把验证过的 zip 和 checksum 复制到
+`build/darwin-release`，验证 Darwin 包元数据和 SwiftPM 可消费性，并运行
+`flutter pub publish --dry-run`。
 
 发布时将 `build/darwin-release/fjs.xcframework.zip` 上传到对应版本的 GitHub
 Release。checksum 建议和产物一起保留，用于校验，或未来切换到远程

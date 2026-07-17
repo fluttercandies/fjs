@@ -468,6 +468,25 @@ fn test_js_roundtrip_object() {
 }
 
 #[test]
+fn jsvalue_object_roundtrip_preserves_proto_key_as_data() {
+    test_with(|ctx| {
+        let prototype_value = JsValue::Object(HashMap::from([(
+            "polluted".to_string(),
+            JsValue::Boolean(true),
+        )]));
+        let original = JsValue::Object(HashMap::from([
+            ("__proto__".to_string(), prototype_value),
+            ("value".to_string(), JsValue::Integer(42)),
+        ]));
+
+        let js_value = original.clone().into_js(&ctx).unwrap();
+        let recovered = JsValue::from_js(&ctx, js_value).unwrap();
+
+        assert_eq!(recovered, original);
+    });
+}
+
+#[test]
 fn test_js_roundtrip_date() {
     test_with(|ctx| {
         let ms = 1609459200000i64;
