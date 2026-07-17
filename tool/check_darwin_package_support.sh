@@ -118,6 +118,20 @@ check_version_invariants() {
   [ "$lock_version" = "$PACKAGE_VERSION" ] ||
     fail "libfjs/Cargo.lock FJS version $lock_version does not match $PACKAGE_VERSION"
 
+  example_lock_version="$(awk '
+    /^  fjs:$/ { in_fjs = 1; next }
+    in_fjs && /^  [^ ]/ { exit }
+    in_fjs && /^    version: / {
+      value = $0
+      sub(/^    version: /, "", value)
+      gsub(/\"/, "", value)
+      print value
+      exit
+    }
+  ' example/pubspec.lock)"
+  [ "$example_lock_version" = "$PACKAGE_VERSION" ] ||
+    fail "example/pubspec.lock FJS version $example_lock_version does not match $PACKAGE_VERSION"
+
   for podspec in darwin/fjs.podspec ios/fjs.podspec macos/fjs.podspec; do
     podspec_version="$(sed -n "s/^[[:space:]]*s\.version[[:space:]]*=[[:space:]]*'\([^']*\)'.*/\1/p" "$podspec" | head -n 1)"
     [ "$podspec_version" = "$PACKAGE_VERSION" ] ||
