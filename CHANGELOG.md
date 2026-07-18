@@ -2,6 +2,7 @@
 
 ## 3.3.0
 
+* **BREAKING**: Raised the supported toolchain floor to Flutter 3.24.0 and Dart 3.5.0, aligned Cargokit and precompiled generation with that minimum, and added a minimum-version public API compilation gate while keeping the example on the latest pinned Flutter release.
 * **FIX**: Fixed issue 19 by making the embedded CargoKit Gradle plugin compatible with Gradle 9 while retaining Gradle 8 support.
 * **FIX**: Preserved QuickJS async result normalization for the single-field `{ value: ... }` wrapper and added focused regression coverage for wrapper and multi-key object behavior.
 * **SECURITY**: Made JavaScript value conversion depth- and node-bounded, cycle-safe, and explicit about conversion failures.

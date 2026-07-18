@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FLUTTER_VERSION: 3.32.8
+  FLUTTER_VERSION: 3.24.0
   RUST_TOOLCHAIN: 1.97.1
   RUST_CRATE_DIR: libfjs
 
@@ -47,6 +47,11 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+
+      - name: Verify minimum Flutter compatibility
+        run: >-
+          tool/check_minimum_flutter_compatibility.sh
+          --expected-version ${{ env.FLUTTER_VERSION }}
 
       - name: Setup pinned Rust
         uses: dtolnay/rust-toolchain@master
