@@ -21,7 +21,12 @@ Future<void> main(List<String> arguments) async {
   if (!await commands.moveNext()) return;
   final first = (jsonDecode(commands.current) as Map).cast<String, dynamic>();
   if (first['command'] != 'proceed') {
-    _emit({'event': 'result', 'ok': false, 'error': 'expected proceed'});
+    _emit({
+      'event': 'result',
+      'ok': false,
+      'path': null,
+      'error': 'expected proceed',
+    });
     await commands.cancel();
     exitCode = 64;
     return;
@@ -29,7 +34,23 @@ Future<void> main(List<String> arguments) async {
 
   try {
     if (mode == 'install') {
-      await _install(config);
+      try {
+        final snapshotPath = await _install(config);
+        _emit({
+          'event': 'result',
+          'ok': true,
+          'path': snapshotPath,
+          'error': null,
+        });
+      } on Object catch (error) {
+        _emit({
+          'event': 'result',
+          'ok': false,
+          'path': null,
+          'error': '$error',
+        });
+        exitCode = 1;
+      }
       await commands.cancel();
       return;
     }
@@ -50,14 +71,26 @@ Future<void> main(List<String> arguments) async {
         timeout: Duration(milliseconds: (config['timeout_ms'] as int?) ?? 1000),
         poll: Duration(milliseconds: (config['poll_ms'] as int?) ?? 10),
       );
-      _emit({'event': 'result', 'acquired': acquired});
+      _emit({
+        'event': 'result',
+        'ok': acquired,
+        'path': null,
+        'error': acquired ? null : 'lock not acquired',
+        'acquired': acquired,
+      });
       if (acquired) lock.unlockSync();
       lock.closeSync();
       await commands.cancel();
       return;
     }
     lock.lockSync(FileLock.exclusive);
-    _emit({'event': 'result', 'acquired': true});
+    _emit({
+      'event': 'result',
+      'ok': true,
+      'path': null,
+      'error': null,
+      'acquired': true,
+    });
     if (mode == 'crash-with-lock') {
       exit(23);
     }
@@ -78,6 +111,7 @@ Future<void> main(List<String> arguments) async {
     _emit({
       'event': 'result',
       'ok': false,
+      'path': null,
       'error': '$error',
       'stack': '$stackTrace',
     });
@@ -103,7 +137,7 @@ Future<bool> _acquire(
   }
 }
 
-Future<void> _install(Map<String, dynamic> config) async {
+Future<String?> _install(Map<String, dynamic> config) async {
   final recipeJson = (config['recipe'] as Map).cast<String, dynamic>();
   final recipe = PrecompiledBuildRecipe(
     rustToolchain: recipeJson['rust_toolchain'] as String,
@@ -136,16 +170,7 @@ Future<void> _install(Map<String, dynamic> config) async {
       requestedAssetNames:
           (config['requested_assets'] as List).cast<String>().toSet(),
     );
-    _emit({
-      'event': 'result',
-      'ok': true,
-      'missing': snapshot == null,
-      if (snapshot != null) ...{
-        'directory': snapshot.directory,
-        'request_key': snapshot.requestKey,
-        'asset_names': snapshot.assetNames.toList()..sort(),
-      },
-    });
+    return snapshot?.directory;
   } finally {
     transport.close();
   }

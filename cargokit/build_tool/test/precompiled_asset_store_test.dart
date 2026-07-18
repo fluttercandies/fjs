@@ -89,6 +89,33 @@ void main() {
       );
     });
 
+    test('manifest body must exactly match its declared content length',
+        () async {
+      for (final response in [
+        StreamedResponse(
+          Stream.value([1]),
+          200,
+          headers: {'content-length': '2'},
+        ),
+        StreamedResponse(
+          Stream.value([1, 2]),
+          200,
+          headers: {'content-length': '1'},
+        ),
+      ]) {
+        final transport =
+            PrecompiledAssetTransport(send: (_) async => response);
+
+        await expectLater(
+          transport.getBytes(
+            Uri.https('assets.example', '/manifest.json'),
+            limit: 8,
+          ),
+          throwsA(isA<PrecompiledTransportException>()),
+        );
+      }
+    });
+
     test('retries only classified failures three total attempts', () async {
       var attempts = 0;
       final delays = <Duration>[];
@@ -136,6 +163,171 @@ void main() {
         throwsA(isA<PrecompiledTransportException>()),
       );
       expect(attempts, 1);
+    });
+
+    test('retries every retryable HTTP status exactly three attempts',
+        () async {
+      for (final status in const [408, 429, 500, 502, 503, 504]) {
+        var attempts = 0;
+        final transport = PrecompiledAssetTransport(
+          send: (_) async {
+            attempts++;
+            return StreamedResponse(const Stream<List<int>>.empty(), status);
+          },
+          sleeper: (_) async {},
+        );
+
+        await expectLater(
+          transport.getBytes(
+            Uri.https('assets.example', '/status-$status'),
+            limit: 1,
+          ),
+          throwsA(isA<PrecompiledTransportException>()),
+        );
+        expect(attempts, 3, reason: 'HTTP $status');
+      }
+    });
+
+    test('retries classified network failures exactly three attempts',
+        () async {
+      final failures = <String, Object>{
+        'socket': const SocketException('connection reset'),
+        'http': const HttpException('connection closed'),
+        'client': ClientException('connection failed'),
+        'timeout': TimeoutException('connection deadline'),
+      };
+      for (final entry in failures.entries) {
+        var attempts = 0;
+        final transport = PrecompiledAssetTransport(
+          send: (_) async {
+            attempts++;
+            throw entry.value;
+          },
+          sleeper: (_) async {},
+        );
+
+        await expectLater(
+          transport.getBytes(
+            Uri.https('assets.example', '/${entry.key}'),
+            limit: 1,
+          ),
+          throwsA(isA<PrecompiledTransportException>()),
+        );
+        expect(attempts, 3, reason: entry.key);
+      }
+    });
+
+    test('manifest signature and asset bodies enforce length contracts',
+        () async {
+      Future<void> succeeds(
+        String role,
+        StreamedResponse response, {
+        int? expectedLength,
+      }) async {
+        final transport =
+            PrecompiledAssetTransport(send: (_) async => response);
+        expect(
+          await transport.getBytes(
+            Uri.https('assets.example', '/$role'),
+            limit: 64,
+            expectedLength: expectedLength,
+          ),
+          List<int>.filled(expectedLength ?? 2, 7),
+          reason: role,
+        );
+      }
+
+      Future<void> fails(
+        String role,
+        StreamedResponse response, {
+        int? expectedLength,
+      }) async {
+        final transport =
+            PrecompiledAssetTransport(send: (_) async => response);
+        await expectLater(
+          transport.getBytes(
+            Uri.https('assets.example', '/$role'),
+            limit: 64,
+            expectedLength: expectedLength,
+          ),
+          throwsA(isA<PrecompiledTransportException>()),
+          reason: role,
+        );
+      }
+
+      await succeeds(
+        'manifest-without-content-length',
+        StreamedResponse(Stream.value([7, 7]), 200),
+      );
+      await succeeds(
+        'signature-without-content-length',
+        StreamedResponse(Stream.value(List<int>.filled(64, 7)), 200),
+        expectedLength: 64,
+      );
+      await succeeds(
+        'asset-without-content-length',
+        StreamedResponse(Stream.value([7, 7]), 200),
+        expectedLength: 2,
+      );
+      for (final role in const ['manifest', 'signature', 'asset']) {
+        await fails(
+          '$role-malformed-content-length',
+          StreamedResponse(
+            Stream.value([7, 7]),
+            200,
+            headers: {'content-length': 'two'},
+          ),
+          expectedLength: role == 'manifest' ? null : 2,
+        );
+      }
+      for (final declaredLength in const [1, 3]) {
+        await fails(
+          'manifest-declared-$declaredLength',
+          StreamedResponse(
+            Stream.value([7, 7]),
+            200,
+            headers: {'content-length': '$declaredLength'},
+          ),
+        );
+        await fails(
+          'signature-declared-$declaredLength',
+          StreamedResponse(
+            Stream.value([7, 7]),
+            200,
+            headers: {'content-length': '$declaredLength'},
+          ),
+          expectedLength: 2,
+        );
+        await fails(
+          'asset-declared-$declaredLength',
+          StreamedResponse(
+            Stream.value([7, 7]),
+            200,
+            headers: {'content-length': '$declaredLength'},
+          ),
+          expectedLength: 2,
+        );
+      }
+      for (final role in const ['signature', 'asset']) {
+        await fails(
+          '$role-chunked-early-eof',
+          StreamedResponse(
+            Stream.value([7]),
+            200,
+            headers: {'transfer-encoding': 'chunked'},
+          ),
+          expectedLength: 2,
+        );
+        await fails(
+          '$role-chunked-overrun',
+          StreamedResponse(
+            Stream.value([7, 7, 7]),
+            200,
+            headers: {'transfer-encoding': 'chunked'},
+          ),
+          expectedLength: 2,
+        );
+      }
     });
 
     test('total deadline bounds a stalled retry sleep', () async {
@@ -286,6 +478,22 @@ void main() {
         [9],
       );
       expect(visited, hasLength(6));
+
+      final tooMany = PrecompiledAssetTransport(send: (request) async {
+        final step = int.parse(request.url.queryParameters['step'] ?? '0');
+        return StreamedResponse(
+          const Stream<List<int>>.empty(),
+          302,
+          headers: {'location': '?step=${step + 1}'},
+        );
+      });
+      await expectLater(
+        tooMany.getBytes(
+          Uri.parse('https://assets.example/file?step=0'),
+          limit: 1,
+        ),
+        throwsA(isA<PrecompiledTransportException>()),
+      );
 
       final downgrade = PrecompiledAssetTransport(
           send: (_) async => StreamedResponse(
@@ -717,21 +925,102 @@ void main() {
       );
     });
 
+    test('remote signatures are exactly 64 bytes and limits apply before data',
+        () async {
+      for (final length in const [63, 65]) {
+        final manifestFixture = _storeFixture(recipe, keyPair);
+        manifestFixture.responses[
+                '/$_storeGeneration/$precompiledGenerationManifestSignatureFileName'] =
+            List<int>.filled(length, 0);
+        await expectLater(
+          _store(
+            path.join(temp.path, 'manifest-signature-$length'),
+            recipe,
+            keyPair,
+            manifestFixture,
+          ).snapshot(
+            generationHash: _storeGeneration,
+            requestedAssetNames: const {'a.bin'},
+          ),
+          throwsA(isA<PrecompiledGenerationException>()),
+        );
+
+        final assetFixture = _storeFixture(recipe, keyPair);
+        assetFixture.responses['/$_storeGeneration/a.bin.sig'] =
+            List<int>.filled(length, 0);
+        await expectLater(
+          _store(
+            path.join(temp.path, 'asset-signature-$length'),
+            recipe,
+            keyPair,
+            assetFixture,
+          ).snapshot(
+            generationHash: _storeGeneration,
+            requestedAssetNames: const {'a.bin'},
+          ),
+          throwsA(isA<PrecompiledGenerationException>()),
+        );
+      }
+
+      final perAssetFixture = _storeFixture(recipe, keyPair);
+      await expectLater(
+        _store(
+          path.join(temp.path, 'per-asset-limit'),
+          recipe,
+          keyPair,
+          perAssetFixture,
+          policy: const PrecompiledAssetStorePolicy(perAssetLimit: 2),
+        ).snapshot(
+          generationHash: _storeGeneration,
+          requestedAssetNames: const {'a.bin'},
+        ),
+        throwsA(isA<PrecompiledGenerationException>()),
+      );
+
+      final aggregateFixture = _storeFixture(recipe, keyPair);
+      await expectLater(
+        _store(
+          path.join(temp.path, 'aggregate-limit'),
+          recipe,
+          keyPair,
+          aggregateFixture,
+          policy: const PrecompiledAssetStorePolicy(
+            perAssetLimit: 4,
+            aggregateAssetLimit: 4,
+          ),
+        ).snapshot(
+          generationHash: _storeGeneration,
+          requestedAssetNames: const {'a.bin', 'b.bin'},
+        ),
+        throwsA(isA<PrecompiledGenerationException>()),
+      );
+    });
+
     test('publishes by same-parent absent renames and reports exact metrics',
         () async {
       final fixture = _storeFixture(recipe, keyPair);
       final renames = <List<String>>[];
+      final lifecycle = <String, List<String>>{};
       final logs = <String>[];
       final store = _store(
         temp.path,
         recipe,
         keyPair,
         fixture,
+        fileRecorder: (event, filePath) =>
+            lifecycle.putIfAbsent(filePath, () => []).add(event),
         rename: (source, destination) {
           renames.add([source, destination]);
           expect(path.dirname(source), path.dirname(destination));
           expect(FileSystemEntity.typeSync(destination, followLinks: false),
               FileSystemEntityType.notFound);
+          for (final entity in Directory(source)
+              .listSync(recursive: true, followLinks: false)) {
+            if (FileSystemEntity.typeSync(entity.path, followLinks: false) ==
+                FileSystemEntityType.file) {
+              expect(lifecycle[entity.path], const ['open', 'flush', 'close']);
+            }
+          }
           Directory(source).renameSync(destination);
         },
         logger: logs.add,
@@ -741,10 +1030,15 @@ void main() {
         requestedAssetNames: const {'a.bin'},
       );
       expect(renames, hasLength(2));
+      expect(path.basename(renames[0][0]), startsWith('anchor.staging-'));
+      expect(path.basename(renames[0][1]), 'anchor');
+      expect(path.basename(renames[1][0]),
+          startsWith('${snapshot!.requestKey}.staging-'));
+      expect(path.basename(renames[1][1]), snapshot.requestKey);
 
       final metrics = store.metrics(
         generationHash: _storeGeneration,
-        requestKey: snapshot!.requestKey,
+        requestKey: snapshot.requestKey,
       );
       expect(metrics.snapshotCount, 1);
       expect(metrics.totalBytes, greaterThan(0));
@@ -755,6 +1049,46 @@ void main() {
         'request=${snapshot.requestKey} snapshots=1 bytes=${metrics.totalBytes} '
         'oldest_mtime=${metrics.oldestMtime!.toUtc().toIso8601String()}',
       );
+    });
+
+    test('publication bounds sharing retries and aborts other rename errors',
+        () async {
+      Future<int> failsAfter({required bool transient}) async {
+        final fixture = _storeFixture(recipe, keyPair);
+        var attempts = 0;
+        final store = _store(
+          path.join(temp.path, transient ? 'sharing' : 'fatal'),
+          recipe,
+          keyPair,
+          fixture,
+          policy: const PrecompiledAssetStorePolicy(
+            renameAttempts: 3,
+            renameRetryDelay: Duration.zero,
+          ),
+          sleeper: (_) async {},
+          transientRenameError: (_) => transient,
+          rename: (source, destination) {
+            attempts++;
+            throw FileSystemException(
+              transient ? 'sharing violation' : 'permission denied',
+              destination,
+              OSError(transient ? 'sharing violation' : 'permission denied',
+                  transient ? 32 : 13),
+            );
+          },
+        );
+        await expectLater(
+          store.snapshot(
+            generationHash: _storeGeneration,
+            requestedAssetNames: const {'a.bin'},
+          ),
+          throwsA(isA<PrecompiledGenerationException>()),
+        );
+        return attempts;
+      }
+
+      expect(await failsAfter(transient: true), 3);
+      expect(await failsAfter(transient: false), 1);
     });
 
     test('process lock deadline fails closed and crashed owner releases lock',
@@ -838,14 +1172,24 @@ void main() {
         await Future.wait(workers.map((worker) => worker.proceed()));
         final results =
             await Future.wait(workers.map((worker) => worker.next()));
+        expect(
+          results.map((result) => result.keys.toSet()),
+          everyElement(const {'event', 'ok', 'path', 'error'}),
+        );
         expect(results, everyElement(containsPair('ok', true)));
-        expect(results[0]['directory'], results[1]['directory']);
-        expect(results[2]['directory'], isNot(results[0]['directory']));
-        expect(results[3]['directory'], isNot(results[0]['directory']));
-        for (final result in results) {
-          final directory = Directory(result['directory'] as String);
+        expect(results[0]['path'], results[1]['path']);
+        expect(results[2]['path'], isNot(results[0]['path']));
+        expect(results[3]['path'], isNot(results[0]['path']));
+        final expectedAssets = <Set<String>>[
+          {'a.bin'},
+          {'a.bin'},
+          {'a.bin', 'b.bin'},
+          {'archive.zip', 'archive.zip.checksum'},
+        ];
+        for (var index = 0; index < results.length; index++) {
+          final directory = Directory(results[index]['path'] as String);
           expect(directory.existsSync(), isTrue);
-          for (final name in (result['asset_names'] as List).cast<String>()) {
+          for (final name in expectedAssets[index]) {
             expect(File(path.join(directory.path, name)).existsSync(), isTrue);
           }
         }
@@ -862,8 +1206,54 @@ void main() {
         ));
         await fresh.proceed();
         final freshResult = await fresh.next();
-        expect(freshResult['directory'], results[0]['directory']);
+        expect(
+            freshResult.keys.toSet(), const {'event', 'ok', 'path', 'error'});
+        expect(freshResult['path'], results[0]['path']);
         expect(await fresh.exitCode, 0);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('same request is serialized directly across processes', () async {
+      final fixture = _storeFixture(recipe, keyPair);
+      final server = await _FixtureServer.start({'/': fixture});
+      final root = path.join(temp.path, 'same-request');
+      try {
+        final workers = await Future.wait([
+          _startWorkerConfig(_installWorkerConfig(
+            root: root,
+            uriPrefix: server.prefix('/'),
+            recipe: recipe,
+            keyPair: keyPair,
+            fixture: fixture,
+            requested: const ['a.bin'],
+          )),
+          _startWorkerConfig(_installWorkerConfig(
+            root: root,
+            uriPrefix: server.prefix('/'),
+            recipe: recipe,
+            keyPair: keyPair,
+            fixture: fixture,
+            requested: const ['a.bin'],
+          )),
+        ]);
+        await Future.wait(workers.map((worker) => worker.proceed()));
+        final results =
+            await Future.wait(workers.map((worker) => worker.next()));
+
+        expect(results, everyElement(containsPair('ok', true)));
+        expect(results[0]['path'], results[1]['path']);
+        expect(
+          server.requests.where((request) => request.endsWith('/a.bin.sig')),
+          hasLength(1),
+        );
+        expect(
+          server.requests.where((request) => request.endsWith('/a.bin')),
+          hasLength(1),
+        );
+        expect(await Future.wait(workers.map((worker) => worker.exitCode)),
+            everyElement(0));
       } finally {
         await server.close();
       }
@@ -934,39 +1324,98 @@ void main() {
       }
     });
 
-    test('fresh process fully revalidates immutable snapshot tamper', () async {
+    test('fresh processes reject every immutable tamper without repair',
+        () async {
       final fixture = _storeFixture(recipe, keyPair);
       final server = await _FixtureServer.start({'/': fixture});
-      final root = path.join(temp.path, 'fresh-revalidate');
       try {
-        final first = await _startWorkerConfig(_installWorkerConfig(
-          root: root,
-          uriPrefix: server.prefix('/'),
-          recipe: recipe,
-          keyPair: keyPair,
-          fixture: fixture,
-          requested: const ['a.bin'],
-        ));
-        await first.proceed();
-        final installed = await first.next();
-        expect(installed['ok'], true);
-        await first.exitCode;
-        final asset = File(path.join(installed['directory'] as String, 'a.bin'))
-          ..writeAsBytesSync([0]);
+        for (final tamper in const [
+          'anchored manifest',
+          'metadata signature',
+          'regular-file type',
+          'exact length',
+          'digest',
+          'composite checksum',
+        ]) {
+          final root =
+              path.join(temp.path, 'fresh-${tamper.replaceAll(' ', '-')}');
+          final requested = tamper == 'composite checksum'
+              ? const ['archive.zip']
+              : const ['a.bin'];
+          final first = await _startWorkerConfig(_installWorkerConfig(
+            root: root,
+            uriPrefix: server.prefix('/'),
+            recipe: recipe,
+            keyPair: keyPair,
+            fixture: fixture,
+            requested: requested,
+          ));
+          await first.proceed();
+          final installed = await first.next();
+          expect(installed['ok'], true, reason: tamper);
+          expect(await first.exitCode, 0, reason: tamper);
+          final snapshotPath = installed['path'] as String;
+          late void Function() verifyUnchanged;
+          switch (tamper) {
+            case 'anchored manifest':
+              final manifest = File(path.join(
+                root,
+                'v2',
+                _storeGeneration,
+                'anchor',
+                precompiledGenerationManifestFileName,
+              ))
+                ..writeAsBytesSync([0]);
+              verifyUnchanged = () => expect(manifest.readAsBytesSync(), [0]);
+            case 'metadata signature':
+              final signature = File(path.join(snapshotPath, 'a.bin.sig'))
+                ..writeAsBytesSync(List<int>.filled(64, 0));
+              verifyUnchanged = () => expect(
+                    signature.readAsBytesSync(),
+                    List<int>.filled(64, 0),
+                  );
+            case 'regular-file type':
+              final assetPath = path.join(snapshotPath, 'a.bin');
+              File(assetPath).deleteSync();
+              final directory = Directory(assetPath)..createSync();
+              verifyUnchanged = () => expect(directory.existsSync(), isTrue);
+            case 'exact length':
+              final asset = File(path.join(snapshotPath, 'a.bin'))
+                ..writeAsBytesSync([1, 2]);
+              verifyUnchanged = () => expect(asset.readAsBytesSync(), [1, 2]);
+            case 'digest':
+              final asset = File(path.join(snapshotPath, 'a.bin'))
+                ..writeAsBytesSync([9, 9, 9]);
+              verifyUnchanged =
+                  () => expect(asset.readAsBytesSync(), [9, 9, 9]);
+            case 'composite checksum':
+              final checksum =
+                  File(path.join(snapshotPath, 'archive.zip.checksum'))
+                    ..writeAsBytesSync(List<int>.filled(65, 0));
+              verifyUnchanged = () => expect(
+                    checksum.readAsBytesSync(),
+                    List<int>.filled(65, 0),
+                  );
+          }
 
-        final fresh = await _startWorkerConfig(_installWorkerConfig(
-          root: root,
-          uriPrefix: server.prefix('/'),
-          recipe: recipe,
-          keyPair: keyPair,
-          fixture: fixture,
-          requested: const ['a.bin'],
-        ));
-        await fresh.proceed();
-        final result = await fresh.next();
-        expect(result['ok'], false);
-        expect(asset.readAsBytesSync(), [0]);
-        expect(await fresh.exitCode, 1);
+          final fresh = await _startWorkerConfig(_installWorkerConfig(
+            root: root,
+            uriPrefix: server.prefix('/'),
+            recipe: recipe,
+            keyPair: keyPair,
+            fixture: fixture,
+            requested: requested,
+          ));
+          await fresh.proceed();
+          final result = await fresh.next();
+          expect(result.keys.toSet(), const {'event', 'ok', 'path', 'error'},
+              reason: tamper);
+          expect(result['ok'], false, reason: tamper);
+          expect(result['path'], isNull, reason: tamper);
+          expect(result['error'], isA<String>(), reason: tamper);
+          verifyUnchanged();
+          expect(await fresh.exitCode, 1, reason: tamper);
+        }
       } finally {
         await server.close();
       }
@@ -1160,6 +1609,8 @@ PrecompiledAssetStore _store(
   _StoreFixture fixture, {
   List<String>? calls,
   PrecompiledRename? rename,
+  PrecompiledRenameErrorClassifier? transientRenameError,
+  void Function(String event, String filePath)? fileRecorder,
   void Function(String message)? logger,
   Uri? uriPrefix,
   PrecompiledAssetStorePolicy? policy,
@@ -1176,23 +1627,28 @@ PrecompiledAssetStore _store(
     expectedCompositeChecksums: fixture.manifest.compositeChecksums
         .map((binding) => '${binding.archive}\u0000${binding.checksum}')
         .toSet(),
-    transport: PrecompiledAssetTransport(send: (request) async {
-      calls?.add(request.url.path);
-      final generationIndex = request.url.path.indexOf(_storeGeneration);
-      final fixturePath = generationIndex < 0
-          ? request.url.path
-          : '/${request.url.path.substring(generationIndex)}';
-      final bytes = fixture.responses[fixturePath];
-      return bytes == null
-          ? StreamedResponse(const Stream<List<int>>.empty(), 404)
-          : StreamedResponse(
-              Stream.value(bytes),
-              200,
-              headers: {'content-length': '${bytes.length}'},
-            );
-    }),
+    transport: PrecompiledAssetTransport(
+      fileRecorder: fileRecorder,
+      send: (request) async {
+        calls?.add(request.url.path);
+        final generationIndex = request.url.path.indexOf(_storeGeneration);
+        final fixturePath = generationIndex < 0
+            ? request.url.path
+            : '/${request.url.path.substring(generationIndex)}';
+        final bytes = fixture.responses[fixturePath];
+        return bytes == null
+            ? StreamedResponse(const Stream<List<int>>.empty(), 404)
+            : StreamedResponse(
+                Stream.value(bytes),
+                200,
+                headers: {'content-length': '${bytes.length}'},
+              );
+      },
+    ),
     stagingId: () => 'test-${DateTime.now().microsecondsSinceEpoch}',
     rename: rename,
+    transientRenameError: transientRenameError,
+    fileRecorder: fileRecorder,
     logger: logger,
     policy: policy ?? const PrecompiledAssetStorePolicy(),
     sleeper: sleeper,
@@ -1213,7 +1669,14 @@ class _WorkerHandle {
       throw StateError(
           'Worker exited before its next message (exit ${await process.exitCode}).');
     }
-    return (jsonDecode(lines.current) as Map).cast<String, dynamic>();
+    final value = (jsonDecode(lines.current) as Map).cast<String, dynamic>();
+    if (value['event'] == 'result' &&
+        !value.keys
+            .toSet()
+            .containsAll(const {'event', 'ok', 'path', 'error'})) {
+      throw StateError('Worker emitted an unstable result: $value');
+    }
+    return value;
   }
 
   Future<void> proceed() async {
@@ -1248,7 +1711,9 @@ Future<_WorkerHandle> _startWorkerConfig(
   );
   final worker = _WorkerHandle(process, lines);
   final ready = await worker.next();
-  if (ready['event'] != 'ready') {
+  if (ready.keys.toSet().length != 2 ||
+      ready['event'] != 'ready' ||
+      ready['mode'] != configuration['mode']) {
     throw StateError('Worker did not emit ready: $ready');
   }
   return worker;
@@ -1288,17 +1753,20 @@ Map<String, dynamic> _installWorkerConfig({
 }
 
 class _FixtureServer {
-  _FixtureServer(this.server, this.fixtures, this.subscription);
+  _FixtureServer(this.server, this.fixtures, this.requests, this.subscription);
 
   final HttpServer server;
   final Map<String, _StoreFixture> fixtures;
+  final List<String> requests;
   final StreamSubscription<HttpRequest> subscription;
 
   static Future<_FixtureServer> start(
       Map<String, _StoreFixture> fixtures) async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final requests = <String>[];
     late StreamSubscription<HttpRequest> subscription;
     subscription = server.listen((request) async {
+      requests.add(request.uri.path);
       final prefixes = fixtures.keys.toList()
         ..sort((left, right) => right.length.compareTo(left.length));
       final prefix = prefixes.firstWhere(
@@ -1319,7 +1787,7 @@ class _FixtureServer {
       }
       await request.response.close();
     });
-    return _FixtureServer(server, fixtures, subscription);
+    return _FixtureServer(server, fixtures, requests, subscription);
   }
 
   String prefix(String pathPrefix) =>

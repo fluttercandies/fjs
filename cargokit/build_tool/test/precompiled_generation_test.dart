@@ -212,6 +212,31 @@ void main() {
     );
   });
 
+  test('asset signatures reject protocol substitution and u64 overflow', () {
+    final payload = precompiledAssetSignaturePayload(
+      generationHash: _generationHash,
+      name: 'asset.bin',
+      length: 3,
+      sha256:
+          'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    final signature = sign(keyPair.privateKey, payload);
+    final substituted = Uint8List.fromList(payload)..[payload.indexOf(2)] = 3;
+
+    expect(verify(keyPair.publicKey, payload, signature), isTrue);
+    expect(verify(keyPair.publicKey, substituted, signature), isFalse);
+    expect(
+      () => precompiledAssetSignaturePayload(
+        generationHash: _generationHash,
+        name: 'asset.bin',
+        length: BigInt.one << 64,
+        sha256:
+            'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      ),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+  });
+
   test('Ed25519 binds asset generation, name, length, and digest metadata', () {
     final assetBytes = Uint8List.fromList([9, 8, 7]);
     final assetHash = sha256.convert(assetBytes).toString();
@@ -353,6 +378,57 @@ void main() {
       }),
       throwsA(isA<PrecompiledGenerationException>()),
     );
+  });
+
+  test('composite checksum content is exact lowercase sha256 plus LF', () {
+    final archive = Uint8List.fromList([1, 2, 3, 4]);
+    final digest = sha256.convert(archive).toString();
+    final manifest = PrecompiledGenerationManifest(
+      generationHash: _generationHash,
+      sourceCommit: _sourceCommit,
+      provenance: PrecompiledGenerationProvenance.fromRecipe(recipe),
+      assets: [
+        PrecompiledAsset(
+          name: 'archive.zip',
+          length: archive.length,
+          sha256: digest,
+        ),
+        PrecompiledAsset(
+          name: 'archive.zip.checksum',
+          length: 65,
+          sha256: sha256.convert(ascii.encode('$digest\n')).toString(),
+        ),
+      ],
+      compositeChecksums: const [
+        PrecompiledCompositeChecksum(
+          archive: 'archive.zip',
+          checksum: 'archive.zip.checksum',
+        ),
+      ],
+    );
+
+    manifest.validateCompositeChecksums({
+      'archive.zip': archive,
+      'archive.zip.checksum': Uint8List.fromList(ascii.encode('$digest\n')),
+    });
+    final invalid = <String, List<int>>{
+      'no newline': ascii.encode(digest),
+      'CRLF': ascii.encode('$digest\r\n'),
+      'extra newline': ascii.encode('$digest\n\n'),
+      'trailing space': ascii.encode('$digest \n'),
+      'uppercase': ascii.encode('${digest.toUpperCase()}\n'),
+      'invalid UTF-8': [...ascii.encode(digest), 0xff],
+    };
+    for (final entry in invalid.entries) {
+      expect(
+        () => manifest.validateCompositeChecksums({
+          'archive.zip': archive,
+          'archive.zip.checksum': entry.value,
+        }),
+        throwsA(isA<PrecompiledGenerationException>()),
+        reason: entry.key,
+      );
+    }
   });
 
   test('composite metadata is normative without downloading assets', () {

@@ -259,20 +259,12 @@ class PrecompiledGenerationManifest {
         throw PrecompiledGenerationException(
             'Composite checksum assets are incomplete.');
       }
-      final expected = sha256.convert(archive).toString();
-      String checksumText;
-      try {
-        checksumText = utf8.decode(checksum);
-      } on FormatException {
-        throw PrecompiledGenerationException(
-            'Checksum asset is not valid UTF-8.');
-      }
-      if (checksumText.endsWith('\r\n')) {
-        checksumText = checksumText.substring(0, checksumText.length - 2);
-      } else if (checksumText.endsWith('\n')) {
-        checksumText = checksumText.substring(0, checksumText.length - 1);
-      }
-      if (!_sha256Pattern.hasMatch(checksumText) || checksumText != expected) {
+      final expected = ascii.encode('${sha256.convert(archive)}\n');
+      if (checksum.length != expected.length ||
+          !List<int>.generate(
+            expected.length,
+            (index) => checksum[index] ^ expected[index],
+          ).every((difference) => difference == 0)) {
         throw PrecompiledGenerationException(
             'Composite checksum does not match its archive.');
       }
@@ -410,7 +402,7 @@ Uint8List signPrecompiledAsset(PrivateKey privateKey, List<int> bytes) =>
 Uint8List precompiledAssetSignaturePayload({
   required String generationHash,
   required String name,
-  required int length,
+  required Object length,
   required String sha256,
 }) {
   if (!_sha256Pattern.hasMatch(generationHash) ||
@@ -419,16 +411,24 @@ Uint8List precompiledAssetSignaturePayload({
         'Asset signature metadata contains a malformed digest.');
   }
   _safeName(name, 'asset name');
-  if (length < 0 || BigInt.from(length) > (BigInt.one << 64) - BigInt.one) {
+  final lengthValue = switch (length) {
+    int value => BigInt.from(value),
+    BigInt value => value,
+    _ => throw PrecompiledGenerationException(
+        'Asset signature metadata length is not an integer.'),
+  };
+  if (lengthValue < BigInt.zero ||
+      lengthValue > (BigInt.one << 64) - BigInt.one) {
     throw PrecompiledGenerationException(
-        'Asset signature metadata contains a negative length.');
+        'Asset signature metadata length is outside u64.');
   }
   final nameBytes = utf8.encode(name);
   if (nameBytes.length > 0xffffffff) {
     throw PrecompiledGenerationException('Asset name is too long.');
   }
   final nameLength = ByteData(4)..setUint32(0, nameBytes.length, Endian.big);
-  final assetLength = ByteData(8)..setUint64(0, length, Endian.big);
+  final assetLength = ByteData(8)
+    ..setUint64(0, lengthValue.toInt(), Endian.big);
   return Uint8List.fromList([
     ...ascii.encode(_assetSignatureDomain),
     0,

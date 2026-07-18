@@ -23,6 +23,7 @@ typedef PrecompiledHttpExchangeFactory = PrecompiledHttpExchange Function();
 typedef PrecompiledSleeper = Future<void> Function(Duration duration);
 typedef PrecompiledWallClock = DateTime Function();
 typedef PrecompiledMonotonicClock = Duration Function();
+typedef PrecompiledFileRecorder = void Function(String event, String filePath);
 
 class PrecompiledTransportException extends PrecompiledGenerationException {
   PrecompiledTransportException(super.message);
@@ -58,6 +59,7 @@ class PrecompiledAssetTransport {
     PrecompiledSleeper? deadlineSleeper,
     PrecompiledWallClock? wallClock,
     PrecompiledMonotonicClock? monotonicClock,
+    PrecompiledFileRecorder? fileRecorder,
   })  : _exchangeFactory = exchangeFactory ??
             _newExchangeFactory(
               send: send,
@@ -66,7 +68,8 @@ class PrecompiledAssetTransport {
         _deadlineSleeper = deadlineSleeper,
         sleeper = sleeper ?? Future<void>.delayed,
         wallClock = wallClock ?? DateTime.now,
-        monotonicClock = monotonicClock ?? _newMonotonicClock() {
+        monotonicClock = monotonicClock ?? _newMonotonicClock(),
+        fileRecorder = fileRecorder ?? _ignoreFileEvent {
     if (policy.maxAttempts < 1 || policy.maxRedirects < 0) {
       throw ArgumentError('Transport attempt and redirect limits are invalid.');
     }
@@ -84,6 +87,7 @@ class PrecompiledAssetTransport {
   final PrecompiledSleeper sleeper;
   final PrecompiledWallClock wallClock;
   final PrecompiledMonotonicClock monotonicClock;
+  final PrecompiledFileRecorder fileRecorder;
 
   void close() {
     if (_closed) return;
@@ -134,6 +138,7 @@ class PrecompiledAssetTransport {
       final start = monotonicClock();
       await _attempt<void>(uri, start, (response) async {
         final outputFile = await destination.open(mode: FileMode.writeOnly);
+        fileRecorder('open', destination.path);
         final digestOutput = AccumulatorSink<Digest>();
         final digestInput = sha256.startChunkedConversion(digestOutput);
         var digestClosed = false;
@@ -156,9 +161,11 @@ class PrecompiledAssetTransport {
                 'Downloaded asset digest does not match signed metadata.');
           }
           await outputFile.flush();
+          fileRecorder('flush', destination.path);
         } finally {
           if (!digestClosed) digestInput.close();
           await outputFile.close();
+          fileRecorder('close', destination.path);
         }
       });
       completed = true;
@@ -299,7 +306,8 @@ class PrecompiledAssetTransport {
     required int? expectedLength,
     required FutureOr<void> Function(List<int> chunk) onChunk,
   }) async {
-    _validateHeaders(response, uri, limit, expectedLength);
+    final declaredLength =
+        _validateHeaders(response, uri, limit, expectedLength);
     final iterator = StreamIterator<List<int>>(response.stream);
     var received = 0;
     try {
@@ -312,6 +320,7 @@ class PrecompiledAssetTransport {
         final chunk = iterator.current;
         received += chunk.length;
         if (received > limit ||
+            (declaredLength != null && received > declaredLength) ||
             (expectedLength != null && received > expectedLength)) {
           throw PrecompiledTransportException(
               'HTTP response body for $uri exceeds its allowed length.');
@@ -319,16 +328,17 @@ class PrecompiledAssetTransport {
         await onChunk(chunk);
       }
       _checkTotal(start);
-      if (expectedLength != null && received != expectedLength) {
+      final requiredLength = expectedLength ?? declaredLength;
+      if (requiredLength != null && received != requiredLength) {
         throw PrecompiledTransportException(
-            'HTTP response body for $uri ended at $received bytes; expected $expectedLength.');
+            'HTTP response body for $uri ended at $received bytes; expected $requiredLength.');
       }
     } finally {
       await iterator.cancel();
     }
   }
 
-  void _validateHeaders(
+  int? _validateHeaders(
     StreamedResponse response,
     Uri uri,
     int limit,
@@ -355,13 +365,14 @@ class PrecompiledAssetTransport {
           'HTTP content length for $uri is inconsistent.');
     }
     final contentLength = parsedHeader ?? response.contentLength;
-    if (contentLength == null) return;
+    if (contentLength == null) return null;
     if (contentLength < 0 ||
         contentLength > limit ||
         (expectedLength != null && contentLength != expectedLength)) {
       throw PrecompiledTransportException(
           'HTTP content length for $uri is invalid.');
     }
+    return contentLength;
   }
 
   Future<T> _deadline<T>(
@@ -624,6 +635,7 @@ class PrecompiledAssetStore {
     PrecompiledRename? rename,
     PrecompiledRenameErrorClassifier? transientRenameError,
     PrecompiledCacheLogger? logger,
+    PrecompiledFileRecorder? fileRecorder,
   })  : cacheRoot = _canonicalizeRoot(cacheRoot),
         expectedAssetNames = Set.unmodifiable(expectedAssetNames),
         expectedCompositeChecksums =
@@ -635,7 +647,8 @@ class PrecompiledAssetStore {
         rename = rename ?? _defaultRename,
         transientRenameError =
             transientRenameError ?? _defaultTransientRenameError,
-        logger = logger ?? _ignoreLog {
+        logger = logger ?? _ignoreLog,
+        fileRecorder = fileRecorder ?? _ignoreFileEvent {
     if (policy.manifestLimit < 1 ||
         policy.perAssetLimit < 1 ||
         policy.aggregateAssetLimit < 1 ||
@@ -658,6 +671,7 @@ class PrecompiledAssetStore {
   final PrecompiledRename rename;
   final PrecompiledRenameErrorClassifier transientRenameError;
   final PrecompiledCacheLogger logger;
+  final PrecompiledFileRecorder fileRecorder;
 
   static String requestKey(Iterable<String> expandedAssetNames) {
     final names = expandedAssetNames.toSet().toList()..sort();
@@ -1139,16 +1153,18 @@ class PrecompiledAssetStore {
     }
   }
 
-  static Future<void> _writeExclusiveFlushed(
-      String filePath, List<int> bytes) async {
+  Future<void> _writeExclusiveFlushed(String filePath, List<int> bytes) async {
     final file = File(filePath);
     await file.create(exclusive: true);
     final output = await file.open(mode: FileMode.writeOnly);
+    fileRecorder('open', filePath);
     try {
       await output.writeFrom(bytes);
       await output.flush();
+      fileRecorder('flush', filePath);
     } finally {
       await output.close();
+      fileRecorder('close', filePath);
     }
   }
 
@@ -1277,6 +1293,8 @@ class PrecompiledAssetStore {
 
   static void _ignoreLog(String _) {}
 }
+
+void _ignoreFileEvent(String _, String __) {}
 
 class _RemoteManifest {
   const _RemoteManifest(this.manifest, this.bytes, this.signature);
