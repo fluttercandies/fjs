@@ -2,11 +2,6 @@ name: Publish to pub.dev
 
 on:
   workflow_dispatch:
-    inputs:
-      run_id:
-        description: Build All Platforms run containing the immutable pub stage
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -18,18 +13,8 @@ jobs:
     environment: pub.dev
     timeout-minutes: 30
     steps:
-      - name: Download the exact packed stage
-        uses: actions/download-artifact@v8
-        with:
-          name: pub-stage
-          path: build/download
-          run-id: ${{ inputs.run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract the packed stage
-        run: |
-          mkdir -p build/pub-stage
-          tar -xzf build/download/pub-stage.tar.gz -C build/pub-stage
+      - name: Checkout
+        uses: actions/checkout@v7
 
       - name: Setup pinned Flutter
         uses: subosito/flutter-action@v2
@@ -37,12 +22,15 @@ jobs:
           flutter-version: 3.32.8
           cache: true
 
-      - name: Verify, dry-run, and publish the same package bytes
+      - name: Resolve dependencies
+        run: flutter pub get --no-example
+
+      - name: Verify tracked package source
+        run: git diff HEAD --exit-code --
+
+      - name: Dry-run and publish
         shell: bash
         run: |
           set -euo pipefail
-          sh build/pub-stage/package/tool/verify_pub_stage.sh build/pub-stage
-          (cd build/pub-stage/package && flutter pub publish --dry-run)
-          sh build/pub-stage/package/tool/verify_pub_stage.sh build/pub-stage
-          (cd build/pub-stage/package && flutter pub publish --force)
-          sh build/pub-stage/package/tool/verify_pub_stage.sh build/pub-stage
+          flutter pub publish --dry-run
+          flutter pub publish --force
