@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: precompiled-${{ github.repository }}-${{ github.ref }}
+  group: precompiled-${{ github.repository }}-${{ github.sha }}
   cancel-in-progress: false
 
 env:
@@ -57,10 +57,20 @@ jobs:
         run: dart pub get
         working-directory: cargokit/build_tool
 
+      - name: Verify an existing v2 generation
+        id: generation
+        continue-on-error: true
+        run: >-
+          dart run cargokit/build_tool/bin/build_tool.dart
+          verify-binaries
+          --manifest-dir=${{ env.RUST_CRATE_DIR }}
+
       - name: Build the shared CocoaPods and SwiftPM generation
+        if: steps.generation.outcome == 'failure'
         run: tool/build_fjs_xcframework.sh --configuration Release
 
       - name: Publish the completed v2 generation
+        if: steps.generation.outcome == 'failure'
         run: >-
           dart run cargokit/build_tool/bin/build_tool.dart
           publish-precompiled-generation
@@ -73,12 +83,14 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
 
       - name: Verify the published v2 generation
+        if: steps.generation.outcome == 'failure'
         run: >-
           dart run cargokit/build_tool/bin/build_tool.dart
           verify-binaries
           --manifest-dir=${{ env.RUST_CRATE_DIR }}
 
       - name: Upload SwiftPM delivery artifact
+        if: steps.generation.outcome == 'failure'
         uses: actions/upload-artifact@v7
         with:
           name: fjs-swiftpm-${{ github.sha }}

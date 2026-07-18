@@ -190,6 +190,21 @@ check_structure() {
   require_contains "darwin/fjs.podspec" "cargokit/build_pod.sh"
 
   require_exact_line ".github/workflows/precompile-binaries.yml" "  RUST_TOOLCHAIN: 1.97.1"
+  require_exact_line ".github/workflows/precompile-binaries.yml" \
+    '  group: precompiled-${{ github.repository }}-${{ github.sha }}'
+  require_exact_line ".github/workflows/precompile-binaries.yml" "        id: generation"
+  require_exact_line ".github/workflows/precompile-binaries.yml" "        continue-on-error: true"
+  require_line_count ".github/workflows/precompile-binaries.yml" \
+    "        if: steps.generation.outcome == 'failure'" 4
+  require_line_count ".github/workflows/precompile-binaries.yml" \
+    "          verify-binaries" 2
+  require_exact_line ".github/workflows/publish-pub.yml" "  publish-precompiled:"
+  require_exact_line ".github/workflows/publish-pub.yml" \
+    "    uses: ./.github/workflows/precompile-binaries.yml"
+  require_exact_line ".github/workflows/publish-pub.yml" "      contents: write"
+  require_exact_line ".github/workflows/publish-pub.yml" "    secrets: inherit"
+  require_exact_line ".github/workflows/publish-pub.yml" "    needs: publish-precompiled"
+  require_exact_line ".github/workflows/publish-pub.yml" "      id-token: write"
   require_exact_line "libfjs/Cargo.toml" "rust-version = \"1.95\""
   require_exact_line "libfjs/cargokit.yaml" "  workspace_root: .."
   for hash_input in \

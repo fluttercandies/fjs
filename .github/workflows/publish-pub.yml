@@ -7,13 +7,22 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
+  publish-precompiled:
+    uses: ./.github/workflows/precompile-binaries.yml
+    permissions:
+      contents: write
+    secrets: inherit
+
   publish:
+    needs: publish-precompiled
     runs-on: ubuntu-latest
     environment: pub.dev
     timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
