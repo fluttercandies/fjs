@@ -1,6 +1,61 @@
 precompiled_binaries:
-  # Uri prefix used when downloading precompiled binaries.
   url_prefix: https://github.com/fluttercandies/fjs/releases/download/precompiled_
-
-  # Public key for verifying downloaded precompiled binaries.
   public_key: 784ad3d6b3fe2a7adee114f6bc6daf043cca783dfba306103d8f415aaba2efd1
+  workspace_root: ..
+  hash_inputs:
+    - cargokit/build_tool/lib
+    - cargokit/build_tool/pubspec.yaml
+    - cargokit/build_tool/pubspec.lock
+    - cargokit/run_build_tool.sh
+    - libfjs/Cargo.toml
+    - libfjs/Cargo.lock
+    - libfjs/cargokit.yaml
+    - libfjs/src
+    - libfjs/src/frb_generated.rs
+    - pubspec.yaml
+    - pubspec.lock
+    - darwin/fjs/Package.swift
+    - lib/src/frb/frb_generated.dart
+    - lib/src/frb/frb_generated.io.dart
+    - lib/src/frb/frb_generated.web.dart
+    - tool/assemble_fjs_xcframework.sh
+    - tool/build_fjs_xcframework.sh
+    - tool/check_darwin_package_support.sh
+    - tool/check_frb_codegen.sh
+    - tool/check_frb_content_hash.dart
+  build_recipe:
+    rust_toolchain: '1.88.0'
+    flutter_version: '3.32.8'
+    xcode_version: '16.4'
+    sdk_versions:
+      iphoneos: '18.5'
+      macosx: '15.5'
+    deployment_targets:
+      ios: '12.0'
+      macos: '10.14'
+    rust_targets:
+      - aarch64-apple-ios
+      - aarch64-apple-ios-sim
+      - x86_64-apple-ios
+      - aarch64-apple-darwin
+      - x86_64-apple-darwin
+  composite_groups:
+    - name: swiftpm
+      host: macos
+      required_targets:
+        - aarch64-apple-ios
+        - aarch64-apple-ios-sim
+        - x86_64-apple-ios
+        - aarch64-apple-darwin
+        - x86_64-apple-darwin
+      argv:
+        - tool/assemble_fjs_xcframework.sh
+      environment:
+        COPYFILE_DISABLE: '1'
+        LC_ALL: C
+        PATH: /usr/bin:/bin:/usr/sbin:/sbin
+        TZ: UTC
+      timeout_seconds: 1800
+      outputs:
+        - fjs.xcframework.zip
+        - fjs.xcframework.zip.checksum

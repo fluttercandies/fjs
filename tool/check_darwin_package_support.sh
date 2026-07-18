@@ -66,6 +66,23 @@ require_exact_line() {
     fail "$file does not contain the exact line: $required_text"
 }
 
+require_line_count() {
+  file="$1"
+  required_text="$2"
+  expected_count="$3"
+  actual_count="$(grep -Fxc -- "$required_text" "$file" || true)"
+  [ "$actual_count" -eq "$expected_count" ] ||
+    fail "$file must contain '$required_text' exactly $expected_count time(s)"
+}
+
+require_not_contains() {
+  file="$1"
+  forbidden_text="$2"
+  if grep -F -- "$forbidden_text" "$file" >/dev/null; then
+    fail "$file must not contain: $forbidden_text"
+  fi
+}
+
 CALLER_DIR="$(pwd)"
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 case "$ARTIFACT" in
@@ -144,6 +161,8 @@ check_structure() {
   require_file "darwin/fjs.podspec"
   require_file "darwin/fjs/Binaries/.gitkeep"
   require_file ".pubignore"
+  require_file "libfjs/cargokit.yaml"
+  require_file "tool/assemble_fjs_xcframework.sh"
   require_file "tool/build_fjs_xcframework.sh"
   require_file "tool/check_frb_content_hash.dart"
   require_file "tool/prepare_darwin_release.sh"
@@ -168,33 +187,120 @@ check_structure() {
   require_contains "darwin/fjs.podspec" "s.ios.dependency 'Flutter'"
   require_contains "darwin/fjs.podspec" "s.osx.dependency 'FlutterMacOS'"
   require_contains "darwin/fjs.podspec" "cargokit/build_pod.sh"
-  require_contains "tool/build_fjs_xcframework.sh" "xcodebuild -create-xcframework"
-  require_contains "tool/build_fjs_xcframework.sh" "CARGOKIT_DARWIN_PLATFORM_NAME"
-  require_contains "tool/build_fjs_xcframework.sh" "libfjs.dylib"
-  require_contains "tool/build_fjs_xcframework.sh" "CFBundlePackageType"
-  require_contains "tool/build_fjs_xcframework.sh" "MACOSX_DEPLOYMENT_TARGET"
-  if grep -F "source_dylibs" tool/build_fjs_xcframework.sh >/dev/null ||
-    grep -F "SC2086" tool/build_fjs_xcframework.sh >/dev/null; then
-    fail "tool/build_fjs_xcframework.sh must pass quoted lipo input paths"
+
+  require_exact_line "libfjs/cargokit.yaml" "  workspace_root: .."
+  for hash_input in \
+    cargokit/build_tool/lib \
+    cargokit/build_tool/pubspec.yaml \
+    cargokit/build_tool/pubspec.lock \
+    cargokit/run_build_tool.sh \
+    libfjs/Cargo.toml \
+    libfjs/Cargo.lock \
+    libfjs/cargokit.yaml \
+    libfjs/src \
+    libfjs/src/frb_generated.rs \
+    pubspec.yaml \
+    pubspec.lock \
+    darwin/fjs/Package.swift \
+    lib/src/frb/frb_generated.dart \
+    lib/src/frb/frb_generated.io.dart \
+    lib/src/frb/frb_generated.web.dart \
+    tool/assemble_fjs_xcframework.sh \
+    tool/build_fjs_xcframework.sh \
+    tool/check_darwin_package_support.sh \
+    tool/check_frb_codegen.sh \
+    tool/check_frb_content_hash.dart; do
+    require_exact_line "libfjs/cargokit.yaml" "    - $hash_input"
+  done
+  require_exact_line "libfjs/cargokit.yaml" "    rust_toolchain: '1.88.0'"
+  require_exact_line "libfjs/cargokit.yaml" "    flutter_version: '3.32.8'"
+  require_exact_line "libfjs/cargokit.yaml" "    xcode_version: '16.4'"
+  require_exact_line "libfjs/cargokit.yaml" "      iphoneos: '18.5'"
+  require_exact_line "libfjs/cargokit.yaml" "      macosx: '15.5'"
+  require_exact_line "libfjs/cargokit.yaml" "      ios: '12.0'"
+  require_exact_line "libfjs/cargokit.yaml" "      macos: '10.14'"
+
+  expected_targets='aarch64-apple-ios
+aarch64-apple-ios-sim
+x86_64-apple-ios
+aarch64-apple-darwin
+x86_64-apple-darwin'
+  recipe_targets="$(awk '
+    $0 == "    rust_targets:" { targets = 1; next }
+    targets && $0 == "  composite_groups:" { exit }
+    targets && /^      - / { sub(/^      - /, ""); print }
+  ' libfjs/cargokit.yaml)"
+  [ "$recipe_targets" = "$expected_targets" ] ||
+    fail "libfjs/cargokit.yaml must pin exactly the five Apple Rust targets"
+  composite_targets="$(awk '
+    $0 == "      required_targets:" { targets = 1; next }
+    targets && $0 == "      argv:" { exit }
+    targets && /^        - / { sub(/^        - /, ""); print }
+  ' libfjs/cargokit.yaml)"
+  [ "$composite_targets" = "$expected_targets" ] ||
+    fail "SwiftPM composite must require exactly the five Apple Rust targets"
+  require_line_count "libfjs/cargokit.yaml" "    - name: swiftpm" 1
+  require_exact_line "libfjs/cargokit.yaml" "      host: macos"
+  composite_outputs="$(awk '
+    $0 == "      outputs:" { outputs = 1; next }
+    outputs && /^        - / { sub(/^        - /, ""); print; next }
+    outputs { exit }
+  ' libfjs/cargokit.yaml)"
+  expected_outputs='fjs.xcframework.zip
+fjs.xcframework.zip.checksum'
+  [ "$composite_outputs" = "$expected_outputs" ] ||
+    fail "SwiftPM composite must declare exactly the zip and checksum outputs"
+
+  require_contains "tool/assemble_fjs_xcframework.sh" 'CARGOKIT_TARGET_OUTPUT_ROOT'
+  require_contains "tool/assemble_fjs_xcframework.sh" 'CARGOKIT_OUTPUT_ROOT'
+  for rust_target in \
+    aarch64-apple-ios \
+    aarch64-apple-ios-sim \
+    x86_64-apple-ios \
+    aarch64-apple-darwin \
+    x86_64-apple-darwin; do
+    require_contains "tool/assemble_fjs_xcframework.sh" "$rust_target"
+  done
+  if grep -Ei '(^|[^[:alnum:]_])cargo([^[:alnum:]_]|$)|rustup|build-pod|build-precompiled-generation' \
+    tool/assemble_fjs_xcframework.sh >/dev/null; then
+    fail "tool/assemble_fjs_xcframework.sh must only assemble retained outputs"
   fi
-  require_contains "tool/build_fjs_xcframework.sh" 'lipo -create "$first_dylib" "$second_dylib"'
-  require_contains "tool/build_fjs_xcframework.sh" "zip -qry -y"
-  require_contains "tool/build_fjs_xcframework.sh" "check_darwin_package_support.sh\" --artifact \"\$ZIP_TEMP"
-  require_contains "tool/build_fjs_xcframework.sh" "mv -f \"\$ZIP_TEMP\" \"\$ZIP_OUTPUT\""
+  require_contains "tool/assemble_fjs_xcframework.sh" 'xcodebuild -create-xcframework'
+  require_contains "tool/assemble_fjs_xcframework.sh" '@rpath/fjs.framework/fjs'
+  require_contains "tool/assemble_fjs_xcframework.sh" 'lipo -create "$first_dylib" "$second_dylib"'
+  require_contains "tool/assemble_fjs_xcframework.sh" 'ln -s A "$framework_dir/Versions/Current"'
+  require_contains "tool/assemble_fjs_xcframework.sh" 'zip -q -y -X "$ARCHIVE_TEMP" -@'
+  require_contains "tool/assemble_fjs_xcframework.sh" 'check_darwin_package_support.sh" --artifact "$ARCHIVE_TEMP"'
+  require_contains "tool/assemble_fjs_xcframework.sh" 'shasum -a 256 "$ARCHIVE_TEMP"'
+  require_contains "tool/assemble_fjs_xcframework.sh" 'printf '\''%s\n'\'' "$checksum" > "$BUILD_DIR/$CHECKSUM_NAME"'
   awk '
-    /check_darwin_package_support\.sh" --artifact "\$ZIP_TEMP/ { validation_line = NR }
-    /swift package compute-checksum "\$ZIP_TEMP"/ { checksum_line = NR }
-    /mv -f "\$ZIP_TEMP" "\$ZIP_OUTPUT"/ { move_line = NR }
+    /check_darwin_package_support\.sh" --artifact "\$ARCHIVE_TEMP/ { validation_line = NR }
+    /checksum="\$\(shasum -a 256 "\$ARCHIVE_TEMP"/ { checksum_line = NR }
+    /mv -f "\$ARCHIVE_TEMP" "\$OUTPUT_ROOT\/\$ARCHIVE_NAME"/ { move_line = NR }
     END {
       if (validation_line <= 0 || checksum_line <= 0 ||
           move_line <= validation_line || move_line <= checksum_line) exit 1
     }
-  ' tool/build_fjs_xcframework.sh ||
-    fail "temporary zip must be validated and checksummed before final moves"
-  require_contains "tool/build_fjs_xcframework.sh" "swift package compute-checksum"
-  if grep -F 'rm -f "$ZIP_OUTPUT"' tool/build_fjs_xcframework.sh >/dev/null; then
-    fail "tool/build_fjs_xcframework.sh must not delete the previous final archive"
-  fi
+  ' tool/assemble_fjs_xcframework.sh ||
+    fail "assembler must validate and checksum the temporary zip before publication"
+
+  require_line_count "tool/build_fjs_xcframework.sh" \
+    '  sh "$ROOT_DIR/cargokit/run_build_tool.sh" build-precompiled-generation \' 1
+  for rust_target in \
+    aarch64-apple-ios \
+    aarch64-apple-ios-sim \
+    x86_64-apple-ios \
+    aarch64-apple-darwin \
+    x86_64-apple-darwin; do
+    require_contains "tool/build_fjs_xcframework.sh" "--target $rust_target"
+  done
+  wrapper_target_count="$(grep -Ec '^    --target ' tool/build_fjs_xcframework.sh || true)"
+  [ "$wrapper_target_count" -eq 5 ] ||
+    fail "tool/build_fjs_xcframework.sh must request exactly five Rust targets"
+  require_contains "tool/build_fjs_xcframework.sh" 'GENERATION_ROOT/composites/swiftpm'
+  require_not_contains "tool/build_fjs_xcframework.sh" 'build-pod'
+  require_not_contains "tool/build_fjs_xcframework.sh" 'xcodebuild -create-xcframework'
+  require_not_contains "tool/build_fjs_xcframework.sh" 'assemble_fjs_xcframework.sh'
   require_contains "tool/prepare_darwin_release.sh" "--require-artifact"
   require_contains "tool/prepare_darwin_release.sh" "check_frb_codegen.sh"
   require_contains "tool/prepare_darwin_release.sh" "flutter pub publish --dry-run"
@@ -220,14 +326,11 @@ check_structure() {
     grep -Fx '/darwin/fjs/Binaries/*' .pubignore >/dev/null; then
     fail ".pubignore must not exclude the entire Binaries directory"
   fi
-  require_contains "tool/build_fjs_xcframework.sh" "PACKAGE_VERSION="
-  require_contains "tool/build_fjs_xcframework.sh" "BUNDLE_SHORT_VERSION="
-  require_contains "tool/build_fjs_xcframework.sh" "BUNDLE_VERSION="
-  require_contains "tool/build_fjs_xcframework.sh" "<string>\$BUNDLE_SHORT_VERSION</string>"
-  require_contains "tool/build_fjs_xcframework.sh" "<string>\$BUNDLE_VERSION</string>"
-  if grep -F "/release/release" tool/build_fjs_xcframework.sh >/dev/null; then
-    fail "tool/build_fjs_xcframework.sh contains duplicate release path segments"
-  fi
+  require_contains "tool/assemble_fjs_xcframework.sh" "PACKAGE_VERSION="
+  require_contains "tool/assemble_fjs_xcframework.sh" "BUNDLE_SHORT_VERSION="
+  require_contains "tool/assemble_fjs_xcframework.sh" "BUNDLE_VERSION="
+  require_contains "tool/assemble_fjs_xcframework.sh" "<string>\$BUNDLE_SHORT_VERSION</string>"
+  require_contains "tool/assemble_fjs_xcframework.sh" "<string>\$BUNDLE_VERSION</string>"
 
   check_version_invariants
 }
