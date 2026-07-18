@@ -825,7 +825,7 @@ class GitHubPrecompiledReleaseGateway implements PrecompiledReleaseGateway {
     final response = await repositories.github.request(
       'GET',
       '/repos/${repository.fullName}/releases/assets/${asset.id}',
-      headers: const {'Accept': 'application/octet-stream'},
+      headers: {'Accept': 'application/octet-stream'},
       statusCode: 200,
     );
     return response.bodyBytes;

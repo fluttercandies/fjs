@@ -8,8 +8,10 @@ import 'package:build_tool/src/precompiled_asset_store.dart';
 import 'package:build_tool/src/precompiled_generation.dart';
 import 'package:build_tool/src/target.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart';
+import 'package:github/github.dart' as github;
 import 'package:hex/hex.dart';
 import 'package:http/http.dart';
+import 'package:http/testing.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 
@@ -103,6 +105,45 @@ void main() {
     await expectLater(
       publisher.publish(),
       throwsA(isA<PrecompiledGenerationException>()),
+    );
+  });
+
+  test('GitHub gateway downloads an authenticated release asset', () async {
+    final client = MockClient((request) async {
+      expect(request.method, 'GET');
+      expect(
+        request.url,
+        Uri.parse(
+          'https://api.github.com/repos/fluttercandies/fjs/releases/assets/42',
+        ),
+      );
+      expect(request.headers['Accept'], 'application/octet-stream');
+      expect(request.headers['Authorization'], isNotEmpty);
+      expect(request.headers['User-Agent'], isNotEmpty);
+      return Response.bytes(const [1, 2, 3], 200);
+    });
+    final githubClient = github.GitHub(
+      auth: const github.Authentication.withToken('token'),
+      client: client,
+    );
+    addTearDown(githubClient.dispose);
+    final gateway = GitHubPrecompiledReleaseGateway(
+      repositories: githubClient.repositories,
+      repository: github.RepositorySlug('fluttercandies', 'fjs'),
+    );
+    final release = PrecompiledRelease(
+      id: github.Release(
+        id: 7,
+        assets: [github.ReleaseAsset(id: 42, name: 'completion.json')],
+      ),
+      tagName: 'precompiled_hash',
+      isDraft: false,
+      assetNames: const {'completion.json'},
+    );
+
+    expect(
+      await gateway.readAsset(release, 'completion.json'),
+      const [1, 2, 3],
     );
   });
 }
