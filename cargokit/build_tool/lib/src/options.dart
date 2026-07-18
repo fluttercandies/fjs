@@ -14,6 +14,7 @@ import 'package:yaml/yaml.dart';
 import 'builder.dart';
 import 'environment.dart';
 import 'rustup.dart';
+import 'target.dart';
 
 final _log = Logger('options');
 
@@ -108,19 +109,337 @@ class CargoBuildOptions {
   }
 }
 
-extension on YamlMap {
-  /// Map that extracts keys so that we can do map case check on them.
-  Map<dynamic, YamlNode> get valueMap =>
-      nodes.map((key, value) => MapEntry(key.value, value));
+void _rejectUnknownFields(
+  YamlMap map,
+  Set<String> allowedFields,
+  String context,
+) {
+  for (final key in map.nodes.keys) {
+    if (key is! YamlScalar ||
+        key.value is! String ||
+        !allowedFields.contains(key.value)) {
+      throw SourceSpanException(
+          'Unknown $context field "${key.value}".', key.span);
+    }
+  }
+}
+
+YamlMap _mapFromNode(YamlNode node, String context) {
+  if (node is YamlMap) {
+    return node;
+  }
+  throw SourceSpanException('$context must be a map.', node.span);
+}
+
+YamlNode _requiredNode(YamlMap map, String key, String context) {
+  final node = map.nodes[YamlScalar.wrap(key)];
+  if (node != null) {
+    return node;
+  }
+  throw SourceSpanException(
+    '$context must contain "$key".',
+    map.span,
+  );
+}
+
+String _stringFromNode(YamlNode node, String description,
+    {bool allowEmpty = false}) {
+  if (node case YamlScalar(value: String value)) {
+    if (allowEmpty || value.isNotEmpty) {
+      return value;
+    }
+  }
+  throw SourceSpanException(
+      '$description must be a non-empty string.', node.span);
+}
+
+List<String> _stringListFromNode(
+  YamlNode node,
+  String description, {
+  bool allowEmpty = false,
+}) {
+  if (node is YamlList) {
+    final result = <String>[];
+    for (final item in node.nodes) {
+      result.add(_stringFromNode(item, '$description entry'));
+    }
+    if (allowEmpty || result.isNotEmpty) {
+      return List.unmodifiable(result);
+    }
+  }
+  throw SourceSpanException(
+    '$description must be a non-empty list of strings.',
+    node.span,
+  );
+}
+
+Map<String, String> _stringMapFromNode(
+  YamlNode node,
+  String description, {
+  bool allowEmpty = false,
+  bool allowEmptyValues = false,
+}) {
+  if (node is YamlMap) {
+    final result = <String, String>{};
+    for (final MapEntry(:key, :value) in node.nodes.entries) {
+      final name = _stringFromNode(key, '$description key');
+      result[name] = _stringFromNode(
+        value,
+        '$description value',
+        allowEmpty: allowEmptyValues,
+      );
+    }
+    if (allowEmpty || result.isNotEmpty) {
+      return Map.unmodifiable(result);
+    }
+  }
+  throw SourceSpanException(
+    '$description must be a map of strings to strings.',
+    node.span,
+  );
+}
+
+String _relativePathFromNode(
+  YamlNode node,
+  String description, {
+  bool allowParent = false,
+}) {
+  final value = _stringFromNode(node, description);
+  if (value.contains('\\') ||
+      path.posix.isAbsolute(value) ||
+      path.windows.isAbsolute(value)) {
+    throw SourceSpanException(
+        '$description must be a relative path.', node.span);
+  }
+  final normalized = path.posix.normalize(value);
+  if (!allowParent && (normalized == '..' || normalized.startsWith('../'))) {
+    throw SourceSpanException(
+      '$description must not escape the workspace root.',
+      node.span,
+    );
+  }
+  return normalized;
+}
+
+List<String> _rustTargetsFromNode(YamlNode node, String description) {
+  final targets = _stringListFromNode(node, description);
+  final seen = <String>{};
+  for (final target in targets) {
+    if (Target.forRustTriple(target) == null) {
+      throw SourceSpanException('Invalid Rust target "$target".', node.span);
+    }
+    if (!seen.add(target)) {
+      throw SourceSpanException('Duplicate Rust target "$target".', node.span);
+    }
+  }
+  return targets;
+}
+
+enum CompositeHost {
+  linux,
+  macos,
+  windows,
+}
+
+class PrecompiledBuildRecipe {
+  PrecompiledBuildRecipe({
+    required this.rustToolchain,
+    required this.flutterVersion,
+    required this.xcodeVersion,
+    required this.sdkVersions,
+    required this.deploymentTargets,
+    required this.rustTargets,
+  });
+
+  static PrecompiledBuildRecipe parse(YamlNode node) {
+    final map = _mapFromNode(node, 'Build recipe');
+    _rejectUnknownFields(
+        map,
+        const {
+          'rust_toolchain',
+          'flutter_version',
+          'xcode_version',
+          'sdk_versions',
+          'deployment_targets',
+          'rust_targets',
+        },
+        'build recipe');
+    return PrecompiledBuildRecipe(
+      rustToolchain: _stringFromNode(
+        _requiredNode(map, 'rust_toolchain', 'Build recipe'),
+        'Rust toolchain',
+      ),
+      flutterVersion: _stringFromNode(
+        _requiredNode(map, 'flutter_version', 'Build recipe'),
+        'Flutter version',
+      ),
+      xcodeVersion: _stringFromNode(
+        _requiredNode(map, 'xcode_version', 'Build recipe'),
+        'Xcode version',
+      ),
+      sdkVersions: _stringMapFromNode(
+        _requiredNode(map, 'sdk_versions', 'Build recipe'),
+        'SDK versions',
+      ),
+      deploymentTargets: _stringMapFromNode(
+        _requiredNode(map, 'deployment_targets', 'Build recipe'),
+        'Deployment targets',
+      ),
+      rustTargets: _rustTargetsFromNode(
+        _requiredNode(map, 'rust_targets', 'Build recipe'),
+        'Build recipe Rust targets',
+      ),
+    );
+  }
+
+  final String rustToolchain;
+  final String flutterVersion;
+  final String xcodeVersion;
+  final Map<String, String> sdkVersions;
+  final Map<String, String> deploymentTargets;
+  final List<String> rustTargets;
+}
+
+class CompositeGroup {
+  CompositeGroup({
+    required this.name,
+    required this.host,
+    required this.requiredTargets,
+    required this.argv,
+    required this.environment,
+    required this.timeout,
+    required this.outputs,
+  });
+
+  static CompositeGroup parse(YamlNode node) {
+    final map = _mapFromNode(node, 'Composite group');
+    _rejectUnknownFields(
+        map,
+        const {
+          'name',
+          'host',
+          'required_targets',
+          'argv',
+          'environment',
+          'timeout_seconds',
+          'outputs',
+        },
+        'composite group');
+
+    final nameNode = _requiredNode(map, 'name', 'Composite group');
+    final name = _safeNameFromNode(nameNode, 'Composite group name');
+    final hostNode = _requiredNode(map, 'host', 'Composite group');
+    final hostName = _stringFromNode(hostNode, 'Composite host');
+    final host = CompositeHost.values
+        .firstWhereOrNull((element) => element.name == hostName);
+    if (host == null) {
+      throw SourceSpanException(
+        'Invalid composite host "$hostName". Must be one of '
+        '${CompositeHost.values.map((host) => host.name)}.',
+        hostNode.span,
+      );
+    }
+
+    final argvNode = _requiredNode(map, 'argv', 'Composite group');
+    final argv = _stringListFromNode(argvNode, 'Composite argv');
+    final argvList = argvNode as YamlList;
+    final command = _relativePathFromNode(argvList.nodes.first, 'Command path');
+    final normalizedArgv =
+        List<String>.unmodifiable([command, ...argv.skip(1)]);
+
+    final timeoutNode =
+        _requiredNode(map, 'timeout_seconds', 'Composite group');
+    final timeoutSeconds = switch (timeoutNode) {
+      YamlScalar(value: int value) when value > 0 => value,
+      _ => throw SourceSpanException(
+          'Composite timeout must be a positive integer.', timeoutNode.span),
+    };
+
+    final outputsNode = _requiredNode(map, 'outputs', 'Composite group');
+    final outputNodes = switch (outputsNode) {
+      YamlList(nodes: final nodes) when nodes.isNotEmpty => nodes,
+      _ => throw SourceSpanException(
+          'Composite outputs must be a non-empty list.', outputsNode.span),
+    };
+    final outputs = <String>[];
+    final seenOutputs = <String>{};
+    for (final outputNode in outputNodes) {
+      final output = _safeNameFromNode(outputNode, 'Composite output name');
+      if (!seenOutputs.add(output)) {
+        throw SourceSpanException(
+          'Duplicate composite output "$output".',
+          outputNode.span,
+        );
+      }
+      outputs.add(output);
+    }
+
+    final environmentNode = map.nodes[YamlScalar.wrap('environment')];
+    final environment = environmentNode == null
+        ? const <String, String>{}
+        : _stringMapFromNode(
+            environmentNode,
+            'Composite environment',
+            allowEmpty: true,
+            allowEmptyValues: true,
+          );
+    for (final key in environment.keys) {
+      if (!RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(key)) {
+        throw SourceSpanException(
+          'Invalid composite environment variable "$key".',
+          environmentNode?.span,
+        );
+      }
+    }
+
+    return CompositeGroup(
+      name: name,
+      host: host,
+      requiredTargets: _rustTargetsFromNode(
+        _requiredNode(map, 'required_targets', 'Composite group'),
+        'Composite required targets',
+      ),
+      argv: normalizedArgv,
+      environment: environment,
+      timeout: Duration(seconds: timeoutSeconds),
+      outputs: List.unmodifiable(outputs),
+    );
+  }
+
+  static String _safeNameFromNode(YamlNode node, String description) {
+    final value = _stringFromNode(node, description);
+    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]*$').hasMatch(value) ||
+        value == '.' ||
+        value == '..') {
+      throw SourceSpanException('$description is unsafe.', node.span);
+    }
+    return value;
+  }
+
+  final String name;
+  final CompositeHost host;
+  final List<String> requiredTargets;
+  final List<String> argv;
+  final Map<String, String> environment;
+  final Duration timeout;
+  final List<String> outputs;
 }
 
 class PrecompiledBinaries {
   final String uriPrefix;
   final PublicKey publicKey;
+  final String workspaceRoot;
+  final List<String> hashInputs;
+  final PrecompiledBuildRecipe? buildRecipe;
+  final List<CompositeGroup> compositeGroups;
 
   PrecompiledBinaries({
     required this.uriPrefix,
     required this.publicKey,
+    this.workspaceRoot = '.',
+    this.hashInputs = const [],
+    this.buildRecipe,
+    this.compositeGroups = const [],
   });
 
   static PublicKey _publicKeyFromHex(String key, SourceSpan? span) {
@@ -133,33 +452,93 @@ class PrecompiledBinaries {
   }
 
   static PrecompiledBinaries parse(YamlNode node) {
-    if (node case YamlMap(valueMap: Map<dynamic, YamlNode> map)) {
-      if (map
-          case {
-            'url_prefix': YamlNode urlPrefixNode,
-            'public_key': YamlNode publicKeyNode,
-          }) {
-        final urlPrefix = switch (urlPrefixNode) {
-          YamlScalar(value: String urlPrefix) => urlPrefix,
-          _ => throw SourceSpanException(
-              'Invalid URL prefix value.', urlPrefixNode.span),
-        };
-        final publicKey = switch (publicKeyNode) {
-          YamlScalar(value: String publicKey) =>
-            _publicKeyFromHex(publicKey, publicKeyNode.span),
-          _ => throw SourceSpanException(
-              'Invalid public key value.', publicKeyNode.span),
-        };
-        return PrecompiledBinaries(
-          uriPrefix: urlPrefix,
-          publicKey: publicKey,
+    final map = _mapFromNode(node, 'Precompiled binaries');
+    _rejectUnknownFields(
+        map,
+        const {
+          'url_prefix',
+          'public_key',
+          'workspace_root',
+          'hash_inputs',
+          'build_recipe',
+          'composite_groups',
+        },
+        'precompiled binaries');
+    final urlPrefixNode =
+        _requiredNode(map, 'url_prefix', 'Precompiled binaries');
+    final publicKeyNode =
+        _requiredNode(map, 'public_key', 'Precompiled binaries');
+    final workspaceRootNode = map.nodes[YamlScalar.wrap('workspace_root')];
+    final hashInputsNode = map.nodes[YamlScalar.wrap('hash_inputs')];
+    final buildRecipeNode = map.nodes[YamlScalar.wrap('build_recipe')];
+    final compositeGroupsNode = map.nodes[YamlScalar.wrap('composite_groups')];
+
+    final hashInputs = <String>[];
+    final seenHashInputs = <String>{};
+    if (hashInputsNode != null) {
+      if (hashInputsNode is! YamlList) {
+        throw SourceSpanException(
+          'Hash inputs must be a list of relative paths.',
+          hashInputsNode.span,
         );
       }
+      for (final inputNode in hashInputsNode.nodes) {
+        final input = _relativePathFromNode(inputNode, 'Hash input');
+        if (!seenHashInputs.add(input)) {
+          throw SourceSpanException(
+              'Duplicate hash input "$input".', inputNode.span);
+        }
+        hashInputs.add(input);
+      }
     }
-    throw SourceSpanException(
-        'Invalid precompiled binaries value. '
-        'Expected Map with "url_prefix" and "public_key".',
-        node.span);
+
+    final compositeGroups = <CompositeGroup>[];
+    final groupNames = <String>{};
+    final outputNames = <String>{};
+    if (compositeGroupsNode != null) {
+      if (compositeGroupsNode is! YamlList) {
+        throw SourceSpanException(
+          'Composite groups must be a list.',
+          compositeGroupsNode.span,
+        );
+      }
+      for (final groupNode in compositeGroupsNode.nodes) {
+        final group = CompositeGroup.parse(groupNode);
+        if (!groupNames.add(group.name)) {
+          throw SourceSpanException(
+            'Duplicate composite group "${group.name}".',
+            groupNode.span,
+          );
+        }
+        for (final output in group.outputs) {
+          if (!outputNames.add(output)) {
+            throw SourceSpanException(
+              'Duplicate composite output "$output".',
+              groupNode.span,
+            );
+          }
+        }
+        compositeGroups.add(group);
+      }
+    }
+
+    final publicKeyValue = _stringFromNode(publicKeyNode, 'Public key');
+    return PrecompiledBinaries(
+      uriPrefix: _stringFromNode(urlPrefixNode, 'URL prefix'),
+      publicKey: _publicKeyFromHex(publicKeyValue, publicKeyNode.span),
+      workspaceRoot: workspaceRootNode == null
+          ? '.'
+          : _relativePathFromNode(
+              workspaceRootNode,
+              'Workspace root',
+              allowParent: true,
+            ),
+      hashInputs: List.unmodifiable(hashInputs),
+      buildRecipe: buildRecipeNode == null
+          ? null
+          : PrecompiledBuildRecipe.parse(buildRecipeNode),
+      compositeGroups: List.unmodifiable(compositeGroups),
+    );
   }
 }
 
@@ -230,6 +609,12 @@ class CargokitCrateOptions {
   }
 }
 
+enum PrecompiledBinariesMode {
+  auto,
+  disabled,
+  required,
+}
+
 class CargokitUserOptions {
   // When Rustup is installed always build locally unless user opts into
   // using precompiled binaries.
@@ -237,31 +622,82 @@ class CargokitUserOptions {
     return Rustup.executablePath() == null;
   }
 
-  CargokitUserOptions({
-    required this.usePrecompiledBinaries,
+  factory CargokitUserOptions({
+    bool? usePrecompiledBinaries,
+    PrecompiledBinariesMode? precompiledBinariesMode,
+    required bool verboseLogging,
+  }) {
+    if (usePrecompiledBinaries != null && precompiledBinariesMode != null) {
+      throw ArgumentError(
+        'usePrecompiledBinaries and precompiledBinariesMode are mutually exclusive.',
+      );
+    }
+    return CargokitUserOptions._values(
+      precompiledBinariesMode: precompiledBinariesMode ??
+          (usePrecompiledBinaries == null
+              ? _defaultMode()
+              : _legacyMode(usePrecompiledBinaries)),
+      verboseLogging: verboseLogging,
+    );
+  }
+
+  CargokitUserOptions._defaults()
+      : precompiledBinariesMode = _defaultMode(),
+        verboseLogging = false;
+
+  CargokitUserOptions._values({
+    required this.precompiledBinariesMode,
     required this.verboseLogging,
   });
 
-  CargokitUserOptions._()
-      : usePrecompiledBinaries = defaultUsePrecompiledBinaries(),
-        verboseLogging = false;
+  static PrecompiledBinariesMode _defaultMode() =>
+      defaultUsePrecompiledBinaries()
+          ? PrecompiledBinariesMode.auto
+          : PrecompiledBinariesMode.disabled;
+
+  static PrecompiledBinariesMode _legacyMode(bool value) =>
+      value ? PrecompiledBinariesMode.auto : PrecompiledBinariesMode.disabled;
 
   static CargokitUserOptions parse(YamlNode node) {
     if (node is! YamlMap) {
       throw SourceSpanException('Cargokit options must be a map', node.span);
     }
-    bool usePrecompiledBinaries = defaultUsePrecompiledBinaries();
+    var precompiledBinariesMode = _defaultMode();
     bool verboseLogging = false;
+    SourceSpan? legacySettingSpan;
+    SourceSpan? modeSettingSpan;
 
     for (final entry in node.nodes.entries) {
       if (entry.key case YamlScalar(value: 'use_precompiled_binaries')) {
         if (entry.value case YamlScalar(value: bool value)) {
-          usePrecompiledBinaries = value;
+          precompiledBinariesMode = _legacyMode(value);
+          legacySettingSpan = entry.key.span;
           continue;
         }
         throw SourceSpanException(
             'Invalid value for "use_precompiled_binaries". Must be a boolean.',
             entry.value.span);
+      } else if (entry.key
+          case YamlScalar(value: 'precompiled_binaries_mode')) {
+        final modeName = switch (entry.value) {
+          YamlScalar(value: String value) => value,
+          _ => throw SourceSpanException(
+              'Invalid value for "precompiled_binaries_mode". Must be one of '
+              '${PrecompiledBinariesMode.values.map((mode) => mode.name)}.',
+              entry.value.span,
+            ),
+        };
+        final mode = PrecompiledBinariesMode.values
+            .firstWhereOrNull((element) => element.name == modeName);
+        if (mode == null) {
+          throw SourceSpanException(
+            'Invalid value for "precompiled_binaries_mode". Must be one of '
+            '${PrecompiledBinariesMode.values.map((mode) => mode.name)}.',
+            entry.value.span,
+          );
+        }
+        precompiledBinariesMode = mode;
+        modeSettingSpan = entry.key.span;
       } else if (entry.key case YamlScalar(value: 'verbose_logging')) {
         if (entry.value case YamlScalar(value: bool value)) {
           verboseLogging = value;
@@ -272,12 +708,20 @@ class CargokitUserOptions {
             entry.value.span);
       } else {
         throw SourceSpanException(
-            'Unknown cargokit option type. Must be "use_precompiled_binaries" or "verbose_logging".',
+            'Unknown cargokit option type. Must be "precompiled_binaries_mode", '
+            '"use_precompiled_binaries", or "verbose_logging".',
             entry.key.span);
       }
     }
+    if (legacySettingSpan != null && modeSettingSpan != null) {
+      throw SourceSpanException(
+        '"precompiled_binaries_mode" and legacy '
+        '"use_precompiled_binaries" cannot both be set.',
+        modeSettingSpan,
+      );
+    }
     return CargokitUserOptions(
-      usePrecompiledBinaries: usePrecompiledBinaries,
+      precompiledBinariesMode: precompiledBinariesMode,
       verboseLogging: verboseLogging,
     );
   }
@@ -301,9 +745,16 @@ class CargokitUserOptions {
       }
       userProjectDir = userProjectDir.parent;
     }
-    return CargokitUserOptions._();
+    return CargokitUserOptions._defaults();
   }
 
-  final bool usePrecompiledBinaries;
+  final PrecompiledBinariesMode precompiledBinariesMode;
+
+  bool get usePrecompiledBinaries =>
+      precompiledBinariesMode != PrecompiledBinariesMode.disabled;
+
+  bool get allowLocalBuild =>
+      precompiledBinariesMode != PrecompiledBinariesMode.required;
+
   final bool verboseLogging;
 }
