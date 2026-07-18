@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -14,7 +15,8 @@ import 'package:http/http.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 
-const _hash = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const _hash =
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const _sourceCommit = '1111111111111111111111111111111111111111';
 const _privateSeed = <int>[
   0,
@@ -112,7 +114,8 @@ void main() {
     expect(remoteCalls, 0);
   });
 
-  test('auto mode falls back locally only when completion manifest is absent', () async {
+  test('auto mode falls back locally only when completion manifest is absent',
+      () async {
     var localCalls = 0;
     var requested = <String>[];
     final local = await _localArtifact(temp, target, 'local.a');
@@ -137,7 +140,97 @@ void main() {
     expect(requested.single, contains('completion.json'));
   });
 
-  test('required mode fails on missing completion and never invokes local Rust', () async {
+  test(
+      'auto mode distinguishes unsupported precompilation from incomplete config',
+      () async {
+    var localCalls = 0;
+    var remoteCalls = 0;
+    final local = await _localArtifact(temp, target, 'local.a');
+    final noPrecompiled = _withPrecompiled(environment, null);
+    final unsupportedProvider = _provider(
+      noPrecompiled,
+      PrecompiledBinariesMode.auto,
+      httpGet: (_) async {
+        remoteCalls++;
+        return Response('', 500);
+      },
+      localBuilder: (target, _) async {
+        localCalls++;
+        return [local];
+      },
+    );
+
+    final localResult = await unsupportedProvider.getArtifacts([target]);
+
+    expect(localResult[target]!.single.path, local.path);
+    expect(localCalls, 1);
+    expect(remoteCalls, 0);
+
+    final incompleteConfig = _withPrecompiled(
+      environment,
+      PrecompiledBinaries(
+        uriPrefix: 'https://assets.example/precompiled/',
+        publicKey: keyPair.publicKey,
+      ),
+    );
+    final incompleteProvider = _provider(
+      incompleteConfig,
+      PrecompiledBinariesMode.auto,
+      httpGet: (_) async {
+        remoteCalls++;
+        return Response('', 500);
+      },
+      localBuilder: (target, _) async {
+        localCalls++;
+        return [local];
+      },
+    );
+    await expectLater(
+      incompleteProvider.getArtifacts([target]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+    expect(localCalls, 1);
+    expect(remoteCalls, 0);
+
+    final disabledProvider = _provider(
+      incompleteConfig,
+      PrecompiledBinariesMode.disabled,
+      httpGet: (_) async {
+        remoteCalls++;
+        return Response('', 500);
+      },
+      localBuilder: (target, _) async {
+        localCalls++;
+        return [local];
+      },
+    );
+    final disabledResult = await disabledProvider.getArtifacts([target]);
+    expect(disabledResult[target]!.single.path, local.path);
+    expect(localCalls, 2);
+    expect(remoteCalls, 0);
+
+    final requiredProvider = _provider(
+      incompleteConfig,
+      PrecompiledBinariesMode.required,
+      httpGet: (_) async {
+        remoteCalls++;
+        return Response('', 500);
+      },
+      localBuilder: (target, _) async {
+        localCalls++;
+        return [local];
+      },
+    );
+    await expectLater(
+      requiredProvider.getArtifacts([target]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+    expect(localCalls, 2);
+    expect(remoteCalls, 0);
+  });
+
+  test('required mode fails on missing completion and never invokes local Rust',
+      () async {
     var localCalls = 0;
     final provider = _provider(
       environment,
@@ -156,7 +249,8 @@ void main() {
     expect(localCalls, 0);
   });
 
-  test('fetches signed completion first and only exact requested target assets', () async {
+  test('fetches signed completion first and only exact requested target assets',
+      () async {
     final fixture = _fixture(recipe, target: target, keyPair: keyPair);
     final calls = <String>[];
     final provider = _provider(
@@ -178,14 +272,97 @@ void main() {
     expect(calls, everyElement(isNot(contains('other-target'))));
   });
 
-  test('revalidates cached bytes and signatures on every use, repairing a tampered cache', () async {
+  test(
+      'rejects a requested target outside the signed recipe before asset requests',
+      () async {
+    final fixture = _fixture(recipe, target: target, keyPair: keyPair);
+    final unsupportedTarget =
+        Target.forRustTriple('aarch64-unknown-linux-gnu')!;
+    final calls = <String>[];
+    var localCalls = 0;
+    final provider = _provider(
+      environment,
+      PrecompiledBinariesMode.required,
+      httpGet: (url) async {
+        calls.add(url.path);
+        return fixture.responses[url.path] ?? Response('', 404);
+      },
+      localBuilder: (target, _) async {
+        localCalls++;
+        return const [];
+      },
+    );
+
+    await expectLater(
+      provider.getArtifacts([unsupportedTarget]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+
+    expect(calls, [
+      '/precompiled/$_hash/completion.json',
+      '/precompiled/$_hash/completion.json.sig',
+    ]);
+    expect(localCalls, 0);
+  });
+
+  test('validates signed composite checksum contents through ArtifactProvider',
+      () async {
+    final group = _compositeGroup(target);
+    final compositeEnvironment = _withPrecompiled(
+      environment,
+      PrecompiledBinaries(
+        uriPrefix: 'https://assets.example/precompiled/',
+        publicKey: keyPair.publicKey,
+        buildRecipe: recipe,
+        compositeGroups: [group],
+      ),
+    );
+    final fixture = _fixture(
+      recipe,
+      target: target,
+      keyPair: keyPair,
+      includeComposite: true,
+      checksumMatches: false,
+    );
+    final calls = <String>[];
+    var localCalls = 0;
+    final provider = _provider(
+      compositeEnvironment,
+      PrecompiledBinariesMode.auto,
+      httpGet: (url) async {
+        calls.add(url.path);
+        return fixture.responses[url.path] ?? Response('', 404);
+      },
+      localBuilder: (target, _) async {
+        localCalls++;
+        return const [];
+      },
+    );
+
+    await expectLater(
+      provider.getArtifacts([target]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+
+    expect(calls, contains(endsWith('/fjs.xcframework.zip')));
+    expect(calls, contains(endsWith('/fjs.xcframework.zip.checksum')));
+    expect(localCalls, 0);
+    expect(Directory(path.join(temp.path, 'precompiled', _hash)).existsSync(),
+        isFalse);
+  });
+
+  test(
+      'revalidates cached bytes and signatures on every use, repairing a tampered cache',
+      () async {
     final fixture = _fixture(recipe, target: target, keyPair: keyPair);
     var assetRequests = 0;
     final provider = _provider(
       environment,
       PrecompiledBinariesMode.required,
       httpGet: (url) async {
-        if (url.path.endsWith('.so') || url.path.endsWith('.so.sig')) assetRequests++;
+        if (url.path.endsWith('.so') || url.path.endsWith('.so.sig')) {
+          assetRequests++;
+        }
         return fixture.responses[url.path] ?? Response('', 404);
       },
     );
@@ -205,7 +382,51 @@ void main() {
     expect(assetRequests, 4);
   });
 
-  test('partial or signature-invalid remote generation fails closed without local fallback', () async {
+  test(
+      'tampered cache plus invalid remote repair fails closed without local Rust',
+      () async {
+    final fixture = _fixture(recipe, target: target, keyPair: keyPair);
+    final initialProvider = _provider(
+      environment,
+      PrecompiledBinariesMode.required,
+      httpGet: (url) async => fixture.responses[url.path] ?? Response('', 404),
+    );
+    await initialProvider.getArtifacts([target]);
+    final cacheFile = File(path.join(
+      temp.path,
+      'precompiled',
+      _hash,
+      fixture.assetName,
+    ));
+    cacheFile.writeAsBytesSync([0, 0, 0]);
+
+    final invalidRemote = Map<String, Response>.from(fixture.responses);
+    final signaturePath = invalidRemote.keys
+        .firstWhere((key) => key.endsWith('${fixture.assetName}.sig'));
+    invalidRemote[signaturePath] = Response.bytes(Uint8List(64), 200);
+    var localCalls = 0;
+    final repairProvider = _provider(
+      environment,
+      PrecompiledBinariesMode.required,
+      httpGet: (url) async => invalidRemote[url.path] ?? Response('', 404),
+      localBuilder: (target, _) async {
+        localCalls++;
+        return const [];
+      },
+    );
+
+    await expectLater(
+      repairProvider.getArtifacts([target]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+
+    expect(cacheFile.readAsBytesSync(), [0, 0, 0]);
+    expect(localCalls, 0);
+  });
+
+  test(
+      'partial or signature-invalid remote generation fails closed without local fallback',
+      () async {
     final fixture = _fixture(recipe, target: target, keyPair: keyPair);
     var localCalls = 0;
     final missingAssetResponses = Map<String, Response>.from(fixture.responses)
@@ -227,7 +448,8 @@ void main() {
     expect(localCalls, 0);
 
     final badSignatureResponses = Map<String, Response>.from(fixture.responses);
-    final signaturePath = badSignatureResponses.keys.firstWhere((key) => key.endsWith('.so.sig'));
+    final signaturePath =
+        badSignatureResponses.keys.firstWhere((key) => key.endsWith('.so.sig'));
     badSignatureResponses[signaturePath] = Response.bytes(Uint8List(64), 200);
     final badProvider = _provider(
       environment,
@@ -266,7 +488,9 @@ void main() {
       isFalse,
     );
     expect(
-      Directory(path.join(temp.path, 'precompiled')).listSync().whereType<Directory>(),
+      Directory(path.join(temp.path, 'precompiled'))
+          .listSync()
+          .whereType<Directory>(),
       isEmpty,
     );
   });
@@ -290,13 +514,17 @@ ArtifactProvider _provider(
   );
 }
 
-Future<Artifact> _localArtifact(Directory temp, Target target, String name) async {
+Future<Artifact> _localArtifact(
+    Directory temp, Target target, String name) async {
   final file = File(path.join(temp.path, name))..writeAsBytesSync([1]);
   return Artifact(path: file.path, finalFileName: name);
 }
 
 class _Fixture {
-  _Fixture({required this.responses, required this.assetName, required this.assetBytes});
+  _Fixture(
+      {required this.responses,
+      required this.assetName,
+      required this.assetBytes});
   final Map<String, Response> responses;
   final String assetName;
   final Uint8List assetBytes;
@@ -306,21 +534,48 @@ _Fixture _fixture(
   PrecompiledBuildRecipe recipe, {
   required Target target,
   required KeyPair keyPair,
+  bool includeComposite = false,
+  bool checksumMatches = true,
 }) {
   final assetName = PrecompileBinaries.fileName(target, 'libfjs.so');
   final assetBytes = Uint8List.fromList([5, 4, 3, 2]);
+  final archiveBytes = Uint8List.fromList([8, 7, 6, 5]);
+  final checksumText = checksumMatches
+      ? sha256Bytes(archiveBytes)
+      : 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
+  final checksumBytes = Uint8List.fromList(utf8.encode('$checksumText\n'));
+  final assets = <PrecompiledAsset>[
+    PrecompiledAsset(
+      name: assetName,
+      length: assetBytes.length,
+      sha256: sha256Bytes(assetBytes),
+    ),
+    if (includeComposite) ...[
+      PrecompiledAsset(
+        name: 'fjs.xcframework.zip',
+        length: archiveBytes.length,
+        sha256: sha256Bytes(archiveBytes),
+      ),
+      PrecompiledAsset(
+        name: 'fjs.xcframework.zip.checksum',
+        length: checksumBytes.length,
+        sha256: sha256Bytes(checksumBytes),
+      ),
+    ],
+  ]..sort((a, b) => a.name.compareTo(b.name));
   final manifest = PrecompiledGenerationManifest(
     generationHash: _hash,
     sourceCommit: _sourceCommit,
     provenance: PrecompiledGenerationProvenance.fromRecipe(recipe),
-    assets: [
-      PrecompiledAsset(
-        name: assetName,
-        length: assetBytes.length,
-        sha256: sha256Bytes(assetBytes),
-      ),
-    ],
-    compositeChecksums: const [],
+    assets: assets,
+    compositeChecksums: includeComposite
+        ? const [
+            PrecompiledCompositeChecksum(
+              archive: 'fjs.xcframework.zip',
+              checksum: 'fjs.xcframework.zip.checksum',
+            ),
+          ]
+        : const [],
   );
   final prefix = 'https://assets.example/precompiled/$_hash/';
   return _Fixture(
@@ -331,11 +586,58 @@ _Fixture _fixture(
           Response.bytes(manifest.sign(keyPair.privateKey), 200),
       '/precompiled/$_hash/completion.json':
           Response.bytes(manifest.canonicalBytes(), 200),
-      '/precompiled/$_hash/$assetName.sig':
-          Response.bytes(signPrecompiledAsset(keyPair.privateKey, assetBytes), 200),
+      '/precompiled/$_hash/$assetName.sig': Response.bytes(
+          signPrecompiledAsset(keyPair.privateKey, assetBytes), 200),
       '/precompiled/$_hash/$assetName': Response.bytes(assetBytes, 200),
+      if (includeComposite) ...{
+        '/precompiled/$_hash/fjs.xcframework.zip.sig': Response.bytes(
+          signPrecompiledAsset(keyPair.privateKey, archiveBytes),
+          200,
+        ),
+        '/precompiled/$_hash/fjs.xcframework.zip':
+            Response.bytes(archiveBytes, 200),
+        '/precompiled/$_hash/fjs.xcframework.zip.checksum.sig': Response.bytes(
+          signPrecompiledAsset(keyPair.privateKey, checksumBytes),
+          200,
+        ),
+        '/precompiled/$_hash/fjs.xcframework.zip.checksum':
+            Response.bytes(checksumBytes, 200),
+      },
       prefix: Response('', 404),
     },
+  );
+}
+
+BuildEnvironment _withPrecompiled(
+  BuildEnvironment environment,
+  PrecompiledBinaries? precompiled,
+) {
+  return BuildEnvironment(
+    configuration: environment.configuration,
+    crateOptions: CargokitCrateOptions(precompiledBinaries: precompiled),
+    targetTempDir: environment.targetTempDir,
+    manifestDir: environment.manifestDir,
+    crateInfo: environment.crateInfo,
+    isAndroid: environment.isAndroid,
+    androidSdkPath: environment.androidSdkPath,
+    androidNdkVersion: environment.androidNdkVersion,
+    androidMinSdkVersion: environment.androidMinSdkVersion,
+    javaHome: environment.javaHome,
+  );
+}
+
+CompositeGroup _compositeGroup(Target target) {
+  return CompositeGroup(
+    name: 'swiftpm',
+    host: CompositeHost.linux,
+    requiredTargets: [target.rust],
+    argv: const ['tool/build.sh'],
+    environment: const {},
+    timeout: const Duration(minutes: 1),
+    outputs: const [
+      'fjs.xcframework.zip',
+      'fjs.xcframework.zip.checksum',
+    ],
   );
 }
 

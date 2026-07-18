@@ -92,18 +92,19 @@ class ArtifactProvider {
 
   Future<Map<Target, List<Artifact>>> _getPrecompiledArtifacts(
       List<Target> targets) async {
-    if (userOptions.precompiledBinariesMode == PrecompiledBinariesMode.disabled) {
+    if (userOptions.precompiledBinariesMode ==
+        PrecompiledBinariesMode.disabled) {
       _log.info('Precompiled binaries are disabled');
       return {};
     }
     final precompiled = environment.crateOptions.precompiledBinaries;
-    final recipe = precompiled?.buildRecipe;
-    if (precompiled == null || recipe == null) {
-      if (userOptions.precompiledBinariesMode == PrecompiledBinariesMode.required) {
-        throw PrecompiledGenerationException(
-            'Required precompiled binaries need a complete build recipe.');
-      }
+    if (precompiled == null) {
       return {};
+    }
+    final recipe = precompiled.buildRecipe;
+    if (recipe == null) {
+      throw PrecompiledGenerationException(
+          'Configured precompiled binaries need a complete build recipe.');
     }
 
     final crateHash = generationHash(environment);
@@ -116,11 +117,18 @@ class ArtifactProvider {
       expectedComposites: expectedComposites,
     );
     if (manifestResult == null) {
-      if (userOptions.precompiledBinariesMode == PrecompiledBinariesMode.auto) return {};
+      if (userOptions.precompiledBinariesMode == PrecompiledBinariesMode.auto) {
+        return {};
+      }
       throw PrecompiledGenerationException(
           'Required precompiled generation manifest is unavailable.');
     }
     final manifest = manifestResult.manifest;
+    final pinnedTargets = recipe.rustTargets.toSet();
+    if (targets.any((target) => !pinnedTargets.contains(target.rust))) {
+      throw PrecompiledGenerationException(
+          'Requested Rust target is not included in the signed build recipe.');
+    }
     final generationDir = path.join(
       environment.targetTempDir,
       'precompiled',
@@ -134,7 +142,13 @@ class ArtifactProvider {
           remote: true,
         ).map((name) => PrecompileBinaries.fileName(target, name)).toList(),
     };
-    final requiredAssets = requiredForTargets.values.expand((names) => names).toSet();
+    final requiredAssets =
+        requiredForTargets.values.expand((names) => names).toSet();
+    for (final binding in manifest.compositeChecksums) {
+      requiredAssets
+        ..add(binding.archive)
+        ..add(binding.checksum);
+    }
 
     if (_cacheIsValid(
       generationDir: generationDir,
@@ -152,9 +166,11 @@ class ArtifactProvider {
     try {
       File(path.join(stagingDir, precompiledGenerationManifestFileName))
           .writeAsBytesSync(manifestResult.manifestBytes);
-      File(path.join(stagingDir, precompiledGenerationManifestSignatureFileName))
+      File(path.join(
+              stagingDir, precompiledGenerationManifestSignatureFileName))
           .writeAsBytesSync(manifestResult.manifestSignature);
 
+      final downloadedBytes = <String, List<int>>{};
       for (final assetName in requiredAssets) {
         final assetBytes = await _downloadAsset(
           precompiled: precompiled,
@@ -162,15 +178,18 @@ class ArtifactProvider {
           manifest: manifest,
           assetName: assetName,
         );
+        downloadedBytes[assetName] = assetBytes.bytes;
         _writeStaged(stagingDir, assetName, assetBytes.bytes);
         _writeStaged(stagingDir, '$assetName.sig', assetBytes.signature);
       }
+      manifest.validateCompositeChecksums(downloadedBytes);
       _installAtomically(stagingDir, generationDir);
       return _artifactsFromCache(generationDir, requiredForTargets);
     } on PrecompiledGenerationException {
       rethrow;
     } catch (error) {
-      throw PrecompiledGenerationException('Failed to install precompiled generation: $error');
+      throw PrecompiledGenerationException(
+          'Failed to install precompiled generation: $error');
     } finally {
       final staging = Directory(stagingDir);
       if (staging.existsSync()) staging.deleteSync(recursive: true);
@@ -183,7 +202,8 @@ class ArtifactProvider {
     for (final rustTarget in recipe.rustTargets) {
       final target = Target.forRustTriple(rustTarget);
       if (target == null) {
-        throw PrecompiledGenerationException('Manifest recipe has an unsupported Rust target.');
+        throw PrecompiledGenerationException(
+            'Manifest recipe has an unsupported Rust target.');
       }
       for (final name in getArtifactNames(
         target: target,
@@ -204,7 +224,8 @@ class ArtifactProvider {
     for (final group in precompiled.compositeGroups) {
       for (final output in group.outputs) {
         if (output.endsWith('.checksum')) {
-          final archive = output.substring(0, output.length - '.checksum'.length);
+          final archive =
+              output.substring(0, output.length - '.checksum'.length);
           if (group.outputs.contains(archive)) {
             result.add('$archive\u0000$output');
           }
@@ -279,7 +300,8 @@ class ArtifactProvider {
         generationDir,
         precompiledGenerationManifestSignatureFileName,
       ));
-      if (!cachedManifestFile.existsSync() || !cachedSignatureFile.existsSync()) {
+      if (!cachedManifestFile.existsSync() ||
+          !cachedSignatureFile.existsSync()) {
         return false;
       }
       final cachedManifestBytes = cachedManifestFile.readAsBytesSync();
@@ -288,21 +310,26 @@ class ArtifactProvider {
           !_sameBytes(cachedSignature, manifestSignature)) {
         return false;
       }
-      final cachedManifest = PrecompiledGenerationManifest.parse(cachedManifestBytes);
+      final cachedManifest =
+          PrecompiledGenerationManifest.parse(cachedManifestBytes);
       cachedManifest.verifySignature(publicKey, cachedSignature);
+      final verifiedBytes = <String, List<int>>{};
       for (final name in requiredAssets) {
         final file = File(path.join(generationDir, name));
         final signatureFile = File(path.join(generationDir, '$name.sig'));
         if (!file.existsSync() || !signatureFile.existsSync()) {
           return false;
         }
+        final bytes = file.readAsBytesSync();
         cachedManifest.verifyAsset(
           name: name,
-          bytes: file.readAsBytesSync(),
+          bytes: bytes,
           signature: signatureFile.readAsBytesSync(),
           publicKey: publicKey,
         );
+        verifiedBytes[name] = bytes;
       }
+      cachedManifest.validateCompositeChecksums(verifiedBytes);
       return true;
     } on Object {
       return false;
@@ -317,8 +344,7 @@ class ArtifactProvider {
           for (final remoteName in entry.value)
             Artifact(
               path: path.join(generationDir, remoteName),
-              finalFileName: remoteName
-                  .substring('${entry.key.rust}_'.length),
+              finalFileName: remoteName.substring('${entry.key.rust}_'.length),
             ),
         ],
     };
@@ -358,7 +384,8 @@ class ArtifactProvider {
         return await httpGet(url);
       } on SocketException catch (error) {
         if (attempt++ < maxAttempts &&
-            (error.osError?.errorCode == 54 || error.osError?.errorCode == 10054)) {
+            (error.osError?.errorCode == 54 ||
+                error.osError?.errorCode == 10054)) {
           _log.severe(
               'Failed to download $url: $error, attempt $attempt of $maxAttempts, will retry...');
           await Future<void>.delayed(const Duration(seconds: 1));
@@ -380,7 +407,9 @@ class ArtifactProvider {
     final value = response.headers['content-length'];
     if (value == null) return;
     final declared = int.tryParse(value);
-    if (declared == null || declared < 0 || declared != response.bodyBytes.length) {
+    if (declared == null ||
+        declared < 0 ||
+        declared != response.bodyBytes.length) {
       throw PrecompiledGenerationException(
           'HTTP content length for $url does not match the response body.');
     }
@@ -397,14 +426,17 @@ class ArtifactProvider {
 
   static void _installAtomically(String stagingDir, String generationDir) {
     final destination = Directory(generationDir);
-    final backupPath = '$generationDir.previous-${DateTime.now().microsecondsSinceEpoch}';
+    final backupPath =
+        '$generationDir.previous-${DateTime.now().microsecondsSinceEpoch}';
     Directory? backup;
     try {
       if (destination.existsSync()) {
         backup = destination.renameSync(backupPath);
       }
       Directory(stagingDir).renameSync(generationDir);
-      if (backup != null && backup.existsSync()) backup.deleteSync(recursive: true);
+      if (backup != null && backup.existsSync()) {
+        backup.deleteSync(recursive: true);
+      }
     } catch (_) {
       final installed = Directory(generationDir);
       if (installed.existsSync() && !Directory(stagingDir).existsSync()) {
