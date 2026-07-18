@@ -1,6 +1,8 @@
 /// This is copied from Cargokit (which is the official way to use it currently)
 /// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
 
+import 'dart:io';
+
 import 'package:collection/collection.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
@@ -54,6 +56,8 @@ class BuildEnvironment {
   final String? androidNdkVersion;
   final int? androidMinSdkVersion;
   final String? javaHome;
+  final String? iosDeploymentTarget;
+  final String? macosDeploymentTarget;
 
   BuildEnvironment({
     required this.configuration,
@@ -66,6 +70,8 @@ class BuildEnvironment {
     this.androidNdkVersion,
     this.androidMinSdkVersion,
     this.javaHome,
+    this.iosDeploymentTarget,
+    this.macosDeploymentTarget,
   });
 
   static BuildConfiguration parseBuildConfiguration(String value) {
@@ -103,6 +109,9 @@ class BuildEnvironment {
       androidMinSdkVersion:
           isAndroid ? int.parse(Environment.minSdkVersion) : null,
       javaHome: isAndroid ? Environment.javaHome : null,
+      iosDeploymentTarget: isAndroid ? null : Environment.iosDeploymentTarget,
+      macosDeploymentTarget:
+          isAndroid ? null : Platform.environment['MACOSX_DEPLOYMENT_TARGET'],
     );
   }
 }
@@ -114,7 +123,10 @@ class RustBuilder {
   RustBuilder({
     required this.target,
     required this.environment,
+    this.toolchain,
   });
+
+  final String? toolchain;
 
   void prepare(
     Rustup rustup,
@@ -134,7 +146,8 @@ class RustBuilder {
   CargoBuildOptions? get _buildOptions =>
       environment.crateOptions.cargo[environment.configuration];
 
-  String get _toolchain => _buildOptions?.toolchain.name ?? 'stable';
+  String get _toolchain =>
+      toolchain ?? _buildOptions?.toolchain.name ?? 'stable';
 
   /// Returns the path of directory containing build artifacts.
   Future<String> build() async {
@@ -181,11 +194,18 @@ class RustBuilder {
 
   Future<Map<String, String>> _buildEnvironment() async {
     if (target.android == null) {
+      if (target.darwinPlatform == 'macosx') {
+        final deploymentTarget = environment.macosDeploymentTarget;
+        return deploymentTarget == null
+            ? {}
+            : {'MACOSX_DEPLOYMENT_TARGET': deploymentTarget};
+      }
       if (target.darwinPlatform == 'iphonesimulator' ||
           target.darwinPlatform == 'iphoneos') {
         return DarwinEnvironment(
           target: target,
-          deploymentTarget: Environment.iosDeploymentTarget,
+          deploymentTarget: environment.iosDeploymentTarget ??
+              Environment.iosDeploymentTarget,
         ).buildEnvironment();
       }
       return {};

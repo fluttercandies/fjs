@@ -204,6 +204,49 @@ class PrecompileBinariesCommand extends Command {
   }
 }
 
+class BuildPrecompiledGenerationCommand extends Command {
+  BuildPrecompiledGenerationCommand() {
+    argParser
+      ..addOption(
+        'manifest-dir',
+        mandatory: true,
+        help: 'Directory containing Cargo.toml and cargokit.yaml',
+      )
+      ..addOption(
+        'output-dir',
+        mandatory: true,
+        help: 'Directory to publish the unsigned local generation',
+      )
+      ..addOption(
+        'temp-dir',
+        mandatory: true,
+        help: 'Directory for Rust build intermediates',
+      )
+      ..addMultiOption(
+        'target',
+        help: 'Pinned Rust target triple. Repeat for each target.',
+      );
+  }
+
+  @override
+  final name = 'build-precompiled-generation';
+
+  @override
+  final description =
+      'Builds an unsigned local precompiled generation from the pinned recipe.';
+
+  @override
+  Future<void> run() async {
+    final generation = LocalPrecompiledGeneration(
+      manifestDir: argResults!['manifest-dir'] as String,
+      outputDir: argResults!['output-dir'] as String,
+      tempDir: argResults!['temp-dir'] as String,
+      targetTriples: argResults!['target'] as List<String>,
+    );
+    await generation.run();
+  }
+}
+
 class VerifyBinariesCommand extends Command {
   VerifyBinariesCommand() {
     argParser.addOption(
@@ -246,6 +289,7 @@ Future<void> runMain(List<String> args) async {
       ..addCommand(BuildCMakeCommand())
       ..addCommand(GenKeyCommand())
       ..addCommand(PrecompileBinariesCommand())
+      ..addCommand(BuildPrecompiledGenerationCommand())
       ..addCommand(VerifyBinariesCommand());
 
     await runner.run(args);
