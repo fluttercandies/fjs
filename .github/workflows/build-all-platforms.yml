@@ -153,6 +153,18 @@ jobs:
       - name: Prepare and validate Darwin release package
         run: tool/prepare_darwin_release.sh --configuration Release --artifact-dir build/darwin-release
 
+      - name: Stage and dry-run the immutable pub package
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool/stage_pub_release.sh \
+            --artifact build/darwin-release/fjs.xcframework.zip \
+            --output build/pub-stage
+          tool/verify_pub_stage.sh build/pub-stage
+          (cd build/pub-stage/package && flutter pub publish --dry-run)
+          tool/verify_pub_stage.sh build/pub-stage
+          tar -czf build/pub-stage.tar.gz -C build/pub-stage .
+
       - name: Upload validated Darwin release package
         uses: actions/upload-artifact@v4
         with:
@@ -160,6 +172,14 @@ jobs:
           path: |
             build/darwin-release/fjs.xcframework.zip
             build/darwin-release/fjs.xcframework.zip.checksum
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload immutable pub stage
+        uses: actions/upload-artifact@v4
+        with:
+          name: pub-stage
+          path: build/pub-stage.tar.gz
           retention-days: 30
           if-no-files-found: error
 
