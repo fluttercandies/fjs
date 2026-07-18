@@ -247,6 +247,57 @@ class BuildPrecompiledGenerationCommand extends Command {
   }
 }
 
+class FinalizeLocalGenerationCommand extends Command {
+  FinalizeLocalGenerationCommand() {
+    argParser
+      ..addOption('manifest-dir', mandatory: true)
+      ..addOption('generation-dir', mandatory: true)
+      ..addOption(
+        'scope',
+        defaultsTo: 'full',
+        allowed: ['full', 'darwin-acceptance'],
+      )
+      ..addOption(
+        'private-key',
+        help: 'Ed25519 private key hex; defaults to PRIVATE_KEY.',
+      )
+      ..addOption('source-commit');
+  }
+
+  @override
+  final name = 'finalize-local-generation';
+
+  @override
+  final description =
+      'Signs and validates an unsigned local precompiled generation.';
+
+  @override
+  Future<void> run() async {
+    final encodedKey = argResults!['private-key'] as String? ??
+        Platform.environment['PRIVATE_KEY'];
+    if (encodedKey == null) {
+      throw ArgumentError('Missing --private-key or PRIVATE_KEY.');
+    }
+    final privateKey = HEX.decode(encodedKey);
+    if (privateKey.length != 64) {
+      throw ArgumentError('Private key must be 64 bytes long');
+    }
+    final scope = switch (argResults!['scope'] as String) {
+      'full' => LocalGenerationFinalizationScope.full,
+      'darwin-acceptance' => LocalGenerationFinalizationScope.darwinAcceptance,
+      _ => throw ArgumentError('Unsupported generation scope.'),
+    };
+    final finalized = await LocalGenerationFinalizer(
+      manifestDir: argResults!['manifest-dir'] as String,
+      generationDir: argResults!['generation-dir'] as String,
+      privateKey: PrivateKey(privateKey),
+      scope: scope,
+      sourceCommit: argResults!['source-commit'] as String?,
+    ).run();
+    stdout.writeln(finalized.manifest.generationHash);
+  }
+}
+
 class VerifyBinariesCommand extends Command {
   VerifyBinariesCommand() {
     argParser.addOption(
@@ -290,6 +341,7 @@ Future<void> runMain(List<String> args) async {
       ..addCommand(GenKeyCommand())
       ..addCommand(PrecompileBinariesCommand())
       ..addCommand(BuildPrecompiledGenerationCommand())
+      ..addCommand(FinalizeLocalGenerationCommand())
       ..addCommand(VerifyBinariesCommand());
 
     await runner.run(args);

@@ -3,14 +3,15 @@
 
 import 'dart:io';
 
-import 'package:ed25519_edwards/ed25519_edwards.dart';
-import 'package:http/http.dart';
+import 'package:path/path.dart' as path;
 
 import 'artifacts_provider.dart';
 import 'cargo.dart';
 import 'crate_hash.dart';
 import 'options.dart';
 import 'precompile_binaries.dart';
+import 'precompiled_asset_store.dart';
+import 'precompiled_generation.dart';
 import 'target.dart';
 
 class VerifyBinaries {
@@ -21,64 +22,74 @@ class VerifyBinaries {
   final String manifestDir;
 
   Future<void> run() async {
-    final crateInfo = CrateInfo.load(manifestDir);
-
     final config = CargokitCrateOptions.load(manifestDir: manifestDir);
     final precompiledBinaries = config.precompiledBinaries;
     if (precompiledBinaries == null) {
       stdout.writeln('Crate does not support precompiled binaries.');
-    } else {
-      final crateHash = CrateHash.compute(manifestDir);
-      stdout.writeln('Crate hash: $crateHash');
-
-      for (final target in Target.all) {
-        final message = 'Checking ${target.rust}...';
-        stdout.write(message.padRight(40));
-        stdout.flush();
-
-        final artifacts = getArtifactNames(
+      return;
+    }
+    final recipe = precompiledBinaries.buildRecipe;
+    if (recipe == null) {
+      throw PrecompiledGenerationException(
+          'Configured precompiled binaries need a complete build recipe.');
+    }
+    final crateInfo = CrateInfo.load(manifestDir);
+    final expectedNames = <String>{};
+    for (final triple in recipe.rustTargets) {
+      final target = Target.forRustTriple(triple);
+      if (target == null) {
+        throw PrecompiledGenerationException(
+            'Build recipe contains an unsupported Rust target.');
+      }
+      for (final type in AritifactType.values) {
+        for (final artifact in getArtifactNames(
           target: target,
           libraryName: crateInfo.packageName,
           remote: true,
-        );
-
-        final prefix = precompiledBinaries.uriPrefix;
-
-        bool ok = true;
-
-        for (final artifact in artifacts) {
-          final fileName = PrecompileBinaries.fileName(target, artifact);
-          final signatureFileName =
-              PrecompileBinaries.signatureFileName(target, artifact);
-
-          final url = Uri.parse('$prefix$crateHash/$fileName');
-          final signatureUrl =
-              Uri.parse('$prefix$crateHash/$signatureFileName');
-
-          final signature = await get(signatureUrl);
-          if (signature.statusCode != 200) {
-            stdout.writeln('MISSING');
-            ok = false;
-            break;
-          }
-          final asset = await get(url);
-          if (asset.statusCode != 200) {
-            stdout.writeln('MISSING');
-            ok = false;
-            break;
-          }
-
-          if (!verify(precompiledBinaries.publicKey, asset.bodyBytes,
-              signature.bodyBytes)) {
-            stdout.writeln('INVALID SIGNATURE');
-            ok = false;
-          }
-        }
-
-        if (ok) {
-          stdout.writeln('OK');
+          aritifactType: type,
+        )) {
+          expectedNames.add(PrecompileBinaries.fileName(target, artifact));
         }
       }
+    }
+    final compositeChecksums = <String>{};
+    for (final group in precompiledBinaries.compositeGroups) {
+      for (final checksum
+          in group.outputs.where((output) => output.endsWith('.checksum'))) {
+        final archive =
+            checksum.substring(0, checksum.length - '.checksum'.length);
+        if (group.outputs.contains(archive)) {
+          expectedNames.add(archive);
+          expectedNames.add(checksum);
+          compositeChecksums.add('$archive\u0000$checksum');
+        }
+      }
+    }
+    final generationHash = CrateHash.compute(manifestDir);
+    final cacheRoot = Directory.systemTemp.createTempSync('cargokit-verify-');
+    final transport = PrecompiledAssetTransport();
+    try {
+      final store = PrecompiledAssetStore(
+        cacheRoot: path.join(cacheRoot.path, 'cache'),
+        uriPrefix: Uri.parse(precompiledBinaries.uriPrefix),
+        publicKey: precompiledBinaries.publicKey,
+        recipe: recipe,
+        expectedAssetNames: expectedNames,
+        expectedCompositeChecksums: compositeChecksums,
+        transport: transport,
+      );
+      final snapshot = await store.snapshot(
+        generationHash: generationHash,
+        requestedAssetNames: expectedNames,
+      );
+      if (snapshot == null) {
+        throw PrecompiledGenerationException(
+            'Completed v2 precompiled generation is unavailable.');
+      }
+      stdout.writeln('Verified generation $generationHash');
+    } finally {
+      transport.close();
+      if (cacheRoot.existsSync()) cacheRoot.deleteSync(recursive: true);
     }
   }
 }
