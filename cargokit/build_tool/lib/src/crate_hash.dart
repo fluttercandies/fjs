@@ -29,37 +29,37 @@ class _HashEntry {
 }
 
 class CrateHash {
+  static const _textExtensions = {
+    '.rs',
+    '.toml',
+    '.yaml',
+    '.yml',
+    '.dart',
+    '.sh',
+    '.swift',
+    '.json',
+    '.md',
+    '.lock',
+  };
+
   /// Computes a hash uniquely identifying crate content. This takes into account
   /// content all all .rs files inside the src directory, as well as Cargo.toml,
   /// Cargo.lock, build.rs and cargokit.yaml.
   ///
-  /// If [tempStorage] is provided, the validated hash is recorded in that
-  /// directory. File content remains authoritative on every call.
+  /// [tempStorage] is retained for call compatibility but is no longer used;
+  /// file content remains authoritative on every call.
   static String compute(String manifestDir, {String? tempStorage}) {
     return CrateHash._(
       manifestDir: manifestDir,
-      tempStorage: tempStorage,
     )._compute();
   }
 
   CrateHash._({
     required this.manifestDir,
-    required this.tempStorage,
   });
 
   String _compute() {
-    final inputs = _getInputs();
-    final hash = _computeHash(inputs);
-    final tempStorage = this.tempStorage;
-    if (tempStorage != null) {
-      final hashFolder = Directory(path.join(tempStorage, 'crate_hash'));
-      hashFolder.createSync(recursive: true);
-      final hashFile = File(path.join(hashFolder.path, hash));
-      if (!hashFile.existsSync()) {
-        hashFile.writeAsStringSync(hash, flush: true);
-      }
-    }
-    return hash;
+    return _computeHash(_getInputs());
   }
 
   String _computeHash(List<_HashEntry> inputs) {
@@ -72,7 +72,7 @@ class CrateHash {
       _addFramedBytes(input, utf8.encode(hashInput.relativePath), data);
       _addFramedBytes(
         input,
-        hashInput.file?.readAsBytesSync() ?? const [],
+        hashInput.file == null ? const [] : _canonicalContent(hashInput.file!),
         data,
       );
     }
@@ -83,6 +83,16 @@ class CrateHash {
     // Truncate to 128bits.
     final hash = res.bytes.sublist(0, 16);
     return hex.encode(hash);
+  }
+
+  static List<int> _canonicalContent(File file) {
+    final bytes = file.readAsBytesSync();
+    final extension = path.extension(file.path).toLowerCase();
+    if (!_textExtensions.contains(extension)) {
+      return bytes;
+    }
+    final text = utf8.decode(bytes);
+    return utf8.encode(text.replaceAll('\r\n', '\n'));
   }
 
   static void _addUint64(
@@ -282,5 +292,4 @@ class CrateHash {
   }
 
   final String manifestDir;
-  final String? tempStorage;
 }

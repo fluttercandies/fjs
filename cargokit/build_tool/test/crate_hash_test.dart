@@ -41,6 +41,54 @@ void main() {
     expect(pathChanged, isNot(contentChanged));
   });
 
+  const textProducerPaths = [
+    'producer/source.rs',
+    'producer/Cargo.toml',
+    'producer/config.yaml',
+    'producer/config.yml',
+    'producer/source.dart',
+    'producer/build.sh',
+    'producer/Plugin.swift',
+    'producer/data.json',
+    'producer/README.md',
+    'producer/Cargo.lock',
+  ];
+  for (final producerPath in textProducerPaths) {
+    test('normalizes Git newlines in $producerPath', () {
+      _write(workspace, producerPath, 'first line\nsecond line\n');
+      _writeConfig(manifest, hashInputs: [producerPath]);
+      final lfHash = CrateHash.compute(manifest.path);
+
+      _write(workspace, producerPath, 'first line\r\nsecond line\r\n');
+
+      expect(CrateHash.compute(manifest.path), lfHash);
+    });
+  }
+
+  test('meaningful text changes affect the canonical hash', () {
+    const producerPath = 'producer/source.dart';
+    _write(workspace, producerPath, 'const answer = 42;\n');
+    _writeConfig(manifest, hashInputs: const [producerPath]);
+    final original = CrateHash.compute(manifest.path);
+
+    _write(workspace, producerPath, 'const answer = 43;\r\n');
+
+    expect(CrateHash.compute(manifest.path), isNot(original));
+  });
+
+  test('binary inputs preserve CRLF and invalid UTF-8 bytes', () {
+    const producerPath = 'producer/artifact.bin';
+    final producer = File(path.join(workspace.path, producerPath));
+    producer.parent.createSync(recursive: true);
+    producer.writeAsBytesSync([0xff, 0x0d, 0x0a]);
+    _writeConfig(manifest, hashInputs: const [producerPath]);
+    final crlfHash = CrateHash.compute(manifest.path);
+
+    producer.writeAsBytesSync([0xff, 0x0a]);
+
+    expect(CrateHash.compute(manifest.path), isNot(crlfHash));
+  });
+
   test('declared files and directories are hashed recursively', () {
     _write(workspace, 'producer.txt', 'producer-v1');
     _write(workspace, 'tool/nested/build.sh', 'build-v1');
@@ -118,32 +166,16 @@ void main() {
     expect(CrateHash.compute(manifest.path), isNot(original));
   });
 
-  test('persistent cache entries cannot override the content hash', () {
-    final cache = Directory(path.join(temporaryDirectory.path, 'cache'));
+  test('temp storage compatibility does not create persistent markers', () {
+    final cachePath = path.join(temporaryDirectory.path, 'cache');
     final source = File(path.join(manifest.path, 'src/lib.rs'));
-    final modified = source.lastModifiedSync();
-    final original = CrateHash.compute(manifest.path, tempStorage: cache.path);
+    final original = CrateHash.compute(manifest.path, tempStorage: cachePath);
+    expect(CrateHash.compute(manifest.path, tempStorage: cachePath), original);
 
     source.writeAsStringSync('pub fn answer() -> i32 { 43 }\n');
-    source.setLastModifiedSync(modified);
-    final expected = CrateHash.compute(manifest.path);
-
-    // Seed the cache for the exact post-change path, size, mtime, and ctime.
-    expect(
-      CrateHash.compute(manifest.path, tempStorage: cache.path),
-      expected,
-    );
-    final cacheFiles = Directory(path.join(cache.path, 'crate_hash'))
-        .listSync()
-        .whereType<File>();
-    for (final cacheFile in cacheFiles) {
-      cacheFile.writeAsStringSync(original);
-    }
-
-    expect(
-      CrateHash.compute(manifest.path, tempStorage: cache.path),
-      expected,
-    );
+    expect(CrateHash.compute(manifest.path, tempStorage: cachePath),
+        isNot(original));
+    expect(FileSystemEntity.typeSync(cachePath), FileSystemEntityType.notFound);
   });
 
   test('missing declared inputs fail closed', () {
