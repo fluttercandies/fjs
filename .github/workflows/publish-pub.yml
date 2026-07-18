@@ -38,6 +38,9 @@ jobs:
             exit 1
           fi
 
+      - name: Configure pub.dev OIDC authentication
+        uses: dart-lang/setup-dart@v1
+
       - name: Setup pinned Flutter
         uses: subosito/flutter-action@v2
         with:
