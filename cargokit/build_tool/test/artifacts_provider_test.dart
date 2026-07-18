@@ -140,6 +140,50 @@ void main() {
     expect(requested.single, contains('completion.json'));
   });
 
+  test('auto mode fails closed when completion is missing for existing cache',
+      () async {
+    final fixture = _fixture(recipe, target: target, keyPair: keyPair);
+    final installProvider = _provider(
+      environment,
+      PrecompiledBinariesMode.required,
+      httpGet: (url) async => fixture.responses[url.path] ?? Response('', 404),
+    );
+    await installProvider.getArtifacts([target]);
+    final cacheFile = File(path.join(
+      temp.path,
+      'precompiled',
+      _hash,
+      fixture.assetName,
+    ));
+    cacheFile.writeAsBytesSync([0, 0, 0]);
+
+    final requested = <String>[];
+    var localCalls = 0;
+    final orphanedProvider = _provider(
+      environment,
+      PrecompiledBinariesMode.auto,
+      httpGet: (url) async {
+        requested.add(url.path);
+        return Response('', 404);
+      },
+      localBuilder: (target, _) async {
+        localCalls++;
+        return const [];
+      },
+    );
+
+    await expectLater(
+      orphanedProvider.getArtifacts([target]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+
+    expect(cacheFile.readAsBytesSync(), [0, 0, 0]);
+    expect(requested, [
+      '/precompiled/$_hash/completion.json',
+    ]);
+    expect(localCalls, 0);
+  });
+
   test(
       'auto mode distinguishes unsupported precompilation from incomplete config',
       () async {

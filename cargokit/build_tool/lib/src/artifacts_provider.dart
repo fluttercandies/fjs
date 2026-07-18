@@ -108,6 +108,11 @@ class ArtifactProvider {
     }
 
     final crateHash = generationHash(environment);
+    final generationDir = path.join(
+      environment.targetTempDir,
+      'precompiled',
+      crateHash,
+    );
     final expectedAssets = _expectedAssetNames(recipe, precompiled);
     final expectedComposites = _expectedCompositeChecksums(precompiled);
     final manifestResult = await _fetchManifest(
@@ -117,8 +122,17 @@ class ArtifactProvider {
       expectedComposites: expectedComposites,
     );
     if (manifestResult == null) {
+      final cacheStateExists = FileSystemEntity.typeSync(
+            generationDir,
+            followLinks: false,
+          ) !=
+          FileSystemEntityType.notFound;
       if (userOptions.precompiledBinariesMode == PrecompiledBinariesMode.auto) {
-        return {};
+        if (!cacheStateExists) {
+          return {};
+        }
+        throw PrecompiledGenerationException(
+            'Precompiled generation manifest is unavailable for existing cache state.');
       }
       throw PrecompiledGenerationException(
           'Required precompiled generation manifest is unavailable.');
@@ -129,11 +143,6 @@ class ArtifactProvider {
       throw PrecompiledGenerationException(
           'Requested Rust target is not included in the signed build recipe.');
     }
-    final generationDir = path.join(
-      environment.targetTempDir,
-      'precompiled',
-      crateHash,
-    );
     final requiredForTargets = <Target, List<String>>{
       for (final target in targets)
         target: getArtifactNames(
