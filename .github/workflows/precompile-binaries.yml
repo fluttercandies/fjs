@@ -1,99 +1,87 @@
 name: Precompile Binaries
 
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: true
+on:
+  workflow_call:
+  workflow_dispatch:
 
-# The cargokit build tool publishes precompiled binaries as GitHub Releases
-# (precompiled_<crate-hash>), which requires a writable GITHUB_TOKEN.
 permissions:
   contents: write
 
-on:
-  workflow_dispatch:
-    inputs:
-      TAG:
-        description: 'Set a Tag'
-        required: true
-        default: ''
-  push:
+concurrency:
+  group: precompiled-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
-  GITHUB_REPOSITORY: fluttercandies/fjs
+  FLUTTER_VERSION: 3.32.8
+  RUST_TOOLCHAIN: 1.88.0
   RUST_CRATE_DIR: libfjs
-  NDK_VERSION: 27.0.12077973
 
 jobs:
-  precompile:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+  publish-darwin-generation:
+    runs-on: macos-15
+    timeout-minutes: 90
     steps:
-      - name: Checkout
+      - name: Checkout full history
         uses: actions/checkout@v4
-
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-
-      - name: Setup Java (for Android)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          fetch-depth: 0
 
-      - name: Setup Android SDK (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK licenses
-        if: matrix.os == 'ubuntu-latest'
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-
-      - name: Install Android NDK
-        if: matrix.os == 'ubuntu-latest'
+      - name: Reject docs from tracked paths or history
+        shell: bash
         run: |
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;${{ env.NDK_VERSION }}"
+          set -euo pipefail
+          test -z "$(git ls-files docs)"
+          test -z "$(git log --all --oneline -- docs)"
 
-      - name: Setup build_tool dependencies
+      - name: Select pinned Xcode
+        shell: bash
         run: |
-          cd cargokit/build_tool
-          dart pub get
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version | grep -F 'Xcode 16.4'
+          test "$(xcrun --sdk iphoneos --show-sdk-version)" = 18.5
+          test "$(xcrun --sdk macosx --show-sdk-version)" = 15.5
 
-      - name: Precompile binaries (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          export IPHONEOS_DEPLOYMENT_TARGET=12.0
-          export MACOSX_DEPLOYMENT_TARGET=12.0
-          dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }}
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Setup pinned Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Resolve dependencies
+        run: dart pub get
+        working-directory: cargokit/build_tool
+
+      - name: Build the shared CocoaPods and SwiftPM generation
+        run: tool/build_fjs_xcframework.sh --configuration Release
+
+      - name: Publish the completed v2 generation
+        run: >-
+          dart run cargokit/build_tool/bin/build_tool.dart
+          publish-precompiled-generation
+          --manifest-dir=${{ env.RUST_CRATE_DIR }}
+          --generation-dir=build/darwin-xcframework/generation
+          --repository=${{ github.repository }}
+          --source-commit=${{ github.sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
 
-      - name: Precompile binaries (Windows)
-        if: matrix.os == 'windows-latest'
-        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
+      - name: Verify the published v2 generation
+        run: >-
+          dart run cargokit/build_tool/bin/build_tool.dart
+          verify-binaries
+          --manifest-dir=${{ env.RUST_CRATE_DIR }}
 
-      - name: Precompile binaries (Ubuntu with Android)
-        if: matrix.os == 'ubuntu-latest'
-        run: dart run cargokit/build_tool/bin/build_tool.dart precompile-binaries -v --manifest-dir=${{ env.RUST_CRATE_DIR }} --repository=${{ env.GITHUB_REPOSITORY }} --android-sdk-location=$ANDROID_HOME --android-ndk-version=${{ env.NDK_VERSION }} --android-min-sdk-version=21
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
+      - name: Upload SwiftPM delivery artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fjs-swiftpm-${{ github.sha }}
+          path: darwin/fjs/Binaries/fjs.xcframework.zip
+          if-no-files-found: error
+          retention-days: 30

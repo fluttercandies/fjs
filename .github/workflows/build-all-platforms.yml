@@ -35,6 +35,13 @@ env:
   ANDROID_COMPAT_FLUTTER_VERSION: 3.44.0
 
 jobs:
+  publish-precompiled:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/precompile-binaries.yml
+    permissions:
+      contents: write
+    secrets: inherit
+
   #####################################
   # Production quality gates
   #####################################
