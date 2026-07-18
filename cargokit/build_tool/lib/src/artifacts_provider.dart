@@ -185,12 +185,15 @@ class ArtifactProvider {
         throw PrecompiledGenerationException(
             'Manifest recipe has an unsupported Rust target.');
       }
-      for (final name in getArtifactNames(
-        target: target,
-        libraryName: environment.crateInfo.packageName,
-        remote: true,
-      )) {
-        names.add(PrecompileBinaries.fileName(target, name));
+      for (final type in AritifactType.values) {
+        for (final name in getArtifactNames(
+          target: target,
+          libraryName: environment.crateInfo.packageName,
+          remote: true,
+          aritifactType: type,
+        )) {
+          names.add(PrecompileBinaries.fileName(target, name));
+        }
       }
     }
     for (final group in precompiled.compositeGroups) {

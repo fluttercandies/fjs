@@ -122,6 +122,7 @@ class CompositeArtifactBuilder {
         'CARGOKIT_WORKSPACE_ROOT': workspaceRoot,
         'CARGOKIT_TARGET_OUTPUT_ROOT': targetOutputRoot,
         'CARGOKIT_OUTPUT_ROOT': staging.path,
+        'CARGOKIT_DART_EXECUTABLE': Platform.resolvedExecutable,
       };
       final result = await processRunner(CompositeProcessInvocation(
         executable: executable,

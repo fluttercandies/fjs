@@ -13,7 +13,6 @@ precompiled_binaries:
     - libfjs/src
     - libfjs/src/frb_generated.rs
     - pubspec.yaml
-    - pubspec.lock
     - darwin/fjs/Package.swift
     - lib/src/frb/frb_generated.dart
     - lib/src/frb/frb_generated.io.dart

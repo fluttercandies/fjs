@@ -97,6 +97,7 @@ void main() {
       'CARGOKIT_WORKSPACE_ROOT': workspace.path,
       'CARGOKIT_TARGET_OUTPUT_ROOT': targetRoot.path,
       'CARGOKIT_OUTPUT_ROOT': isNotEmpty,
+      'CARGOKIT_DART_EXECUTABLE': Platform.resolvedExecutable,
     });
     expect(File(result.outputs['bundle.zip']!).readAsBytesSync(), [1, 2, 3]);
     expect(

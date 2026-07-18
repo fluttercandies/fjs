@@ -778,6 +778,8 @@ _Fixture _fixture(
 }) {
   final assetName = PrecompileBinaries.fileName(target, 'libfjs.so');
   final assetBytes = Uint8List.fromList([5, 4, 3, 2]);
+  final staticAssetName = PrecompileBinaries.fileName(target, 'libfjs.a');
+  final staticAssetBytes = Uint8List.fromList([4, 3, 2, 1]);
   final archiveBytes = Uint8List.fromList([8, 7, 6, 5]);
   final checksumText = sha256Bytes(archiveBytes);
   final checksumBytes = Uint8List.fromList(utf8.encode('$checksumText\n'));
@@ -786,6 +788,11 @@ _Fixture _fixture(
       name: assetName,
       length: assetBytes.length,
       sha256: sha256Bytes(assetBytes),
+    ),
+    PrecompiledAsset(
+      name: staticAssetName,
+      length: staticAssetBytes.length,
+      sha256: sha256Bytes(staticAssetBytes),
     ),
     if (includeComposite) ...[
       PrecompiledAsset(

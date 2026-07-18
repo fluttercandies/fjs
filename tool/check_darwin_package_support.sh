@@ -95,6 +95,7 @@ cd "$ROOT_DIR"
 PACKAGE_VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
 [ -n "$PACKAGE_VERSION" ] || fail "unable to read package version from pubspec.yaml"
 EXPECTED_FRB_CONTENT_HASH=-2005216402
+DART_EXECUTABLE="${CARGOKIT_DART_EXECUTABLE:-dart}"
 
 check_version_invariants() {
   [ "$PACKAGE_VERSION" = "3.3.0" ] ||
@@ -200,7 +201,6 @@ check_structure() {
     libfjs/src \
     libfjs/src/frb_generated.rs \
     pubspec.yaml \
-    pubspec.lock \
     darwin/fjs/Package.swift \
     lib/src/frb/frb_generated.dart \
     lib/src/frb/frb_generated.io.dart \
@@ -309,7 +309,7 @@ fjs.xcframework.zip.checksum'
   fi
   require_exact_line "tool/check_darwin_package_support.sh" "EXPECTED_FRB_CONTENT_HASH=-2005216402"
   awk '
-    /dart run tool\/check_frb_content_hash\.dart .*"\$EXPECTED_FRB_CONTENT_HASH"/ { found = 1 }
+    /DART_EXECUTABLE.*check_frb_content_hash\.dart .*"\$EXPECTED_FRB_CONTENT_HASH"/ { found = 1 }
     END { exit !found }
   ' tool/check_darwin_package_support.sh ||
     fail "artifact validation must enforce EXPECTED_FRB_CONTENT_HASH"
@@ -427,7 +427,7 @@ require_macho_slice() {
   require_exported_hash_symbol "$binary" "$architecture"
   require_install_name "$binary" "$architecture"
   require_build_version "$binary" "$architecture" "$expected_platform" "$expected_minos"
-  dart run tool/check_frb_content_hash.dart \
+  "$DART_EXECUTABLE" tool/check_frb_content_hash.dart \
     --otool-arch "$architecture" "$binary" "$EXPECTED_FRB_CONTENT_HASH" ||
     fail "$binary ($architecture) FRB content hash does not match generated bindings"
 }
@@ -485,7 +485,7 @@ check_artifact() {
   require_macho_slice "$macos_framework/Versions/A/fjs" "x86_64" "MACOS" "10.14"
   require_macho_slice "$macos_framework/Versions/A/fjs" "arm64" "MACOS" "11.0"
 
-  dart run tool/check_frb_content_hash.dart "$macos_framework/Versions/A/fjs" "$EXPECTED_FRB_CONTENT_HASH" ||
+  "$DART_EXECUTABLE" tool/check_frb_content_hash.dart "$macos_framework/Versions/A/fjs" "$EXPECTED_FRB_CONTENT_HASH" ||
     fail "host macOS binary FRB content hash does not match generated bindings"
 
   fixture="$TEMP_DIR/fixture"
