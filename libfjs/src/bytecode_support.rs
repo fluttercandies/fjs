@@ -330,6 +330,9 @@ fn compile_script_value<'js>(
     options: &JsScriptBytecodeOptions,
 ) -> rquickjs::Result<Value<'js>> {
     let file_name = CString::new(script_name)?;
+    let source_len = source_code.len();
+    let mut source_code = source_code;
+    source_code.push(0);
     let mut flag = qjs::JS_EVAL_TYPE_GLOBAL;
 
     if options.strict.unwrap_or(true) {
@@ -356,7 +359,7 @@ fn compile_script_value<'js>(
         qjs::JS_Eval(
             ctx.as_raw().as_ptr(),
             source_code.as_ptr().cast(),
-            source_code.len() as _,
+            source_len as _,
             file_name.as_ptr(),
             flag as i32,
         )

@@ -1319,7 +1319,7 @@ checksum = "92daf443525c4cce67b150400bc2316076100ce0b3686209eb8cf3c31612e6f0"
 [[package]]
 name = "llrt_abort"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_async_hooks",
  "llrt_events",
@@ -1332,7 +1332,7 @@ dependencies = [
 [[package]]
 name = "llrt_assert"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_utils",
  "rquickjs",
@@ -1341,7 +1341,7 @@ dependencies = [
 [[package]]
 name = "llrt_async_hooks"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_hooking",
  "llrt_utils",
@@ -1352,7 +1352,7 @@ dependencies = [
 [[package]]
 name = "llrt_buffer"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "itoa",
  "llrt_encoding",
@@ -1365,7 +1365,7 @@ dependencies = [
 [[package]]
 name = "llrt_build"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "rustc_version",
 ]
@@ -1373,7 +1373,7 @@ dependencies = [
 [[package]]
 name = "llrt_child_process"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "itoa",
  "libc",
@@ -1389,7 +1389,7 @@ dependencies = [
 [[package]]
 name = "llrt_compression"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "brotli",
  "brotlic",
@@ -1400,7 +1400,7 @@ dependencies = [
 [[package]]
 name = "llrt_console"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_logging",
  "llrt_utils",
@@ -1410,7 +1410,7 @@ dependencies = [
 [[package]]
 name = "llrt_context"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_build",
  "llrt_utils",
@@ -1422,7 +1422,7 @@ dependencies = [
 [[package]]
 name = "llrt_crypto"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "crc32c",
  "crc32fast",
@@ -1440,7 +1440,7 @@ dependencies = [
 [[package]]
 name = "llrt_dgram"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "itoa",
  "llrt_buffer",
@@ -1455,7 +1455,7 @@ dependencies = [
 [[package]]
 name = "llrt_dns"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "either",
  "llrt_context",
@@ -1468,7 +1468,7 @@ dependencies = [
 [[package]]
 name = "llrt_dns_cache"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "hyper-util",
  "llrt_context",
@@ -1481,7 +1481,7 @@ dependencies = [
 [[package]]
 name = "llrt_encoding"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "base64-simd",
  "hex-simd",
@@ -1493,7 +1493,7 @@ dependencies = [
 [[package]]
 name = "llrt_events"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_utils",
  "rquickjs",
@@ -1503,7 +1503,7 @@ dependencies = [
 [[package]]
 name = "llrt_exceptions"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_utils",
  "rquickjs",
@@ -1512,7 +1512,7 @@ dependencies = [
 [[package]]
 name = "llrt_fetch"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "bytes",
  "either",
@@ -1544,7 +1544,7 @@ dependencies = [
 [[package]]
 name = "llrt_fs"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "either",
  "junction",
@@ -1560,7 +1560,7 @@ dependencies = [
 [[package]]
 name = "llrt_hooking"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_utils",
  "once_cell",
@@ -1570,7 +1570,7 @@ dependencies = [
 [[package]]
 name = "llrt_http"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "bytes",
  "http-body-util",
@@ -1588,7 +1588,7 @@ dependencies = [
 [[package]]
 name = "llrt_intl"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "itoa",
  "jiff",
@@ -1599,7 +1599,7 @@ dependencies = [
 [[package]]
 name = "llrt_json"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "itoa",
  "llrt_build",
@@ -1612,7 +1612,7 @@ dependencies = [
 [[package]]
 name = "llrt_logging"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "itoa",
  "llrt_context",
@@ -1627,7 +1627,7 @@ dependencies = [
 [[package]]
 name = "llrt_navigator"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "rquickjs",
 ]
@@ -1635,7 +1635,7 @@ dependencies = [
 [[package]]
 name = "llrt_net"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "itoa",
  "llrt_buffer",
@@ -1651,7 +1651,7 @@ dependencies = [
 [[package]]
 name = "llrt_numbers"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "itoa",
  "llrt_utils",
@@ -1662,7 +1662,7 @@ dependencies = [
 [[package]]
 name = "llrt_os"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "home",
  "libc",
@@ -1681,7 +1681,7 @@ dependencies = [
 [[package]]
 name = "llrt_path"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_utils",
  "memchr",
@@ -1691,7 +1691,7 @@ dependencies = [
 [[package]]
 name = "llrt_perf_hooks"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_events",
  "llrt_utils",
@@ -1701,7 +1701,7 @@ dependencies = [
 [[package]]
 name = "llrt_process"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "libc",
  "llrt_utils",
@@ -1711,7 +1711,7 @@ dependencies = [
 [[package]]
 name = "llrt_stream"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_buffer",
  "llrt_context",
@@ -1724,7 +1724,7 @@ dependencies = [
 [[package]]
 name = "llrt_stream_web"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_abort",
  "llrt_utils",
@@ -1734,7 +1734,7 @@ dependencies = [
 [[package]]
 name = "llrt_string_decoder"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_buffer",
  "llrt_encoding",
@@ -1745,7 +1745,7 @@ dependencies = [
 [[package]]
 name = "llrt_temporal"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "jiff",
  "llrt_utils",
@@ -1755,7 +1755,7 @@ dependencies = [
 [[package]]
 name = "llrt_timers"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_context",
  "llrt_hooking",
@@ -1768,7 +1768,7 @@ dependencies = [
 [[package]]
 name = "llrt_tls"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "once_cell",
  "rustls",
@@ -1779,7 +1779,7 @@ dependencies = [
 [[package]]
 name = "llrt_tty"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "libc",
  "llrt_utils",
@@ -1789,7 +1789,7 @@ dependencies = [
 [[package]]
 name = "llrt_url"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_utils",
  "rquickjs",
@@ -1799,7 +1799,7 @@ dependencies = [
 [[package]]
 name = "llrt_util"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_context",
  "llrt_encoding",
@@ -1811,7 +1811,7 @@ dependencies = [
 [[package]]
 name = "llrt_utils"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "libc",
  "llrt_build",
@@ -1826,7 +1826,7 @@ dependencies = [
 [[package]]
 name = "llrt_zlib"
 version = "0.8.1-beta"
-source = "git+https://github.com/awslabs/llrt?rev=80c113d#80c113ddee03ff1926068193f50fe35f41ca2105"
+source = "git+https://github.com/awslabs/llrt?rev=952fd20#952fd20aa6b50aa9a30052eb43a60c403bd4d856"
 dependencies = [
  "llrt_buffer",
  "llrt_compression",
@@ -2023,9 +2023,9 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "phf"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
+checksum = "010378780309880b08997fae13be7834dba947d36393bd372f2b1556deb2a2f6"
 dependencies = [
  "phf_macros",
  "phf_shared",
@@ -2034,9 +2034,9 @@ dependencies = [
 
 [[package]]
 name = "phf_generator"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135ace3a761e564ec88c03a77317a7c6b80bb7f7135ef2544dbe054243b89737"
+checksum = "aeb62e0959d5a1bebc965f4d15d9e2b7cea002b6b0f5ba8cde6cc26738467100"
 dependencies = [
  "fastrand",
  "phf_shared",
@@ -2044,9 +2044,9 @@ dependencies = [
 
 [[package]]
 name = "phf_macros"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "812f032b54b1e759ccd5f8b6677695d5268c588701effba24601f6932f8269ef"
+checksum = "5fa8d0ca26d424d27630da600c6624696e7dec8bf7b3b492b383c5dc49e5e085"
 dependencies = [
  "phf_generator",
  "phf_shared",
@@ -2057,9 +2057,9 @@ dependencies = [
 
 [[package]]
 name = "phf_shared"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
+checksum = "c6fd9027e2d9319be6349febd1db4e8d02aa544921200c9b777720ac34a3aa89"
 dependencies = [
  "siphasher",
 ]
@@ -2259,8 +2259,8 @@ dependencies = [
 
 [[package]]
 name = "rquickjs"
-version = "0.12.0"
-source = "git+https://github.com/DelSkayn/rquickjs.git?rev=144ad6472cd85b472b816c8fe5a166e74059cff5#144ad6472cd85b472b816c8fe5a166e74059cff5"
+version = "0.12.1"
+source = "git+https://github.com/DelSkayn/rquickjs.git?rev=04e2734#04e27345bd12e1d9b1eb68d76865805126313998"
 dependencies = [
  "either",
  "indexmap",
@@ -2270,8 +2270,8 @@ dependencies = [
 
 [[package]]
 name = "rquickjs-core"
-version = "0.12.0"
-source = "git+https://github.com/DelSkayn/rquickjs.git?rev=144ad6472cd85b472b816c8fe5a166e74059cff5#144ad6472cd85b472b816c8fe5a166e74059cff5"
+version = "0.12.1"
+source = "git+https://github.com/DelSkayn/rquickjs.git?rev=04e2734#04e27345bd12e1d9b1eb68d76865805126313998"
 dependencies = [
  "async-lock",
  "chrono",
@@ -2286,8 +2286,8 @@ dependencies = [
 
 [[package]]
 name = "rquickjs-macro"
-version = "0.12.0"
-source = "git+https://github.com/DelSkayn/rquickjs.git?rev=144ad6472cd85b472b816c8fe5a166e74059cff5#144ad6472cd85b472b816c8fe5a166e74059cff5"
+version = "0.12.1"
+source = "git+https://github.com/DelSkayn/rquickjs.git?rev=04e2734#04e27345bd12e1d9b1eb68d76865805126313998"
 dependencies = [
  "convert_case",
  "fnv",
@@ -2304,8 +2304,8 @@ dependencies = [
 
 [[package]]
 name = "rquickjs-sys"
-version = "0.12.0"
-source = "git+https://github.com/DelSkayn/rquickjs.git?rev=144ad6472cd85b472b816c8fe5a166e74059cff5#144ad6472cd85b472b816c8fe5a166e74059cff5"
+version = "0.12.1"
+source = "git+https://github.com/DelSkayn/rquickjs.git?rev=04e2734#04e27345bd12e1d9b1eb68d76865805126313998"
 dependencies = [
  "bindgen",
  "cc",
