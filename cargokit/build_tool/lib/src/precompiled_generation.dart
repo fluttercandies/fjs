@@ -427,8 +427,10 @@ Uint8List precompiledAssetSignaturePayload({
     throw PrecompiledGenerationException('Asset name is too long.');
   }
   final nameLength = ByteData(4)..setUint32(0, nameBytes.length, Endian.big);
+  final wordMask = BigInt.from(0xffffffff);
   final assetLength = ByteData(8)
-    ..setUint64(0, lengthValue.toInt(), Endian.big);
+    ..setUint32(0, (lengthValue >> 32).toInt(), Endian.big)
+    ..setUint32(4, (lengthValue & wordMask).toInt(), Endian.big);
   return Uint8List.fromList([
     ...ascii.encode(_assetSignatureDomain),
     0,

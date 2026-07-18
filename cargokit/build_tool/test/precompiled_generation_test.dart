@@ -212,6 +212,31 @@ void main() {
     );
   });
 
+  test('asset signature payload encodes the full unsigned u64 range', () {
+    String encodedLength(BigInt length) {
+      final payload = precompiledAssetSignaturePayload(
+        generationHash: _generationHash,
+        name: 'asset.bin',
+        length: length,
+        sha256:
+            'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      );
+      final offset = ascii
+              .encode(
+                'cargokit-precompiled-asset-signature',
+              )
+              .length +
+          2 +
+          32 +
+          4 +
+          ascii.encode('asset.bin').length;
+      return _hex(payload.sublist(offset, offset + 8));
+    }
+
+    expect(encodedLength(BigInt.one << 63), '8000000000000000');
+    expect(encodedLength((BigInt.one << 64) - BigInt.one), 'ffffffffffffffff');
+  });
+
   test('asset signatures reject protocol substitution and u64 overflow', () {
     final payload = precompiledAssetSignaturePayload(
       generationHash: _generationHash,

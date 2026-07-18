@@ -106,7 +106,7 @@ class PrecompiledAssetTransport {
   }) async {
     _validateBounds(limit, expectedLength);
     final start = monotonicClock();
-    return _attempt<Uint8List?>(uri, start, (response) async {
+    return _attempt<Uint8List?>(uri, start, (response, closeExchange) async {
       final bytes = <int>[];
       await _consume(
         response,
@@ -115,6 +115,7 @@ class PrecompiledAssetTransport {
         limit: limit,
         expectedLength: expectedLength,
         onChunk: bytes.addAll,
+        closeExchange: closeExchange,
       );
       return Uint8List.fromList(bytes);
     }, allowNotFound: allowNotFound);
@@ -136,7 +137,7 @@ class PrecompiledAssetTransport {
       await destination.create(exclusive: true);
       ownsDestination = true;
       final start = monotonicClock();
-      await _attempt<void>(uri, start, (response) async {
+      await _attempt<void>(uri, start, (response, closeExchange) async {
         final outputFile = await destination.open(mode: FileMode.writeOnly);
         fileRecorder('open', destination.path);
         final digestOutput = AccumulatorSink<Digest>();
@@ -153,6 +154,7 @@ class PrecompiledAssetTransport {
               digestInput.add(chunk);
               await outputFile.writeFrom(chunk);
             },
+            closeExchange: closeExchange,
           );
           digestInput.close();
           digestClosed = true;
@@ -188,7 +190,10 @@ class PrecompiledAssetTransport {
   Future<T> _attempt<T>(
     Uri initialUri,
     Duration start,
-    Future<T> Function(StreamedResponse response) consume, {
+    Future<T> Function(
+      StreamedResponse response,
+      void Function() closeExchange,
+    ) consume, {
     bool allowNotFound = false,
   }) async {
     for (var attempt = 1; attempt <= policy.maxAttempts; attempt++) {
@@ -240,7 +245,10 @@ class PrecompiledAssetTransport {
     Uri initialUri,
     Duration start,
     _PrecompiledHttpExchangeLease exchange,
-    Future<T> Function(StreamedResponse response) consume, {
+    Future<T> Function(
+      StreamedResponse response,
+      void Function() closeExchange,
+    ) consume, {
     required bool allowNotFound,
   }) async {
     var uri = initialUri;
@@ -258,7 +266,7 @@ class PrecompiledAssetTransport {
       );
       final status = response.statusCode;
       if (_redirectStatuses.contains(status)) {
-        await _discard(response);
+        await _discard(response, start: start, closeExchange: exchange.close);
         if (redirects >= policy.maxRedirects) {
           throw PrecompiledTransportException(
               'Too many HTTP redirects downloading $initialUri.');
@@ -279,22 +287,22 @@ class PrecompiledAssetTransport {
       }
       if (_retryStatuses.contains(status)) {
         final retryAfter = _retryAfter(response.headers['retry-after']);
-        await _discard(response);
+        await _discard(response, start: start, closeExchange: exchange.close);
         throw _RetryableTransportException(
           'Retryable HTTP status $status downloading $uri.',
           retryAfter,
         );
       }
       if (status == 404 && allowNotFound) {
-        await _discard(response);
+        await _discard(response, start: start, closeExchange: exchange.close);
         return null as T;
       }
       if (status != 200) {
-        await _discard(response);
+        await _discard(response, start: start, closeExchange: exchange.close);
         throw PrecompiledTransportException(
             'HTTP status $status downloading $uri.');
       }
-      return consume(response);
+      return consume(response, exchange.close);
     }
   }
 
@@ -305,16 +313,17 @@ class PrecompiledAssetTransport {
     required int limit,
     required int? expectedLength,
     required FutureOr<void> Function(List<int> chunk) onChunk,
+    required void Function() closeExchange,
   }) async {
     late int? declaredLength;
     try {
       declaredLength = _validateHeaders(response, uri, limit, expectedLength);
     } on Object catch (error, stackTrace) {
-      try {
-        await _discard(response);
-      } on Object {
-        // Preserve the primary header validation failure.
-      }
+      await _discard(
+        response,
+        start: start,
+        closeExchange: closeExchange,
+      );
       Error.throwWithStackTrace(error, stackTrace);
     }
     final iterator = StreamIterator<List<int>>(response.stream);
@@ -343,7 +352,11 @@ class PrecompiledAssetTransport {
             'HTTP response body for $uri ended at $received bytes; expected $requiredLength.');
       }
     } finally {
-      await iterator.cancel();
+      await _boundedCancellation(
+        iterator.cancel(),
+        start: start,
+        closeExchange: closeExchange,
+      );
     }
   }
 
@@ -428,7 +441,9 @@ class PrecompiledAssetTransport {
     var timedOut = false;
     final operation = exchange.send(request);
     unawaited(operation.then<void>((response) async {
-      if (timedOut) await _discard(response);
+      if (timedOut) {
+        await _discard(response, closeExchange: exchange.close);
+      }
     }).catchError((Object _) {}));
     return _deadline(
       operation,
@@ -454,9 +469,41 @@ class PrecompiledAssetTransport {
     });
   }
 
-  Future<void> _discard(StreamedResponse response) async {
+  Future<void> _discard(
+    StreamedResponse response, {
+    Duration? start,
+    void Function()? closeExchange,
+  }) async {
     final subscription = response.stream.listen(null);
-    await subscription.cancel();
+    await _boundedCancellation(
+      subscription.cancel(),
+      start: start ?? monotonicClock(),
+      closeExchange: closeExchange,
+    );
+  }
+
+  Future<void> _boundedCancellation(
+    Future<void> cancellation, {
+    required Duration start,
+    void Function()? closeExchange,
+  }) async {
+    final remaining = policy.totalDeadline - (monotonicClock() - start);
+    final duration = remaining <= Duration.zero
+        ? Duration.zero
+        : remaining < policy.idleDeadline
+            ? remaining
+            : policy.idleDeadline;
+    try {
+      await _deadline(
+        cancellation,
+        duration,
+        'HTTP response cancellation deadline exceeded.',
+        onTimeout: closeExchange,
+      );
+    } on Object {
+      closeExchange?.call();
+      // Cancellation is cleanup; preserve the primary transport outcome.
+    }
   }
 
   Future<void> _sleepBeforeRetry(Duration start, Duration requested) async {
@@ -1106,6 +1153,42 @@ class PrecompiledAssetStore {
   }
 
   Future<T> _withLock<T>(String lockPath, Future<T> Function() action) async {
+    final start = monotonicClock();
+    final inProcess = _InProcessLockRequest.acquire(lockPath);
+    var inProcessAcquired = false;
+    try {
+      while (!inProcess.isAcquired) {
+        final elapsed = monotonicClock() - start;
+        if (elapsed >= policy.lockTimeout) {
+          throw PrecompiledGenerationException(
+              'Timed out waiting for immutable cache lock.');
+        }
+        final remaining = policy.lockTimeout - elapsed;
+        final delay = policy.lockPollInterval < remaining
+            ? policy.lockPollInterval
+            : remaining;
+        await Future.any<void>([inProcess.acquired, sleeper(delay)]);
+      }
+      inProcessAcquired = true;
+      if (monotonicClock() - start >= policy.lockTimeout) {
+        throw PrecompiledGenerationException(
+            'Timed out waiting for immutable cache lock.');
+      }
+      return await _withOsLock(lockPath, start, action);
+    } finally {
+      if (inProcessAcquired) {
+        inProcess.release();
+      } else {
+        inProcess.cancel();
+      }
+    }
+  }
+
+  Future<T> _withOsLock<T>(
+    String lockPath,
+    Duration start,
+    Future<T> Function() action,
+  ) async {
     final type = FileSystemEntity.typeSync(lockPath, followLinks: false);
     if (type == FileSystemEntityType.notFound) {
       try {
@@ -1126,7 +1209,6 @@ class PrecompiledAssetStore {
     }
     final lock = File(lockPath).openSync(mode: FileMode.append);
     var acquired = false;
-    final start = monotonicClock();
     try {
       while (!acquired) {
         try {
@@ -1335,6 +1417,83 @@ bool _sameBytes(List<int> left, List<int> right) {
     if (left[index] != right[index]) return false;
   }
   return true;
+}
+
+// Build-tool stores in one Dart isolate share this registry. Dart isolates do
+// not share memory; cross-process and cross-isolate exclusion remains the OS lock.
+final _inProcessLocks = <String, _InProcessLock>{};
+
+class _InProcessLock {
+  _InProcessLock(this.key);
+
+  final String key;
+  final List<_InProcessLockRequest> waiters = [];
+  var held = false;
+  var references = 0;
+
+  _InProcessLockRequest request() {
+    references++;
+    final request = _InProcessLockRequest._(this);
+    if (held) {
+      waiters.add(request);
+    } else {
+      held = true;
+      request._grant();
+    }
+    return request;
+  }
+
+  void cancel(_InProcessLockRequest request) {
+    if (request.isAcquired || request.isFinished) return;
+    if (waiters.remove(request)) {
+      request._finish();
+      references--;
+      _removeIfUnused();
+    }
+  }
+
+  void release(_InProcessLockRequest request) {
+    if (!request.isAcquired || request.isFinished) return;
+    request._finish();
+    references--;
+    if (waiters.isEmpty) {
+      held = false;
+      _removeIfUnused();
+    } else {
+      waiters.removeAt(0)._grant();
+    }
+  }
+
+  void _removeIfUnused() {
+    if (references == 0 && identical(_inProcessLocks[key], this)) {
+      _inProcessLocks.remove(key);
+    }
+  }
+}
+
+class _InProcessLockRequest {
+  _InProcessLockRequest._(this._lock);
+
+  final _InProcessLock _lock;
+  final Completer<void> _acquired = Completer<void>();
+  var isAcquired = false;
+  var isFinished = false;
+
+  static _InProcessLockRequest acquire(String key) =>
+      _inProcessLocks.putIfAbsent(key, () => _InProcessLock(key)).request();
+
+  Future<void> get acquired => _acquired.future;
+
+  void _grant() {
+    isAcquired = true;
+    _acquired.complete();
+  }
+
+  void _finish() => isFinished = true;
+
+  void cancel() => _lock.cancel(this);
+
+  void release() => _lock.release(this);
 }
 
 final _sha256Hex = RegExp(r'^[0-9a-f]{64}$');

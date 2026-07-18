@@ -156,6 +156,75 @@ void main() {
       await rejects('oversized', {'content-length': '9'});
     });
 
+    test('bounds non-cooperative cancellation after header rejection',
+        () async {
+      final never = Completer<void>();
+      final body = StreamController<List<int>>(
+        onCancel: () => never.future,
+      );
+      var closes = 0;
+      final transport = PrecompiledAssetTransport(
+        exchangeFactory: () => (
+          send: (_) async => StreamedResponse(
+                body.stream,
+                200,
+                headers: {'content-length': 'invalid'},
+              ),
+          close: () => closes++,
+        ),
+        policy: const PrecompiledTransportPolicy(
+          maxAttempts: 1,
+          idleDeadline: Duration(milliseconds: 20),
+          totalDeadline: Duration(milliseconds: 100),
+        ),
+      );
+
+      final outcome = await Future.any<Object>([
+        transport
+            .getBytes(Uri.https('assets.example', '/invalid-header'), limit: 1)
+            .then<Object>((value) => value ?? 'null',
+                onError: (Object error) => error),
+        Future<void>.delayed(const Duration(milliseconds: 500))
+            .then<Object>((_) => 'watchdog'),
+      ]);
+
+      expect(outcome, isA<PrecompiledTransportException>());
+      expect(closes, 1);
+      transport.close();
+    });
+
+    test('bounds non-cooperative cancellation after body timeout', () async {
+      final never = Completer<void>();
+      final body = StreamController<List<int>>(
+        onCancel: () => never.future,
+      );
+      var closes = 0;
+      var deadlineCall = 0;
+      final transport = PrecompiledAssetTransport(
+        exchangeFactory: () => (
+          send: (_) async => StreamedResponse(body.stream, 200),
+          close: () => closes++,
+        ),
+        policy: const PrecompiledTransportPolicy(maxAttempts: 1),
+        deadlineSleeper: (_) => deadlineCall++ == 0
+            ? Completer<void>().future
+            : Future<void>.value(),
+      );
+
+      final outcome = await Future.any<Object>([
+        transport
+            .getBytes(Uri.https('assets.example', '/stalled-body'), limit: 1)
+            .then<Object>((value) => value ?? 'null',
+                onError: (Object error) => error),
+        Future<void>.delayed(const Duration(milliseconds: 500))
+            .then<Object>((_) => 'watchdog'),
+      ]);
+
+      expect(outcome, isA<PrecompiledTransportException>());
+      expect(closes, 1);
+      transport.close();
+    });
+
     test('retries only classified failures three total attempts', () async {
       var attempts = 0;
       final delays = <Duration>[];
@@ -1131,6 +1200,103 @@ void main() {
       expect(await failsAfter(transient: false), 1);
     });
 
+    test('same request serializes across store instances in one isolate',
+        () async {
+      final fixture = _storeFixture(recipe, keyPair);
+      final calls = <String>[];
+      final root = path.join(temp.path, 'same-isolate');
+      final stores = [
+        _store(root, recipe, keyPair, fixture, calls: calls),
+        _store(root, recipe, keyPair, fixture, calls: calls),
+      ];
+
+      final snapshots = await Future.wait(stores.map((store) => store.snapshot(
+            generationHash: _storeGeneration,
+            requestedAssetNames: const {'a.bin'},
+          )));
+
+      expect(snapshots, everyElement(isNotNull));
+      expect(snapshots[0]!.directory, snapshots[1]!.directory);
+      expect(calls.where((call) => call.endsWith('/a.bin.sig')), hasLength(1));
+      expect(calls.where((call) => call.endsWith('/a.bin')), hasLength(1));
+    });
+
+    test('in-process lock deadline and exception release queued callers',
+        () async {
+      final fixture = _storeFixture(recipe, keyPair);
+      final root = path.join(temp.path, 'isolate-deadline');
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final failing = _store(
+        root,
+        recipe,
+        keyPair,
+        fixture,
+        send: (request) async {
+          if (request.url.path.endsWith('/a.bin.sig')) {
+            if (!entered.isCompleted) entered.complete();
+            await release.future;
+            return StreamedResponse(
+              Stream.value(List<int>.filled(64, 0)),
+              200,
+              headers: {'content-length': '64'},
+            );
+          }
+          final bytes = fixture.responses[request.url.path];
+          return bytes == null
+              ? StreamedResponse(const Stream<List<int>>.empty(), 404)
+              : StreamedResponse(
+                  Stream.value(bytes),
+                  200,
+                  headers: {'content-length': '${bytes.length}'},
+                );
+        },
+      ).snapshot(
+        generationHash: _storeGeneration,
+        requestedAssetNames: const {'a.bin'},
+      );
+      await entered.future;
+
+      final contenderCalls = <String>[];
+      var tick = 0;
+      final contender = _store(
+        root,
+        recipe,
+        keyPair,
+        fixture,
+        calls: contenderCalls,
+        policy: const PrecompiledAssetStorePolicy(
+          lockTimeout: Duration(seconds: 3),
+          lockPollInterval: Duration.zero,
+        ),
+        sleeper: (_) async {},
+        monotonicClock: () => Duration(seconds: tick++),
+      );
+      await expectLater(
+        contender.snapshot(
+          generationHash: _storeGeneration,
+          requestedAssetNames: const {'a.bin'},
+        ),
+        throwsA(isA<PrecompiledGenerationException>()),
+      );
+      expect(
+        contenderCalls.where((call) => call.endsWith('/a.bin.sig')),
+        isEmpty,
+      );
+      expect(contenderCalls.where((call) => call.endsWith('/a.bin')), isEmpty);
+
+      release.complete();
+      await expectLater(
+        failing,
+        throwsA(isA<PrecompiledGenerationException>()),
+      );
+      final recovered = await _store(root, recipe, keyPair, fixture).snapshot(
+        generationHash: _storeGeneration,
+        requestedAssetNames: const {'a.bin'},
+      );
+      expect(recovered, isNotNull);
+    });
+
     test('process lock deadline fails closed and crashed owner releases lock',
         () async {
       final fixture = _storeFixture(recipe, keyPair);
@@ -1720,6 +1886,7 @@ PrecompiledAssetStore _store(
   PrecompiledRename? rename,
   PrecompiledRenameErrorClassifier? transientRenameError,
   void Function(String event, String filePath)? fileRecorder,
+  PrecompiledHttpSend? send,
   void Function(String message)? logger,
   Uri? uriPrefix,
   PrecompiledAssetStorePolicy? policy,
@@ -1738,21 +1905,22 @@ PrecompiledAssetStore _store(
         .toSet(),
     transport: PrecompiledAssetTransport(
       fileRecorder: fileRecorder,
-      send: (request) async {
-        calls?.add(request.url.path);
-        final generationIndex = request.url.path.indexOf(_storeGeneration);
-        final fixturePath = generationIndex < 0
-            ? request.url.path
-            : '/${request.url.path.substring(generationIndex)}';
-        final bytes = fixture.responses[fixturePath];
-        return bytes == null
-            ? StreamedResponse(const Stream<List<int>>.empty(), 404)
-            : StreamedResponse(
-                Stream.value(bytes),
-                200,
-                headers: {'content-length': '${bytes.length}'},
-              );
-      },
+      send: send ??
+          (request) async {
+            calls?.add(request.url.path);
+            final generationIndex = request.url.path.indexOf(_storeGeneration);
+            final fixturePath = generationIndex < 0
+                ? request.url.path
+                : '/${request.url.path.substring(generationIndex)}';
+            final bytes = fixture.responses[fixturePath];
+            return bytes == null
+                ? StreamedResponse(const Stream<List<int>>.empty(), 404)
+                : StreamedResponse(
+                    Stream.value(bytes),
+                    200,
+                    headers: {'content-length': '${bytes.length}'},
+                  );
+          },
     ),
     stagingId: () => 'test-${DateTime.now().microsecondsSinceEpoch}',
     rename: rename,
