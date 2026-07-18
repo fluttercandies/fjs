@@ -298,6 +298,55 @@ class FinalizeLocalGenerationCommand extends Command {
   }
 }
 
+class PublishPrecompiledGenerationCommand extends Command {
+  PublishPrecompiledGenerationCommand() {
+    argParser
+      ..addOption('manifest-dir', mandatory: true)
+      ..addOption('generation-dir', mandatory: true)
+      ..addOption('repository', mandatory: true)
+      ..addOption('private-key', help: 'Ed25519 private key hex.')
+      ..addOption('github-token',
+          help: 'GitHub token; defaults to GITHUB_TOKEN.')
+      ..addOption('source-commit');
+  }
+
+  @override
+  final name = 'publish-precompiled-generation';
+
+  @override
+  final description = 'Finalizes and publishes one complete v2 generation.';
+
+  @override
+  Future<void> run() async {
+    final encodedKey = argResults!['private-key'] as String? ??
+        Platform.environment['PRIVATE_KEY'];
+    final token = argResults!['github-token'] as String? ??
+        Platform.environment['GITHUB_TOKEN'];
+    if (encodedKey == null || token == null) {
+      throw ArgumentError('Missing private key or GitHub token.');
+    }
+    final privateKey = HEX.decode(encodedKey);
+    if (privateKey.length != 64) {
+      throw ArgumentError('Private key must be 64 bytes long');
+    }
+    final github = GitHub(auth: Authentication.withToken(token));
+    final finalized = await LocalGenerationFinalizer(
+      manifestDir: argResults!['manifest-dir'] as String,
+      generationDir: argResults!['generation-dir'] as String,
+      privateKey: PrivateKey(privateKey),
+      scope: LocalGenerationFinalizationScope.full,
+      sourceCommit: argResults!['source-commit'] as String?,
+    ).run();
+    await PrecompiledGenerationPublisher(
+      generation: finalized,
+      gateway: GitHubPrecompiledReleaseGateway(
+        repositories: github.repositories,
+        repository: RepositorySlug.full(argResults!['repository'] as String),
+      ),
+    ).publish();
+  }
+}
+
 class VerifyBinariesCommand extends Command {
   VerifyBinariesCommand() {
     argParser.addOption(
@@ -312,8 +361,7 @@ class VerifyBinariesCommand extends Command {
 
   @override
   final description = 'Verifies published binaries\n'
-      'Checks whether there is a binary published for each targets\n'
-      'and checks the signature.';
+      'Checks the complete v2 generation, assets, signatures, and checksums.';
 
   @override
   Future<void> run() async {
@@ -342,6 +390,7 @@ Future<void> runMain(List<String> args) async {
       ..addCommand(PrecompileBinariesCommand())
       ..addCommand(BuildPrecompiledGenerationCommand())
       ..addCommand(FinalizeLocalGenerationCommand())
+      ..addCommand(PublishPrecompiledGenerationCommand())
       ..addCommand(VerifyBinariesCommand());
 
     await runner.run(args);

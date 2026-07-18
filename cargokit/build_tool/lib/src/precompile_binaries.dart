@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart';
@@ -774,6 +775,105 @@ class PrecompiledGenerationPublisher {
       }
     }
     return true;
+  }
+}
+
+class GitHubPrecompiledReleaseGateway implements PrecompiledReleaseGateway {
+  GitHubPrecompiledReleaseGateway({
+    required this.repositories,
+    required this.repository,
+  });
+
+  final RepositoriesService repositories;
+  final RepositorySlug repository;
+
+  @override
+  Future<PrecompiledRelease?> find(String tagName) async {
+    try {
+      return _fromRelease(
+        await repositories.getReleaseByTagName(repository, tagName),
+      );
+    } on ReleaseNotFound {
+      return null;
+    }
+  }
+
+  @override
+  Future<PrecompiledRelease> createDraft(String tagName) async {
+    final release = await repositories.createRelease(
+      repository,
+      CreateRelease.from(
+        tagName: tagName,
+        name:
+            'Precompiled binaries ${tagName.substring('precompiled_'.length, 'precompiled_'.length + 8)}',
+        targetCommitish: null,
+        isDraft: true,
+        isPrerelease: false,
+      ),
+    );
+    return _fromRelease(release);
+  }
+
+  @override
+  Future<List<int>> readAsset(
+    PrecompiledRelease release,
+    String name,
+  ) async {
+    final githubRelease = release.id as Release;
+    final asset = (githubRelease.assets ?? const <ReleaseAsset>[])
+        .firstWhere((item) => item.name == name);
+    final response = await repositories.github.request(
+      'GET',
+      '/repos/${repository.fullName}/releases/assets/${asset.id}',
+      headers: const {'Accept': 'application/octet-stream'},
+      statusCode: 200,
+    );
+    return response.bodyBytes;
+  }
+
+  @override
+  Future<void> upload(
+    PrecompiledRelease release,
+    String name,
+    List<int> bytes,
+  ) async {
+    await repositories.uploadReleaseAssets(
+      release.id as Release,
+      [
+        CreateReleaseAsset(
+          name: name,
+          contentType: 'application/octet-stream',
+          assetData: Uint8List.fromList(bytes),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<void> publish(PrecompiledRelease release) async {
+    await repositories.editRelease(
+      repository,
+      release.id as Release,
+      draft: false,
+    );
+  }
+
+  PrecompiledRelease _fromRelease(Release release) {
+    final tagName = release.tagName;
+    final isDraft = release.isDraft;
+    if (tagName == null || isDraft == null) {
+      throw PrecompiledGenerationException(
+          'GitHub returned an incomplete release.');
+    }
+    return PrecompiledRelease(
+      id: release,
+      tagName: tagName,
+      isDraft: isDraft,
+      assetNames: {
+        for (final asset in release.assets ?? const <ReleaseAsset>[])
+          asset.name!,
+      },
+    );
   }
 }
 
