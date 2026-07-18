@@ -116,6 +116,46 @@ void main() {
       }
     });
 
+    test('cancels 200 response bodies rejected by header validation', () async {
+      Future<void> rejects(
+        String reason,
+        Map<String, String> headers, {
+        int limit = 8,
+      }) async {
+        var listened = false;
+        var cancelled = false;
+        final body = StreamController<List<int>>(
+          onListen: () => listened = true,
+          onCancel: () => cancelled = true,
+        );
+        final transport = PrecompiledAssetTransport(
+          send: (_) async => StreamedResponse(
+            body.stream,
+            200,
+            headers: headers,
+          ),
+        );
+
+        await expectLater(
+          transport.getBytes(
+            Uri.https('assets.example', '/invalid-$reason'),
+            limit: limit,
+          ),
+          throwsA(isA<PrecompiledTransportException>()),
+        );
+        expect(listened, isTrue, reason: reason);
+        expect(cancelled, isTrue, reason: reason);
+        await body.close();
+      }
+
+      await rejects('malformed', {'content-length': 'invalid'});
+      await rejects('conflicting', {
+        'content-length': '1',
+        'transfer-encoding': 'chunked',
+      });
+      await rejects('oversized', {'content-length': '9'});
+    });
+
     test('retries only classified failures three total attempts', () async {
       var attempts = 0;
       final delays = <Duration>[];
@@ -1413,6 +1453,75 @@ void main() {
           expect(result['ok'], false, reason: tamper);
           expect(result['path'], isNull, reason: tamper);
           expect(result['error'], isA<String>(), reason: tamper);
+          verifyUnchanged();
+          expect(await fresh.exitCode, 1, reason: tamper);
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('fresh processes reject extra anchor inventory without repair',
+        () async {
+      final fixture = _storeFixture(recipe, keyPair);
+      final server = await _FixtureServer.start({'/': fixture});
+      final tampers = <String>[
+        'regular file',
+        'directory',
+        if (!Platform.isWindows) 'symlink',
+      ];
+      try {
+        for (final tamper in tampers) {
+          final root =
+              path.join(temp.path, 'anchor-${tamper.replaceAll(' ', '-')}');
+          final seed = await _startWorkerConfig(_installWorkerConfig(
+            root: root,
+            uriPrefix: server.prefix('/'),
+            recipe: recipe,
+            keyPair: keyPair,
+            fixture: fixture,
+            requested: const ['a.bin'],
+          ));
+          await seed.proceed();
+          final installed = await seed.next();
+          expect(installed['ok'], true, reason: tamper);
+          expect(await seed.exitCode, 0, reason: tamper);
+          final anchor = path.join(root, 'v2', _storeGeneration, 'anchor');
+          late void Function() verifyUnchanged;
+          switch (tamper) {
+            case 'regular file':
+              final extra = File(path.join(anchor, 'extra.txt'))
+                ..writeAsBytesSync([4, 2]);
+              verifyUnchanged =
+                  () => expect(extra.readAsBytesSync(), const [4, 2]);
+            case 'directory':
+              final extra = Directory(path.join(anchor, 'extra'))..createSync();
+              verifyUnchanged = () => expect(extra.existsSync(), isTrue);
+            case 'symlink':
+              final extra = Link(path.join(anchor, 'extra-link'))
+                ..createSync(
+                  path.join(anchor, precompiledGenerationManifestFileName),
+                );
+              verifyUnchanged = () {
+                expect(
+                  FileSystemEntity.typeSync(extra.path, followLinks: false),
+                  FileSystemEntityType.link,
+                );
+              };
+          }
+
+          final fresh = await _startWorkerConfig(_installWorkerConfig(
+            root: root,
+            uriPrefix: server.prefix('/'),
+            recipe: recipe,
+            keyPair: keyPair,
+            fixture: fixture,
+            requested: const ['a.bin'],
+          ));
+          await fresh.proceed();
+          final result = await fresh.next();
+          expect(result['ok'], false, reason: tamper);
+          expect(result['path'], isNull, reason: tamper);
           verifyUnchanged();
           expect(await fresh.exitCode, 1, reason: tamper);
         }

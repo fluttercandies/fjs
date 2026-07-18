@@ -306,8 +306,17 @@ class PrecompiledAssetTransport {
     required int? expectedLength,
     required FutureOr<void> Function(List<int> chunk) onChunk,
   }) async {
-    final declaredLength =
-        _validateHeaders(response, uri, limit, expectedLength);
+    late int? declaredLength;
+    try {
+      declaredLength = _validateHeaders(response, uri, limit, expectedLength);
+    } on Object catch (error, stackTrace) {
+      try {
+        await _discard(response);
+      } on Object {
+        // Preserve the primary header validation failure.
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    }
     final iterator = StreamIterator<List<int>>(response.stream);
     var received = 0;
     try {
@@ -870,6 +879,19 @@ class PrecompiledAssetStore {
       String generationDirectory, _RemoteManifest remote) async {
     final anchor = path.join(generationDirectory, 'anchor');
     _requireDirectory(anchor, 'Manifest anchor');
+    final expectedFiles = {
+      precompiledGenerationManifestFileName,
+      precompiledGenerationManifestSignatureFileName,
+    };
+    final entries = Directory(anchor).listSync(followLinks: false);
+    if (entries.length != expectedFiles.length ||
+        entries.any((entry) =>
+            !expectedFiles.contains(path.basename(entry.path)) ||
+            FileSystemEntity.typeSync(entry.path, followLinks: false) !=
+                FileSystemEntityType.file)) {
+      throw PrecompiledGenerationException(
+          'Manifest anchor inventory is incomplete or unexpected.');
+    }
     final bytes = await _readRegularBounded(
       path.join(anchor, precompiledGenerationManifestFileName),
       policy.manifestLimit,
