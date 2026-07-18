@@ -11,14 +11,21 @@ import 'package:path/path.dart' as path;
 
 import 'options.dart';
 
-class _HashInput {
-  const _HashInput({
+enum _HashEntryType {
+  file,
+  directory,
+}
+
+class _HashEntry {
+  const _HashEntry({
     required this.relativePath,
-    required this.file,
+    required this.type,
+    this.file,
   });
 
   final String relativePath;
-  final File file;
+  final _HashEntryType type;
+  final File? file;
 }
 
 class CrateHash {
@@ -26,8 +33,8 @@ class CrateHash {
   /// content all all .rs files inside the src directory, as well as Cargo.toml,
   /// Cargo.lock, build.rs and cargokit.yaml.
   ///
-  /// If [tempStorage] is provided, computed hash is stored in a file in that directory
-  /// and reused on subsequent calls if the crate content hasn't changed.
+  /// If [tempStorage] is provided, the validated hash is recorded in that
+  /// directory. File content remains authoritative on every call.
   static String compute(String manifestDir, {String? tempStorage}) {
     return CrateHash._(
       manifestDir: manifestDir,
@@ -42,51 +49,32 @@ class CrateHash {
 
   String _compute() {
     final inputs = _getInputs();
+    final hash = _computeHash(inputs);
     final tempStorage = this.tempStorage;
     if (tempStorage != null) {
-      final quickHash = _computeQuickHash(inputs);
-      final quickHashFolder = Directory(path.join(tempStorage, 'crate_hash'));
-      quickHashFolder.createSync(recursive: true);
-      final quickHashFile = File(path.join(quickHashFolder.path, quickHash));
-      if (quickHashFile.existsSync()) {
-        return quickHashFile.readAsStringSync();
+      final hashFolder = Directory(path.join(tempStorage, 'crate_hash'));
+      hashFolder.createSync(recursive: true);
+      final hashFile = File(path.join(hashFolder.path, hash));
+      if (!hashFile.existsSync()) {
+        hashFile.writeAsStringSync(hash, flush: true);
       }
-      final hash = _computeHash(inputs);
-      quickHashFile.writeAsStringSync(hash);
-      return hash;
-    } else {
-      return _computeHash(inputs);
     }
+    return hash;
   }
 
-  /// Computes a quick hash based on files stat (without reading contents). This
-  /// is used to cache the real hash, which is slower to compute since it involves
-  /// reading every single file.
-  String _computeQuickHash(List<_HashInput> inputs) {
-    final output = AccumulatorSink<Digest>();
-    final input = sha256.startChunkedConversion(output);
-
-    final data = ByteData(8);
-    for (final hashInput in inputs) {
-      _addFramedBytes(input, utf8.encode(hashInput.relativePath), data);
-      final stat = hashInput.file.statSync();
-      _addUint64(input, data, stat.size);
-      _addUint64(input, data, stat.modified.microsecondsSinceEpoch);
-      _addUint64(input, data, stat.changed.microsecondsSinceEpoch);
-    }
-
-    input.close();
-    return base64Url.encode(output.events.single.bytes);
-  }
-
-  String _computeHash(List<_HashInput> inputs) {
+  String _computeHash(List<_HashEntry> inputs) {
     final output = AccumulatorSink<Digest>();
     final input = sha256.startChunkedConversion(output);
     final data = ByteData(8);
 
     for (final hashInput in inputs) {
+      _addFramedBytes(input, [hashInput.type.index], data);
       _addFramedBytes(input, utf8.encode(hashInput.relativePath), data);
-      _addFramedBytes(input, hashInput.file.readAsBytesSync(), data);
+      _addFramedBytes(
+        input,
+        hashInput.file?.readAsBytesSync() ?? const [],
+        data,
+      );
     }
 
     input.close();
@@ -115,19 +103,23 @@ class CrateHash {
     input.add(bytes);
   }
 
-  List<_HashInput> _getInputs() {
-    final precompiled =
-        CargokitCrateOptions.load(manifestDir: manifestDir).precompiledBinaries;
+  List<_HashEntry> _getInputs() {
+    final manifestPath = path.normalize(path.absolute(manifestDir));
+    _rejectAbsoluteSymlinkComponents(manifestPath, 'Crate manifest path');
+    final precompiled = CargokitCrateOptions.load(manifestDir: manifestPath)
+        .precompiledBinaries;
     final configuredWorkspaceRoot = path.normalize(path.absolute(path.join(
-      manifestDir,
+      manifestPath,
       precompiled?.workspaceRoot ?? '.',
     )));
-    _rejectLink(configuredWorkspaceRoot, 'Workspace root');
+    _rejectAbsoluteSymlinkComponents(
+      configuredWorkspaceRoot,
+      'Workspace root',
+    );
 
     final workspaceRoot =
         Directory(configuredWorkspaceRoot).resolveSymbolicLinksSync();
-    final resolvedManifest =
-        Directory(path.absolute(manifestDir)).resolveSymbolicLinksSync();
+    final resolvedManifest = Directory(manifestPath).resolveSymbolicLinksSync();
     if (workspaceRoot != resolvedManifest &&
         !path.isWithin(workspaceRoot, resolvedManifest)) {
       throw FileSystemException(
@@ -136,7 +128,7 @@ class CrateHash {
       );
     }
 
-    final inputs = <String, _HashInput>{};
+    final inputs = <String, _HashEntry>{};
 
     void addFile(File file) {
       final absolute = path.normalize(path.absolute(file.path));
@@ -148,7 +140,27 @@ class CrateHash {
         );
       }
       final relative = _normalizedRelativePath(absolute, workspaceRoot);
-      inputs[relative] = _HashInput(relativePath: relative, file: file);
+      inputs[relative] = _HashEntry(
+        relativePath: relative,
+        type: _HashEntryType.file,
+        file: file,
+      );
+    }
+
+    void addDirectory(Directory directory) {
+      final absolute = path.normalize(path.absolute(directory.path));
+      if (absolute != workspaceRoot &&
+          !path.isWithin(workspaceRoot, absolute)) {
+        throw FileSystemException(
+          'Hash input escapes the workspace root.',
+          absolute,
+        );
+      }
+      final relative = _normalizedRelativePath(absolute, workspaceRoot);
+      inputs[relative] = _HashEntry(
+        relativePath: relative,
+        type: _HashEntryType.directory,
+      );
     }
 
     void addEntity(FileSystemEntity entity) {
@@ -164,6 +176,7 @@ class CrateHash {
         return;
       }
       if (type == FileSystemEntityType.directory) {
+        addDirectory(Directory(entity.path));
         final children = Directory(entity.path).listSync(followLinks: false)
           ..sort((left, right) => left.path.compareTo(right.path));
         for (final child in children) {
@@ -234,6 +247,23 @@ class CrateHash {
     }
   }
 
+  static void _rejectAbsoluteSymlinkComponents(
+    String target,
+    String description,
+  ) {
+    final root = path.rootPrefix(target);
+    var current = root;
+    final relative = path.relative(target, from: root);
+    if (relative == '.') {
+      _rejectLink(current, description);
+      return;
+    }
+    for (final component in path.split(relative)) {
+      current = path.join(current, component);
+      _rejectLink(current, description);
+    }
+  }
+
   static void _rejectLink(String entityPath, String description) {
     if (FileSystemEntity.typeSync(entityPath, followLinks: false) ==
         FileSystemEntityType.link) {
@@ -245,7 +275,10 @@ class CrateHash {
   }
 
   List<File> getFiles() {
-    return _getInputs().map((input) => input.file).toList(growable: false);
+    return _getInputs()
+        .map((input) => input.file)
+        .whereType<File>()
+        .toList(growable: false);
   }
 
   final String manifestDir;

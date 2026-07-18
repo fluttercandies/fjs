@@ -13,8 +13,9 @@ void main() {
   late Directory manifest;
 
   setUp(() {
-    temporaryDirectory =
-        Directory.systemTemp.createTempSync('crate_hash_test.');
+    final resolvedSystemTemp =
+        Directory(Directory.systemTemp.resolveSymbolicLinksSync());
+    temporaryDirectory = resolvedSystemTemp.createTempSync('crate_hash_test.');
     workspace = Directory(path.join(temporaryDirectory.path, 'workspace'))
       ..createSync();
     manifest = Directory(path.join(workspace.path, 'crate'))..createSync();
@@ -64,6 +65,39 @@ void main() {
     expect(nestedPathChanged, isNot(nestedFileChanged));
   });
 
+  test('adding empty nested declared directories affects the hash', () {
+    Directory(path.join(workspace.path, 'tool')).createSync();
+    _writeConfig(manifest, hashInputs: const ['tool']);
+    final original = CrateHash.compute(manifest.path);
+
+    Directory(path.join(workspace.path, 'tool/nested/empty'))
+        .createSync(recursive: true);
+
+    expect(CrateHash.compute(manifest.path), isNot(original));
+  });
+
+  test('removing empty nested declared directories affects the hash', () {
+    final nested = Directory(path.join(workspace.path, 'tool/nested/empty'))
+      ..createSync(recursive: true);
+    _writeConfig(manifest, hashInputs: const ['tool']);
+    final original = CrateHash.compute(manifest.path);
+
+    nested.parent.deleteSync(recursive: true);
+
+    expect(CrateHash.compute(manifest.path), isNot(original));
+  });
+
+  test('renaming empty nested declared directories affects the hash', () {
+    final empty = Directory(path.join(workspace.path, 'tool/nested/empty'))
+      ..createSync(recursive: true);
+    _writeConfig(manifest, hashInputs: const ['tool']);
+    final original = CrateHash.compute(manifest.path);
+
+    empty.renameSync(path.join(workspace.path, 'tool/nested/renamed'));
+
+    expect(CrateHash.compute(manifest.path), isNot(original));
+  });
+
   test('undeclared workspace files do not affect the hash', () {
     _write(workspace, 'producer.txt', 'producer');
     _writeConfig(manifest, hashInputs: const ['producer.txt']);
@@ -84,8 +118,7 @@ void main() {
     expect(CrateHash.compute(manifest.path), isNot(original));
   });
 
-  test('cached hashes notice same-size content changes with preserved mtime',
-      () {
+  test('persistent cache entries cannot override the content hash', () {
     final cache = Directory(path.join(temporaryDirectory.path, 'cache'));
     final source = File(path.join(manifest.path, 'src/lib.rs'));
     final modified = source.lastModifiedSync();
@@ -93,10 +126,23 @@ void main() {
 
     source.writeAsStringSync('pub fn answer() -> i32 { 43 }\n');
     source.setLastModifiedSync(modified);
+    final expected = CrateHash.compute(manifest.path);
+
+    // Seed the cache for the exact post-change path, size, mtime, and ctime.
+    expect(
+      CrateHash.compute(manifest.path, tempStorage: cache.path),
+      expected,
+    );
+    final cacheFiles = Directory(path.join(cache.path, 'crate_hash'))
+        .listSync()
+        .whereType<File>();
+    for (final cacheFile in cacheFiles) {
+      cacheFile.writeAsStringSync(original);
+    }
 
     expect(
       CrateHash.compute(manifest.path, tempStorage: cache.path),
-      isNot(original),
+      expected,
     );
   });
 
@@ -132,6 +178,53 @@ void main() {
       throwsA(isA<FileSystemException>()),
     );
   });
+
+  test('intermediate workspace root symlinks fail closed', () {
+    final realWorkspace =
+        Directory(path.join(temporaryDirectory.path, 'real/workspace'))
+          ..createSync(recursive: true);
+    final realManifest = Directory(path.join(realWorkspace.path, 'crate'))
+      ..createSync();
+    _write(realManifest, 'Cargo.toml', '[package]\nname = "linked_crate"\n');
+    _write(realManifest, 'src/lib.rs', 'pub fn linked() {}\n');
+    Link(path.join(temporaryDirectory.path, 'workspace-link'))
+        .createSync(path.join(temporaryDirectory.path, 'real'));
+    _writeConfig(
+      realManifest,
+      workspaceRoot: '../../../workspace-link/workspace',
+    );
+
+    expect(
+      () => CrateHash.compute(realManifest.path),
+      throwsA(isA<FileSystemException>()),
+    );
+  },
+      skip: Platform.isWindows
+          ? 'Creating symlinks requires privileges.'
+          : false);
+
+  test('intermediate manifest symlinks fail closed', () {
+    final realWorkspace =
+        Directory(path.join(temporaryDirectory.path, 'real/workspace'))
+          ..createSync(recursive: true);
+    final realManifest = Directory(path.join(realWorkspace.path, 'crate'))
+      ..createSync();
+    _write(realManifest, 'Cargo.toml', '[package]\nname = "linked_crate"\n');
+    _write(realManifest, 'src/lib.rs', 'pub fn linked() {}\n');
+    _writeConfig(realManifest, workspaceRoot: '../..');
+    Link(path.join(temporaryDirectory.path, 'workspace-link'))
+        .createSync(realWorkspace.path);
+    final linkedManifest =
+        Directory(path.join(temporaryDirectory.path, 'workspace-link/crate'));
+
+    expect(
+      () => CrateHash.compute(linkedManifest.path),
+      throwsA(isA<FileSystemException>()),
+    );
+  },
+      skip: Platform.isWindows
+          ? 'Creating symlinks requires privileges.'
+          : false);
 }
 
 void _write(Directory root, String relativePath, String contents) {
