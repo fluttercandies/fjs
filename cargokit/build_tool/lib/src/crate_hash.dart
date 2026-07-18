@@ -80,9 +80,7 @@ class CrateHash {
     input.close();
     final res = output.events.single;
 
-    // Truncate to 128bits.
-    final hash = res.bytes.sublist(0, 16);
-    return hex.encode(hash);
+    return res.toString();
   }
 
   static List<int> _canonicalContent(File file) {

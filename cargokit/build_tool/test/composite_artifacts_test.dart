@@ -245,7 +245,7 @@ void main() {
         jsonDecode(utf8.decode(firstBytes)) as Map<String, dynamic>;
     expect(fragment['schema_version'], 1);
     expect(fragment['scope'], 'cargokit-local-precompiled-generation');
-    expect(fragment['generation_hash'], matches(RegExp(r'^[0-9a-f]{32}$')));
+    expect(fragment['generation_hash'], matches(RegExp(r'^[0-9a-f]{64}$')));
     expect((fragment['recipe'] as Map)['rust_toolchain'], '1.88.0');
     expect(fragment['assets'], hasLength(6));
     expect(fragment.containsKey('signature'), isFalse);
