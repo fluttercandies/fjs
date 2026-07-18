@@ -1,7 +1,9 @@
 /// This is copied from Cargokit (which is the official way to use it currently)
 /// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
 
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ed25519_edwards/ed25519_edwards.dart';
 import 'package:http/http.dart';
@@ -12,6 +14,7 @@ import 'builder.dart';
 import 'crate_hash.dart';
 import 'options.dart';
 import 'precompile_binaries.dart';
+import 'precompiled_generation.dart';
 import 'rustup.dart';
 import 'target.dart';
 
@@ -42,180 +45,435 @@ class Artifact {
   });
 }
 
+typedef ArtifactHttpGet = Future<Response> Function(Uri url);
+typedef ArtifactGenerationHash = String Function(BuildEnvironment environment);
+typedef ArtifactLocalBuilder = Future<List<Artifact>> Function(
+    Target target, BuildEnvironment environment);
+
 final _log = Logger('artifacts_provider');
 
 class ArtifactProvider {
   ArtifactProvider({
     required this.environment,
     required this.userOptions,
-  });
+    ArtifactHttpGet? httpGet,
+    ArtifactGenerationHash? generationHash,
+    ArtifactLocalBuilder? localBuilder,
+  })  : httpGet = httpGet ?? _defaultHttpGet,
+        generationHash = generationHash ??
+            ((environment) => CrateHash.compute(
+                  environment.manifestDir,
+                  tempStorage: environment.targetTempDir,
+                )),
+        localBuilder = localBuilder ?? _defaultLocalBuilder;
 
   final BuildEnvironment environment;
   final CargokitUserOptions userOptions;
+  final ArtifactHttpGet httpGet;
+  final ArtifactGenerationHash generationHash;
+  final ArtifactLocalBuilder localBuilder;
 
   Future<Map<Target, List<Artifact>>> getArtifacts(List<Target> targets) async {
     final result = await _getPrecompiledArtifacts(targets);
+    final pendingTargets = List.of(targets)
+      ..removeWhere((target) => result.containsKey(target));
 
-    final pendingTargets = List.of(targets);
-    pendingTargets.removeWhere((element) => result.containsKey(element));
-
-    if (pendingTargets.isEmpty) {
-      return result;
+    if (pendingTargets.isEmpty) return result;
+    if (!userOptions.allowLocalBuild) {
+      throw PrecompiledGenerationException(
+          'Required precompiled generation did not provide all requested targets.');
     }
-
-    final rustup = Rustup();
-    for (final target in targets) {
-      final builder = RustBuilder(target: target, environment: environment);
-      builder.prepare(rustup);
+    for (final target in pendingTargets) {
       _log.info('Building ${environment.crateInfo.packageName} for $target');
-      final targetDir = await builder.build();
-      // For local build accept both static and dynamic libraries.
-      final artifactNames = <String>{
-        ...getArtifactNames(
-          target: target,
-          libraryName: environment.crateInfo.packageName,
-          aritifactType: AritifactType.dylib,
-          remote: false,
-        ),
-        ...getArtifactNames(
-          target: target,
-          libraryName: environment.crateInfo.packageName,
-          aritifactType: AritifactType.staticlib,
-          remote: false,
-        )
-      };
-      final artifacts = artifactNames
-          .map((artifactName) => Artifact(
-                path: path.join(targetDir, artifactName),
-                finalFileName: artifactName,
-              ))
-          .where((element) => File(element.path).existsSync())
-          .toList();
-      result[target] = artifacts;
+      result[target] = await localBuilder(target, environment);
     }
     return result;
   }
 
   Future<Map<Target, List<Artifact>>> _getPrecompiledArtifacts(
       List<Target> targets) async {
-    if (userOptions.usePrecompiledBinaries == false) {
+    if (userOptions.precompiledBinariesMode == PrecompiledBinariesMode.disabled) {
       _log.info('Precompiled binaries are disabled');
       return {};
     }
-    if (environment.crateOptions.precompiledBinaries == null) {
-      _log.fine('Precompiled binaries not enabled for this crate');
+    final precompiled = environment.crateOptions.precompiledBinaries;
+    final recipe = precompiled?.buildRecipe;
+    if (precompiled == null || recipe == null) {
+      if (userOptions.precompiledBinariesMode == PrecompiledBinariesMode.required) {
+        throw PrecompiledGenerationException(
+            'Required precompiled binaries need a complete build recipe.');
+      }
       return {};
     }
 
-    final start = Stopwatch()..start();
-    final crateHash = CrateHash.compute(environment.manifestDir,
-        tempStorage: environment.targetTempDir);
-    _log.fine(
-        'Computed crate hash $crateHash in ${start.elapsedMilliseconds}ms');
+    final crateHash = generationHash(environment);
+    final expectedAssets = _expectedAssetNames(recipe, precompiled);
+    final expectedComposites = _expectedCompositeChecksums(precompiled);
+    final manifestResult = await _fetchManifest(
+      precompiled: precompiled,
+      generationHash: crateHash,
+      expectedAssets: expectedAssets,
+      expectedComposites: expectedComposites,
+    );
+    if (manifestResult == null) {
+      if (userOptions.precompiledBinariesMode == PrecompiledBinariesMode.auto) return {};
+      throw PrecompiledGenerationException(
+          'Required precompiled generation manifest is unavailable.');
+    }
+    final manifest = manifestResult.manifest;
+    final generationDir = path.join(
+      environment.targetTempDir,
+      'precompiled',
+      crateHash,
+    );
+    final requiredForTargets = <Target, List<String>>{
+      for (final target in targets)
+        target: getArtifactNames(
+          target: target,
+          libraryName: environment.crateInfo.packageName,
+          remote: true,
+        ).map((name) => PrecompileBinaries.fileName(target, name)).toList(),
+    };
+    final requiredAssets = requiredForTargets.values.expand((names) => names).toSet();
 
-    final downloadedArtifactsDir =
-        path.join(environment.targetTempDir, 'precompiled', crateHash);
-    Directory(downloadedArtifactsDir).createSync(recursive: true);
+    if (_cacheIsValid(
+      generationDir: generationDir,
+      manifest: manifest,
+      manifestBytes: manifestResult.manifestBytes,
+      manifestSignature: manifestResult.manifestSignature,
+      requiredAssets: requiredAssets,
+      publicKey: precompiled.publicKey,
+    )) {
+      return _artifactsFromCache(generationDir, requiredForTargets);
+    }
 
-    final res = <Target, List<Artifact>>{};
+    final stagingDir = _stagingDirectory(generationDir);
+    Directory(stagingDir).createSync(recursive: true);
+    try {
+      File(path.join(stagingDir, precompiledGenerationManifestFileName))
+          .writeAsBytesSync(manifestResult.manifestBytes);
+      File(path.join(stagingDir, precompiledGenerationManifestSignatureFileName))
+          .writeAsBytesSync(manifestResult.manifestSignature);
 
-    for (final target in targets) {
-      final requiredArtifacts = getArtifactNames(
+      for (final assetName in requiredAssets) {
+        final assetBytes = await _downloadAsset(
+          precompiled: precompiled,
+          generationHash: crateHash,
+          manifest: manifest,
+          assetName: assetName,
+        );
+        _writeStaged(stagingDir, assetName, assetBytes.bytes);
+        _writeStaged(stagingDir, '$assetName.sig', assetBytes.signature);
+      }
+      _installAtomically(stagingDir, generationDir);
+      return _artifactsFromCache(generationDir, requiredForTargets);
+    } on PrecompiledGenerationException {
+      rethrow;
+    } catch (error) {
+      throw PrecompiledGenerationException('Failed to install precompiled generation: $error');
+    } finally {
+      final staging = Directory(stagingDir);
+      if (staging.existsSync()) staging.deleteSync(recursive: true);
+    }
+  }
+
+  Set<String> _expectedAssetNames(
+      PrecompiledBuildRecipe recipe, PrecompiledBinaries precompiled) {
+    final names = <String>{};
+    for (final rustTarget in recipe.rustTargets) {
+      final target = Target.forRustTriple(rustTarget);
+      if (target == null) {
+        throw PrecompiledGenerationException('Manifest recipe has an unsupported Rust target.');
+      }
+      for (final name in getArtifactNames(
         target: target,
         libraryName: environment.crateInfo.packageName,
         remote: true,
-      );
-      final artifactsForTarget = <Artifact>[];
-
-      for (final artifact in requiredArtifacts) {
-        final fileName = PrecompileBinaries.fileName(target, artifact);
-        final downloadedPath = path.join(downloadedArtifactsDir, fileName);
-        if (!File(downloadedPath).existsSync()) {
-          final signatureFileName =
-              PrecompileBinaries.signatureFileName(target, artifact);
-          await _tryDownloadArtifacts(
-            crateHash: crateHash,
-            fileName: fileName,
-            signatureFileName: signatureFileName,
-            finalPath: downloadedPath,
-          );
-        }
-        if (File(downloadedPath).existsSync()) {
-          artifactsForTarget.add(Artifact(
-            path: downloadedPath,
-            finalFileName: artifact,
-          ));
-        } else {
-          break;
-        }
-      }
-
-      // Only provide complete set of artifacts.
-      if (artifactsForTarget.length == requiredArtifacts.length) {
-        _log.fine('Found precompiled artifacts for $target');
-        res[target] = artifactsForTarget;
+      )) {
+        names.add(PrecompileBinaries.fileName(target, name));
       }
     }
-
-    return res;
+    for (final group in precompiled.compositeGroups) {
+      names.addAll(group.outputs);
+    }
+    return names;
   }
 
-  static Future<Response> _get(Uri url, {Map<String, String>? headers}) async {
+  Set<String> _expectedCompositeChecksums(PrecompiledBinaries precompiled) {
+    final result = <String>{};
+    for (final group in precompiled.compositeGroups) {
+      for (final output in group.outputs) {
+        if (output.endsWith('.checksum')) {
+          final archive = output.substring(0, output.length - '.checksum'.length);
+          if (group.outputs.contains(archive)) {
+            result.add('$archive\u0000$output');
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  Future<_FetchedManifest?> _fetchManifest({
+    required PrecompiledBinaries precompiled,
+    required String generationHash,
+    required Set<String> expectedAssets,
+    required Set<String> expectedComposites,
+  }) async {
+    final prefix = precompiled.uriPrefix;
+    final manifestUrl = Uri.parse(
+        '$prefix$generationHash/$precompiledGenerationManifestFileName');
+    final manifestResponse = await _get(manifestUrl);
+    if (manifestResponse.statusCode == 404) return null;
+    _expectOk(manifestResponse, manifestUrl, 'manifest');
+    _expectContentLength(manifestResponse, manifestUrl);
+    final signatureUrl = Uri.parse(
+        '$prefix$generationHash/$precompiledGenerationManifestSignatureFileName');
+    final signatureResponse = await _get(signatureUrl);
+    _expectOk(signatureResponse, signatureUrl, 'manifest signature');
+    _expectContentLength(signatureResponse, signatureUrl);
+    final manifestBytes = Uint8List.fromList(manifestResponse.bodyBytes);
+    final manifestSignature = Uint8List.fromList(signatureResponse.bodyBytes);
+    final manifest = PrecompiledGenerationManifest.parse(manifestBytes);
+    manifest.verifySignature(precompiled.publicKey, manifestSignature);
+    final recipe = precompiled.buildRecipe;
+    if (recipe == null) {
+      throw PrecompiledGenerationException('Missing build recipe.');
+    }
+    manifest.validateFor(
+      generationHash: generationHash,
+      recipe: recipe,
+      expectedAssetNames: expectedAssets,
+    );
+    final actualComposites = manifest.compositeChecksums
+        .map((binding) => '${binding.archive}\u0000${binding.checksum}')
+        .toSet();
+    if (actualComposites.length != expectedComposites.length ||
+        !actualComposites.containsAll(expectedComposites)) {
+      throw PrecompiledGenerationException(
+          'Manifest composite checksum relationships do not match configuration.');
+    }
+    return _FetchedManifest(
+      manifest: manifest,
+      manifestBytes: manifestBytes,
+      manifestSignature: manifestSignature,
+    );
+  }
+
+  bool _cacheIsValid({
+    required String generationDir,
+    required PrecompiledGenerationManifest manifest,
+    required List<int> manifestBytes,
+    required List<int> manifestSignature,
+    required Set<String> requiredAssets,
+    required PublicKey publicKey,
+  }) {
+    try {
+      final directory = Directory(generationDir);
+      if (!directory.existsSync()) return false;
+      final cachedManifestFile = File(path.join(
+        generationDir,
+        precompiledGenerationManifestFileName,
+      ));
+      final cachedSignatureFile = File(path.join(
+        generationDir,
+        precompiledGenerationManifestSignatureFileName,
+      ));
+      if (!cachedManifestFile.existsSync() || !cachedSignatureFile.existsSync()) {
+        return false;
+      }
+      final cachedManifestBytes = cachedManifestFile.readAsBytesSync();
+      final cachedSignature = cachedSignatureFile.readAsBytesSync();
+      if (!_sameBytes(cachedManifestBytes, manifestBytes) ||
+          !_sameBytes(cachedSignature, manifestSignature)) {
+        return false;
+      }
+      final cachedManifest = PrecompiledGenerationManifest.parse(cachedManifestBytes);
+      cachedManifest.verifySignature(publicKey, cachedSignature);
+      for (final name in requiredAssets) {
+        final file = File(path.join(generationDir, name));
+        final signatureFile = File(path.join(generationDir, '$name.sig'));
+        if (!file.existsSync() || !signatureFile.existsSync()) {
+          return false;
+        }
+        cachedManifest.verifyAsset(
+          name: name,
+          bytes: file.readAsBytesSync(),
+          signature: signatureFile.readAsBytesSync(),
+          publicKey: publicKey,
+        );
+      }
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
+  Map<Target, List<Artifact>> _artifactsFromCache(
+      String generationDir, Map<Target, List<String>> requiredForTargets) {
+    return {
+      for (final entry in requiredForTargets.entries)
+        entry.key: [
+          for (final remoteName in entry.value)
+            Artifact(
+              path: path.join(generationDir, remoteName),
+              finalFileName: remoteName
+                  .substring('${entry.key.rust}_'.length),
+            ),
+        ],
+    };
+  }
+
+  Future<_FetchedAsset> _downloadAsset({
+    required PrecompiledBinaries precompiled,
+    required String generationHash,
+    required PrecompiledGenerationManifest manifest,
+    required String assetName,
+  }) async {
+    final prefix = precompiled.uriPrefix;
+    final signatureUrl = Uri.parse('$prefix$generationHash/$assetName.sig');
+    final signatureResponse = await _get(signatureUrl);
+    _expectOk(signatureResponse, signatureUrl, 'asset signature');
+    _expectContentLength(signatureResponse, signatureUrl);
+    final assetUrl = Uri.parse('$prefix$generationHash/$assetName');
+    final assetResponse = await _get(assetUrl);
+    _expectOk(assetResponse, assetUrl, 'asset');
+    _expectContentLength(assetResponse, assetUrl);
+    final bytes = Uint8List.fromList(assetResponse.bodyBytes);
+    final signature = Uint8List.fromList(signatureResponse.bodyBytes);
+    manifest.verifyAsset(
+      name: assetName,
+      bytes: bytes,
+      signature: signature,
+      publicKey: precompiled.publicKey,
+    );
+    return _FetchedAsset(bytes: bytes, signature: signature);
+  }
+
+  Future<Response> _get(Uri url) async {
     int attempt = 0;
     const maxAttempts = 10;
     while (true) {
       try {
-        return await get(url, headers: headers);
-      } on SocketException catch (e) {
-        // Try to detect reset by peer error and retry.
+        return await httpGet(url);
+      } on SocketException catch (error) {
         if (attempt++ < maxAttempts &&
-            (e.osError?.errorCode == 54 || e.osError?.errorCode == 10054)) {
+            (error.osError?.errorCode == 54 || error.osError?.errorCode == 10054)) {
           _log.severe(
-              'Failed to download $url: $e, attempt $attempt of $maxAttempts, will retry...');
-          await Future.delayed(Duration(seconds: 1));
+              'Failed to download $url: $error, attempt $attempt of $maxAttempts, will retry...');
+          await Future<void>.delayed(const Duration(seconds: 1));
           continue;
-        } else {
-          rethrow;
         }
+        rethrow;
       }
     }
   }
 
-  Future<void> _tryDownloadArtifacts({
-    required String crateHash,
-    required String fileName,
-    required String signatureFileName,
-    required String finalPath,
-  }) async {
-    final precompiledBinaries = environment.crateOptions.precompiledBinaries!;
-    final prefix = precompiledBinaries.uriPrefix;
-    final url = Uri.parse('$prefix$crateHash/$fileName');
-    final signatureUrl = Uri.parse('$prefix$crateHash/$signatureFileName');
-    _log.fine('Downloading signature from $signatureUrl');
-    final signature = await _get(signatureUrl);
-    if (signature.statusCode == 404) {
-      _log.warning(
-          'Precompiled binaries not available for crate hash $crateHash ($fileName)');
-      return;
-    }
-    if (signature.statusCode != 200) {
-      _log.severe(
-          'Failed to download signature $signatureUrl: status ${signature.statusCode}');
-      return;
-    }
-    _log.fine('Downloading binary from $url');
-    final res = await _get(url);
-    if (res.statusCode != 200) {
-      _log.severe('Failed to download binary $url: status ${res.statusCode}');
-      return;
-    }
-    if (verify(
-        precompiledBinaries.publicKey, res.bodyBytes, signature.bodyBytes)) {
-      File(finalPath).writeAsBytesSync(res.bodyBytes);
-    } else {
-      _log.shout('Signature verification failed! Ignoring binary.');
+  static void _expectOk(Response response, Uri url, String description) {
+    if (response.statusCode != 200) {
+      throw PrecompiledGenerationException(
+          'Failed to download $description $url: status ${response.statusCode}.');
     }
   }
+
+  static void _expectContentLength(Response response, Uri url) {
+    final value = response.headers['content-length'];
+    if (value == null) return;
+    final declared = int.tryParse(value);
+    if (declared == null || declared < 0 || declared != response.bodyBytes.length) {
+      throw PrecompiledGenerationException(
+          'HTTP content length for $url does not match the response body.');
+    }
+  }
+
+  static void _writeStaged(String stagingDir, String name, List<int> bytes) {
+    final file = File(path.join(stagingDir, name));
+    file.parent.createSync(recursive: true);
+    file.writeAsBytesSync(bytes);
+  }
+
+  static String _stagingDirectory(String generationDir) =>
+      '$generationDir.staging-${DateTime.now().microsecondsSinceEpoch}-${Zone.current.hashCode}';
+
+  static void _installAtomically(String stagingDir, String generationDir) {
+    final destination = Directory(generationDir);
+    final backupPath = '$generationDir.previous-${DateTime.now().microsecondsSinceEpoch}';
+    Directory? backup;
+    try {
+      if (destination.existsSync()) {
+        backup = destination.renameSync(backupPath);
+      }
+      Directory(stagingDir).renameSync(generationDir);
+      if (backup != null && backup.existsSync()) backup.deleteSync(recursive: true);
+    } catch (_) {
+      final installed = Directory(generationDir);
+      if (installed.existsSync() && !Directory(stagingDir).existsSync()) {
+        installed.renameSync(stagingDir);
+      }
+      if (backup != null && backup.existsSync() && !destination.existsSync()) {
+        backup.renameSync(generationDir);
+      }
+      rethrow;
+    }
+  }
+
+  static bool _sameBytes(List<int> left, List<int> right) {
+    if (left.length != right.length) return false;
+    for (var i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) return false;
+    }
+    return true;
+  }
+}
+
+Future<Response> _defaultHttpGet(Uri url) => get(url);
+
+Future<List<Artifact>> _defaultLocalBuilder(
+    Target target, BuildEnvironment environment) async {
+  final rustup = Rustup();
+  final builder = RustBuilder(target: target, environment: environment);
+  builder.prepare(rustup);
+  final targetDir = await builder.build();
+  final artifactNames = <String>{
+    ...getArtifactNames(
+      target: target,
+      libraryName: environment.crateInfo.packageName,
+      aritifactType: AritifactType.dylib,
+      remote: false,
+    ),
+    ...getArtifactNames(
+      target: target,
+      libraryName: environment.crateInfo.packageName,
+      aritifactType: AritifactType.staticlib,
+      remote: false,
+    ),
+  };
+  return artifactNames
+      .map((artifactName) => Artifact(
+            path: path.join(targetDir, artifactName),
+            finalFileName: artifactName,
+          ))
+      .where((artifact) => File(artifact.path).existsSync())
+      .toList();
+}
+
+class _FetchedManifest {
+  const _FetchedManifest({
+    required this.manifest,
+    required this.manifestBytes,
+    required this.manifestSignature,
+  });
+
+  final PrecompiledGenerationManifest manifest;
+  final Uint8List manifestBytes;
+  final Uint8List manifestSignature;
+}
+
+class _FetchedAsset {
+  const _FetchedAsset({required this.bytes, required this.signature});
+
+  final Uint8List bytes;
+  final Uint8List signature;
 }
 
 enum AritifactType {
