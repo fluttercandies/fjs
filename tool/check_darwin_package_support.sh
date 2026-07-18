@@ -189,6 +189,8 @@ check_structure() {
   require_contains "darwin/fjs.podspec" "s.osx.dependency 'FlutterMacOS'"
   require_contains "darwin/fjs.podspec" "cargokit/build_pod.sh"
 
+  require_exact_line ".github/workflows/precompile-binaries.yml" "  RUST_TOOLCHAIN: 1.97.1"
+  require_exact_line "libfjs/Cargo.toml" "rust-version = \"1.95\""
   require_exact_line "libfjs/cargokit.yaml" "  workspace_root: .."
   for hash_input in \
     cargokit/build_tool/lib \
@@ -212,7 +214,7 @@ check_structure() {
     tool/check_frb_content_hash.dart; do
     require_exact_line "libfjs/cargokit.yaml" "    - $hash_input"
   done
-  require_exact_line "libfjs/cargokit.yaml" "    rust_toolchain: '1.88.0'"
+  require_exact_line "libfjs/cargokit.yaml" "    rust_toolchain: '1.97.1'"
   require_exact_line "libfjs/cargokit.yaml" "    flutter_version: '3.32.8'"
   require_exact_line "libfjs/cargokit.yaml" "    xcode_version: '16.4'"
   require_exact_line "libfjs/cargokit.yaml" "      iphoneos: '18.5'"

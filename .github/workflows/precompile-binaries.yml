@@ -13,7 +13,7 @@ concurrency:
 
 env:
   FLUTTER_VERSION: 3.32.8
-  RUST_TOOLCHAIN: 1.88.0
+  RUST_TOOLCHAIN: 1.97.1
   RUST_CRATE_DIR: libfjs
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout full history
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -79,7 +79,7 @@ jobs:
           --manifest-dir=${{ env.RUST_CRATE_DIR }}
 
       - name: Upload SwiftPM delivery artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fjs-swiftpm-${{ github.sha }}
           path: darwin/fjs/Binaries/fjs.xcframework.zip

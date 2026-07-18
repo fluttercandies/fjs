@@ -54,7 +54,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -128,7 +128,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter 3.44.0
         uses: subosito/flutter-action@v2
@@ -167,7 +167,7 @@ jobs:
           tar -czf build/pub-stage.tar.gz -C build/pub-stage .
 
       - name: Upload validated Darwin release package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: darwin-release
           path: |
@@ -177,7 +177,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload immutable pub stage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pub-stage
           path: build/pub-stage.tar.gz
@@ -195,7 +195,7 @@ jobs:
       project_version: ${{ steps.version.outputs.project_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -224,7 +224,7 @@ jobs:
         arch: [arm64, x64, universal]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -233,7 +233,7 @@ jobs:
           cache: true
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -336,7 +336,7 @@ jobs:
 
       - name: Upload Android cockpit evidence
         if: always() && matrix.arch == 'universal'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cockpit-android
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-android
@@ -344,7 +344,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android-${{ matrix.arch }}
           path: |
@@ -372,7 +372,7 @@ jobs:
             compatibility: legacy
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter 3.44.0
         uses: subosito/flutter-action@v2
@@ -381,7 +381,7 @@ jobs:
           cache: true
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: '17'
@@ -462,7 +462,7 @@ jobs:
     needs: [prepare, quality, prepare-darwin]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -471,7 +471,7 @@ jobs:
           cache: true
 
       - name: Download validated Darwin release package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: darwin-release
           path: darwin/fjs/Binaries
@@ -503,7 +503,7 @@ jobs:
 
       - name: Upload iOS cockpit evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cockpit-ios
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-ios
@@ -528,7 +528,7 @@ jobs:
           rm -rf Payload
 
       - name: Upload iOS artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios
           path: |
@@ -544,7 +544,7 @@ jobs:
     needs: [prepare, quality]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -575,7 +575,7 @@ jobs:
 
       - name: Upload Windows cockpit evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cockpit-windows
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-windows
@@ -616,7 +616,7 @@ jobs:
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ${{ env.PROJECT_SLUG }}-windows.zip
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows
           path: |
@@ -633,7 +633,7 @@ jobs:
     needs: [prepare, quality]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -670,7 +670,7 @@ jobs:
 
       - name: Upload Linux cockpit evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cockpit-linux
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-linux
@@ -683,7 +683,7 @@ jobs:
           tar -czf ${{ env.PROJECT_SLUG }}-linux.tar.gz -C build/linux/x64/release/bundle .
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux
           path: ${{ env.EXAMPLE_DIR }}/${{ env.PROJECT_SLUG }}-linux.tar.gz
@@ -697,7 +697,7 @@ jobs:
     needs: [prepare, quality, prepare-darwin]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -706,7 +706,7 @@ jobs:
           cache: true
 
       - name: Download validated Darwin release package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: darwin-release
           path: darwin/fjs/Binaries
@@ -733,7 +733,7 @@ jobs:
 
       - name: Upload macOS cockpit evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cockpit-macos
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-macos
@@ -755,7 +755,7 @@ jobs:
           rm -rf dmg
 
       - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos
           path: |
@@ -775,10 +775,10 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -788,7 +788,7 @@ jobs:
           tree artifacts/ || ls -laR artifacts/
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.release_tag }}
           name: ${{ needs.prepare.outputs.release_name }}
