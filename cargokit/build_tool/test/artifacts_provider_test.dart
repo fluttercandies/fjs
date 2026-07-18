@@ -7,6 +7,7 @@ import 'package:build_tool/src/builder.dart';
 import 'package:build_tool/src/cargo.dart';
 import 'package:build_tool/src/options.dart';
 import 'package:build_tool/src/precompile_binaries.dart';
+import 'package:build_tool/src/precompiled_asset_store.dart';
 import 'package:build_tool/src/precompiled_generation.dart';
 import 'package:build_tool/src/target.dart';
 import 'package:crypto/crypto.dart';
@@ -152,7 +153,10 @@ void main() {
     final cacheFile = File(path.join(
       temp.path,
       'precompiled',
+      'v2',
       _hash,
+      'snapshots',
+      PrecompiledAssetStore.requestKey({fixture.assetName}),
       fixture.assetName,
     ));
     cacheFile.writeAsBytesSync([0, 0, 0]);
@@ -182,6 +186,40 @@ void main() {
       '/precompiled/$_hash/completion.json',
     ]);
     expect(localCalls, 0);
+  });
+
+  test('auto 404 fails closed for legacy staging previous and malformed v2',
+      () async {
+    final precompiledRoot = Directory(path.join(temp.path, 'precompiled'))
+      ..createSync();
+    final states = <FileSystemEntity>[
+      Directory(path.join(precompiledRoot.path, '$_hash.staging-foreign')),
+      Directory(path.join(precompiledRoot.path, '$_hash.previous-foreign')),
+      File(path.join(precompiledRoot.path, 'v2')),
+    ];
+    for (final state in states) {
+      if (state is Directory) {
+        state.createSync();
+      } else if (state is File) {
+        state.writeAsStringSync('malformed');
+      }
+      var localCalls = 0;
+      final provider = _provider(
+        environment,
+        PrecompiledBinariesMode.auto,
+        httpGet: (_) async => Response('', 404),
+        localBuilder: (_, __) async {
+          localCalls++;
+          return const [];
+        },
+      );
+      await expectLater(
+        provider.getArtifacts([target]),
+        throwsA(isA<PrecompiledGenerationException>()),
+      );
+      expect(localCalls, 0);
+      if (state.existsSync()) state.deleteSync(recursive: true);
+    }
   });
 
   test(
@@ -342,14 +380,11 @@ void main() {
       throwsA(isA<PrecompiledGenerationException>()),
     );
 
-    expect(calls, [
-      '/precompiled/$_hash/completion.json',
-      '/precompiled/$_hash/completion.json.sig',
-    ]);
+    expect(calls, isEmpty);
     expect(localCalls, 0);
   });
 
-  test('validates signed composite checksum contents through ArtifactProvider',
+  test('target-only request does not download unrelated composite assets',
       () async {
     final group = _compositeGroup(target);
     final compositeEnvironment = _withPrecompiled(
@@ -366,7 +401,6 @@ void main() {
       target: target,
       keyPair: keyPair,
       includeComposite: true,
-      checksumMatches: false,
     );
     final calls = <String>[];
     var localCalls = 0;
@@ -383,20 +417,15 @@ void main() {
       },
     );
 
-    await expectLater(
-      provider.getArtifacts([target]),
-      throwsA(isA<PrecompiledGenerationException>()),
-    );
+    final result = await provider.getArtifacts([target]);
 
-    expect(calls, contains(endsWith('/fjs.xcframework.zip')));
-    expect(calls, contains(endsWith('/fjs.xcframework.zip.checksum')));
+    expect(result[target], hasLength(1));
+    expect(calls, isNot(contains(endsWith('/fjs.xcframework.zip'))));
+    expect(calls, isNot(contains(endsWith('/fjs.xcframework.zip.checksum'))));
     expect(localCalls, 0);
-    expect(Directory(path.join(temp.path, 'precompiled', _hash)).existsSync(),
-        isFalse);
   });
 
-  test(
-      'revalidates cached bytes and signatures on every use, repairing a tampered cache',
+  test('revalidates immutable snapshot on every use and never repairs tamper',
       () async {
     final fixture = _fixture(recipe, target: target, keyPair: keyPair);
     var assetRequests = 0;
@@ -414,16 +443,21 @@ void main() {
     final cacheFile = File(path.join(
       temp.path,
       'precompiled',
+      'v2',
       _hash,
+      'snapshots',
+      PrecompiledAssetStore.requestKey({fixture.assetName}),
       fixture.assetName,
     ));
     cacheFile.writeAsBytesSync([0, 0, 0]);
 
-    final result = await provider.getArtifacts([target]);
+    await expectLater(
+      provider.getArtifacts([target]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
 
-    expect(result[target], hasLength(1));
-    expect(cacheFile.readAsBytesSync(), fixture.assetBytes);
-    expect(assetRequests, 4);
+    expect(cacheFile.readAsBytesSync(), [0, 0, 0]);
+    expect(assetRequests, 2);
   });
 
   test(
@@ -439,7 +473,10 @@ void main() {
     final cacheFile = File(path.join(
       temp.path,
       'precompiled',
+      'v2',
       _hash,
+      'snapshots',
+      PrecompiledAssetStore.requestKey({fixture.assetName}),
       fixture.assetName,
     ));
     cacheFile.writeAsBytesSync([0, 0, 0]);
@@ -465,6 +502,43 @@ void main() {
     );
 
     expect(cacheFile.readAsBytesSync(), [0, 0, 0]);
+    expect(localCalls, 0);
+  });
+
+  test('tampered manifest anchor remains unchanged and never builds locally',
+      () async {
+    final fixture = _fixture(recipe, target: target, keyPair: keyPair);
+    await _provider(
+      environment,
+      PrecompiledBinariesMode.required,
+      httpGet: (url) async => fixture.responses[url.path] ?? Response('', 404),
+    ).getArtifacts([target]);
+    final anchor = File(path.join(
+      temp.path,
+      'precompiled',
+      'v2',
+      _hash,
+      'anchor',
+      precompiledGenerationManifestFileName,
+    ))
+      ..writeAsBytesSync([0]);
+    var localCalls = 0;
+
+    await expectLater(
+      _provider(
+        environment,
+        PrecompiledBinariesMode.auto,
+        httpGet: (url) async =>
+            fixture.responses[url.path] ?? Response('', 404),
+        localBuilder: (_, __) async {
+          localCalls++;
+          return const [];
+        },
+      ).getArtifacts([target]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+
+    expect(anchor.readAsBytesSync(), [0]);
     expect(localCalls, 0);
   });
 
@@ -512,7 +586,8 @@ void main() {
     expect(localCalls, 0);
   });
 
-  test('download failure leaves no partial cache directory', () async {
+  test('download failure leaves anchor but no partial snapshot staging',
+      () async {
     final fixture = _fixture(recipe, target: target, keyPair: keyPair);
     final responses = Map<String, Response>.from(fixture.responses);
     final assetPath = responses.keys.firstWhere((key) => key.endsWith('.so'));
@@ -527,17 +602,138 @@ void main() {
       provider.getArtifacts([target]),
       throwsA(isA<PrecompiledGenerationException>()),
     );
+    final generation =
+        Directory(path.join(temp.path, 'precompiled', 'v2', _hash));
     expect(
-      Directory(path.join(temp.path, 'precompiled', _hash)).existsSync(),
-      isFalse,
-    );
+        Directory(path.join(generation.path, 'anchor')).existsSync(), isTrue);
     expect(
-      Directory(path.join(temp.path, 'precompiled'))
-          .listSync()
-          .whereType<Directory>(),
+      Directory(path.join(generation.path, 'snapshots'))
+          .listSync(followLinks: false)
+          .where((entity) => path.basename(entity.path).contains('.staging-')),
       isEmpty,
     );
   });
+
+  test('creates and closes a fresh transport for every remote lookup',
+      () async {
+    final fixture = _fixture(recipe, target: target, keyPair: keyPair);
+    final transports = <_TrackingTransport>[];
+    final provider = ArtifactProvider(
+      environment: environment,
+      userOptions: CargokitUserOptions(
+        precompiledBinariesMode: PrecompiledBinariesMode.required,
+        verboseLogging: false,
+      ),
+      generationHash: (_) => _hash,
+      transportFactory: () {
+        final transport = _TrackingTransport(
+          (request) async => _streamedResponse(
+            fixture.responses[request.url.path] ?? Response('', 404),
+            request,
+          ),
+        );
+        transports.add(transport);
+        return transport;
+      },
+    );
+
+    await provider.getArtifacts([target]);
+    await provider.getArtifacts([target]);
+
+    expect(transports, hasLength(2));
+    expect(transports.map((transport) => transport.closeCalls), [1, 1]);
+  });
+
+  test('closes its transport when a remote lookup fails', () async {
+    _TrackingTransport? transport;
+    final provider = ArtifactProvider(
+      environment: environment,
+      userOptions: CargokitUserOptions(
+        precompiledBinariesMode: PrecompiledBinariesMode.required,
+        verboseLogging: false,
+      ),
+      generationHash: (_) => _hash,
+      transportFactory: () => transport = _TrackingTransport(
+        (_) async => StreamedResponse(
+          const Stream<List<int>>.empty(),
+          500,
+        ),
+      ),
+    );
+
+    await expectLater(
+      provider.getArtifacts([target]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+
+    expect(transport!.closeCalls, 1);
+  });
+
+  test('validates the complete recipe before creating a transport', () async {
+    final invalidRecipe = PrecompiledBuildRecipe(
+      rustToolchain: recipe.rustToolchain,
+      flutterVersion: recipe.flutterVersion,
+      xcodeVersion: recipe.xcodeVersion,
+      sdkVersions: recipe.sdkVersions,
+      deploymentTargets: recipe.deploymentTargets,
+      rustTargets: [target.rust, 'unsupported-target'],
+    );
+    final invalidEnvironment = _withPrecompiled(
+      environment,
+      PrecompiledBinaries(
+        uriPrefix: 'https://assets.example/precompiled/',
+        publicKey: keyPair.publicKey,
+        buildRecipe: invalidRecipe,
+      ),
+    );
+    var transports = 0;
+    final provider = ArtifactProvider(
+      environment: invalidEnvironment,
+      userOptions: CargokitUserOptions(
+        precompiledBinariesMode: PrecompiledBinariesMode.required,
+        verboseLogging: false,
+      ),
+      generationHash: (_) => _hash,
+      transportFactory: () {
+        transports++;
+        return PrecompiledAssetTransport(
+          send: (_) async =>
+              StreamedResponse(const Stream<List<int>>.empty(), 500),
+        );
+      },
+    );
+
+    await expectLater(
+      provider.getArtifacts([target]),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+
+    expect(transports, 0);
+  });
+}
+
+class _TrackingTransport extends PrecompiledAssetTransport {
+  _TrackingTransport(PrecompiledHttpSend send) : super(send: send);
+
+  var closeCalls = 0;
+
+  @override
+  void close() {
+    closeCalls++;
+    super.close();
+  }
+}
+
+StreamedResponse _streamedResponse(Response response, BaseRequest request) {
+  return StreamedResponse(
+    Stream.value(response.bodyBytes),
+    response.statusCode,
+    contentLength: response.bodyBytes.length,
+    headers: response.headers,
+    reasonPhrase: response.reasonPhrase,
+    request: request,
+    isRedirect: response.isRedirect,
+  );
 }
 
 ArtifactProvider _provider(
@@ -579,14 +775,11 @@ _Fixture _fixture(
   required Target target,
   required KeyPair keyPair,
   bool includeComposite = false,
-  bool checksumMatches = true,
 }) {
   final assetName = PrecompileBinaries.fileName(target, 'libfjs.so');
   final assetBytes = Uint8List.fromList([5, 4, 3, 2]);
   final archiveBytes = Uint8List.fromList([8, 7, 6, 5]);
-  final checksumText = checksumMatches
-      ? sha256Bytes(archiveBytes)
-      : 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
+  final checksumText = sha256Bytes(archiveBytes);
   final checksumBytes = Uint8List.fromList(utf8.encode('$checksumText\n'));
   final assets = <PrecompiledAsset>[
     PrecompiledAsset(
@@ -631,17 +824,36 @@ _Fixture _fixture(
       '/precompiled/$_hash/completion.json':
           Response.bytes(manifest.canonicalBytes(), 200),
       '/precompiled/$_hash/$assetName.sig': Response.bytes(
-          signPrecompiledAsset(keyPair.privateKey, assetBytes), 200),
+          signPrecompiledAssetMetadata(
+            keyPair.privateKey,
+            generationHash: _hash,
+            name: assetName,
+            length: assetBytes.length,
+            sha256: sha256Bytes(assetBytes),
+          ),
+          200),
       '/precompiled/$_hash/$assetName': Response.bytes(assetBytes, 200),
       if (includeComposite) ...{
         '/precompiled/$_hash/fjs.xcframework.zip.sig': Response.bytes(
-          signPrecompiledAsset(keyPair.privateKey, archiveBytes),
+          signPrecompiledAssetMetadata(
+            keyPair.privateKey,
+            generationHash: _hash,
+            name: 'fjs.xcframework.zip',
+            length: archiveBytes.length,
+            sha256: sha256Bytes(archiveBytes),
+          ),
           200,
         ),
         '/precompiled/$_hash/fjs.xcframework.zip':
             Response.bytes(archiveBytes, 200),
         '/precompiled/$_hash/fjs.xcframework.zip.checksum.sig': Response.bytes(
-          signPrecompiledAsset(keyPair.privateKey, checksumBytes),
+          signPrecompiledAssetMetadata(
+            keyPair.privateKey,
+            generationHash: _hash,
+            name: 'fjs.xcframework.zip.checksum',
+            length: checksumBytes.length,
+            sha256: sha256Bytes(checksumBytes),
+          ),
           200,
         ),
         '/precompiled/$_hash/fjs.xcframework.zip.checksum':

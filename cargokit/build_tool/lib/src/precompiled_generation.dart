@@ -12,8 +12,10 @@ import 'options.dart';
 const precompiledGenerationManifestFileName = 'completion.json';
 const precompiledGenerationManifestSignatureFileName = 'completion.json.sig';
 
-const _manifestSchemaVersion = 1;
+const _manifestSchemaVersion = 2;
 const _manifestScope = 'cargokit-precompiled-generation';
+const precompiledAssetSignatureScheme = 'ed25519-cargokit-v2';
+const _assetSignatureDomain = 'cargokit-precompiled-asset-signature';
 final _sha256Pattern = RegExp(r'^[0-9a-f]{64}$');
 final _commitPattern = RegExp(r'^[0-9a-f]{40}(?:[0-9a-f]{24})?$');
 final _assetNamePattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]*$');
@@ -123,7 +125,9 @@ class PrecompiledGenerationManifest {
     required Iterable<PrecompiledAsset> assets,
     required Iterable<PrecompiledCompositeChecksum> compositeChecksums,
   })  : assets = List.unmodifiable(assets),
-        compositeChecksums = List.unmodifiable(compositeChecksums);
+        compositeChecksums = List.unmodifiable(compositeChecksums) {
+    _validateCompositeMetadata(this.assets, this.compositeChecksums);
+  }
 
   final String generationHash;
   final String sourceCommit;
@@ -141,6 +145,7 @@ class PrecompiledGenerationManifest {
   List<int> canonicalBytes() => utf8.encode(_canonicalJson(_json()));
 
   Map<String, dynamic> _json() => {
+        'asset_signature_scheme': precompiledAssetSignatureScheme,
         'assets': [
           ...assets.map((asset) => {
                 'length': asset.length,
@@ -155,7 +160,8 @@ class PrecompiledGenerationManifest {
                 'checksum': binding.checksum,
               })
         ]..sort((a, b) {
-            final archive = (a['archive'] as String).compareTo(b['archive'] as String);
+            final archive =
+                (a['archive'] as String).compareTo(b['archive'] as String);
             return archive != 0
                 ? archive
                 : (a['checksum'] as String).compareTo(b['checksum'] as String);
@@ -186,13 +192,16 @@ class PrecompiledGenerationManifest {
     final expected = PrecompiledBuildIdentity.fromRecipe(recipe);
     if (!provenance.pinned.matches(expected) ||
         !provenance.actual.matches(provenance.pinned)) {
-      throw PrecompiledGenerationException('Manifest provenance does not match the build recipe.');
+      throw PrecompiledGenerationException(
+          'Manifest provenance does not match the build recipe.');
     }
     final actualNames = assets.map((asset) => asset.name).toSet();
-    if (actualNames.length != assets.length || actualNames.length != expectedAssetNames.length ||
+    if (actualNames.length != assets.length ||
+        actualNames.length != expectedAssetNames.length ||
         !actualNames.containsAll(expectedAssetNames) ||
         !expectedAssetNames.containsAll(actualNames)) {
-      throw PrecompiledGenerationException('Manifest asset inventory is incomplete or unexpected.');
+      throw PrecompiledGenerationException(
+          'Manifest asset inventory is incomplete or unexpected.');
     }
   }
 
@@ -204,12 +213,39 @@ class PrecompiledGenerationManifest {
   }) {
     final expected = asset(name);
     if (expected == null) {
-      throw PrecompiledGenerationException('Asset "$name" is not in the manifest inventory.');
+      throw PrecompiledGenerationException(
+          'Asset "$name" is not in the manifest inventory.');
     }
-    if (bytes.length != expected.length || sha256.convert(bytes).toString() != expected.sha256) {
-      throw PrecompiledGenerationException('Asset "$name" does not match its manifest digest or length.');
+    if (bytes.length != expected.length ||
+        sha256.convert(bytes).toString() != expected.sha256) {
+      throw PrecompiledGenerationException(
+          'Asset "$name" does not match its manifest digest or length.');
     }
-    _verifySignature(publicKey, bytes, signature, 'asset "$name"');
+    verifyAssetMetadataSignature(
+      name: name,
+      signature: signature,
+      publicKey: publicKey,
+    );
+  }
+
+  void verifyAssetMetadataSignature({
+    required String name,
+    required List<int> signature,
+    required PublicKey publicKey,
+  }) {
+    final expected = asset(name);
+    if (expected == null) {
+      throw PrecompiledGenerationException(
+          'Asset "$name" is not in the manifest inventory.');
+    }
+    verifyPrecompiledAssetMetadataSignature(
+      publicKey,
+      generationHash: generationHash,
+      name: expected.name,
+      length: expected.length,
+      sha256: expected.sha256,
+      signature: signature,
+    );
   }
 
   void validateCompositeChecksums(Map<String, List<int>> bytesByName) {
@@ -220,14 +256,16 @@ class PrecompiledGenerationManifest {
       final archive = bytesByName[binding.archive];
       final checksum = bytesByName[binding.checksum];
       if (archive == null || checksum == null) {
-        throw PrecompiledGenerationException('Composite checksum assets are incomplete.');
+        throw PrecompiledGenerationException(
+            'Composite checksum assets are incomplete.');
       }
       final expected = sha256.convert(archive).toString();
       String checksumText;
       try {
         checksumText = utf8.decode(checksum);
       } on FormatException {
-        throw PrecompiledGenerationException('Checksum asset is not valid UTF-8.');
+        throw PrecompiledGenerationException(
+            'Checksum asset is not valid UTF-8.');
       }
       if (checksumText.endsWith('\r\n')) {
         checksumText = checksumText.substring(0, checksumText.length - 2);
@@ -235,7 +273,8 @@ class PrecompiledGenerationManifest {
         checksumText = checksumText.substring(0, checksumText.length - 1);
       }
       if (!_sha256Pattern.hasMatch(checksumText) || checksumText != expected) {
-        throw PrecompiledGenerationException('Composite checksum does not match its archive.');
+        throw PrecompiledGenerationException(
+            'Composite checksum does not match its archive.');
       }
     }
   }
@@ -249,6 +288,7 @@ class PrecompiledGenerationManifest {
       const {
         'schema_version',
         'scope',
+        'asset_signature_scheme',
         'generation_hash',
         'source_commit',
         'provenance',
@@ -258,10 +298,15 @@ class PrecompiledGenerationManifest {
       'manifest',
     );
     if (map['schema_version'] != _manifestSchemaVersion) {
-      throw PrecompiledGenerationException('Unsupported manifest schema version.');
+      throw PrecompiledGenerationException(
+          'Unsupported manifest schema version.');
     }
     if (map['scope'] != _manifestScope) {
       throw PrecompiledGenerationException('Unsupported manifest scope.');
+    }
+    if (map['asset_signature_scheme'] != precompiledAssetSignatureScheme) {
+      throw PrecompiledGenerationException(
+          'Unsupported asset signature scheme.');
     }
     final generationHash = _string(map['generation_hash'], 'generation hash');
     if (!_sha256Pattern.hasMatch(generationHash)) {
@@ -281,7 +326,8 @@ class PrecompiledGenerationManifest {
 
     final assetsValue = map['assets'];
     if (assetsValue is! List || assetsValue.isEmpty) {
-      throw PrecompiledGenerationException('Manifest assets must be a non-empty list.');
+      throw PrecompiledGenerationException(
+          'Manifest assets must be a non-empty list.');
     }
     final assets = <PrecompiledAsset>[];
     String? previousName;
@@ -289,12 +335,14 @@ class PrecompiledGenerationManifest {
     for (final value in assetsValue) {
       final assetMap = _object(value, 'asset');
       _requireFields(assetMap, const {'name', 'length', 'sha256'}, 'asset');
-      final name = _safeName(_string(assetMap['name'], 'asset name'), 'asset name');
+      final name =
+          _safeName(_string(assetMap['name'], 'asset name'), 'asset name');
       if (!seenAssets.add(name)) {
         throw PrecompiledGenerationException('Duplicate asset "$name".');
       }
       if (previousName != null && name.compareTo(previousName) <= 0) {
-        throw PrecompiledGenerationException('Manifest assets must be sorted by name.');
+        throw PrecompiledGenerationException(
+            'Manifest assets must be sorted by name.');
       }
       previousName = name;
       final length = _nonNegativeInt(assetMap['length'], 'asset length');
@@ -307,30 +355,38 @@ class PrecompiledGenerationManifest {
 
     final compositesValue = map['composite_checksums'];
     if (compositesValue is! List) {
-      throw PrecompiledGenerationException('Composite checksum relationships must be a list.');
+      throw PrecompiledGenerationException(
+          'Composite checksum relationships must be a list.');
     }
     final composites = <PrecompiledCompositeChecksum>[];
     final seenComposites = <String>{};
     String? previousComposite;
     for (final value in compositesValue) {
       final bindingMap = _object(value, 'composite checksum');
-      _requireFields(bindingMap, const {'algorithm', 'archive', 'checksum'}, 'composite checksum');
+      _requireFields(bindingMap, const {'algorithm', 'archive', 'checksum'},
+          'composite checksum');
       final algorithm = _string(bindingMap['algorithm'], 'checksum algorithm');
-      final archive = _safeName(_string(bindingMap['archive'], 'archive asset'), 'archive asset');
-      final checksum = _safeName(_string(bindingMap['checksum'], 'checksum asset'), 'checksum asset');
+      final archive = _safeName(
+          _string(bindingMap['archive'], 'archive asset'), 'archive asset');
+      final checksum = _safeName(
+          _string(bindingMap['checksum'], 'checksum asset'), 'checksum asset');
       if (algorithm != 'sha256') {
         throw PrecompiledGenerationException('Unsupported checksum algorithm.');
       }
       final identity = '$archive\u0000$checksum';
       if (!seenComposites.add(identity)) {
-        throw PrecompiledGenerationException('Duplicate composite checksum relationship.');
+        throw PrecompiledGenerationException(
+            'Duplicate composite checksum relationship.');
       }
-      if (previousComposite != null && identity.compareTo(previousComposite) <= 0) {
-        throw PrecompiledGenerationException('Composite checksum relationships must be sorted.');
+      if (previousComposite != null &&
+          identity.compareTo(previousComposite) <= 0) {
+        throw PrecompiledGenerationException(
+            'Composite checksum relationships must be sorted.');
       }
       previousComposite = identity;
       if (!seenAssets.contains(archive) || !seenAssets.contains(checksum)) {
-        throw PrecompiledGenerationException('Composite checksum references an unknown asset.');
+        throw PrecompiledGenerationException(
+            'Composite checksum references an unknown asset.');
       }
       composites.add(PrecompiledCompositeChecksum(
         archive: archive,
@@ -351,31 +407,152 @@ class PrecompiledGenerationManifest {
 Uint8List signPrecompiledAsset(PrivateKey privateKey, List<int> bytes) =>
     ed25519Sign(privateKey, Uint8List.fromList(bytes));
 
-Uint8List ed25519Sign(PrivateKey privateKey, Uint8List bytes) => sign(privateKey, bytes);
+Uint8List precompiledAssetSignaturePayload({
+  required String generationHash,
+  required String name,
+  required int length,
+  required String sha256,
+}) {
+  if (!_sha256Pattern.hasMatch(generationHash) ||
+      !_sha256Pattern.hasMatch(sha256)) {
+    throw PrecompiledGenerationException(
+        'Asset signature metadata contains a malformed digest.');
+  }
+  _safeName(name, 'asset name');
+  if (length < 0 || BigInt.from(length) > (BigInt.one << 64) - BigInt.one) {
+    throw PrecompiledGenerationException(
+        'Asset signature metadata contains a negative length.');
+  }
+  final nameBytes = utf8.encode(name);
+  if (nameBytes.length > 0xffffffff) {
+    throw PrecompiledGenerationException('Asset name is too long.');
+  }
+  final nameLength = ByteData(4)..setUint32(0, nameBytes.length, Endian.big);
+  final assetLength = ByteData(8)..setUint64(0, length, Endian.big);
+  return Uint8List.fromList([
+    ...ascii.encode(_assetSignatureDomain),
+    0,
+    2,
+    ..._decodeSha256(generationHash),
+    ...nameLength.buffer.asUint8List(),
+    ...nameBytes,
+    ...assetLength.buffer.asUint8List(),
+    ..._decodeSha256(sha256),
+  ]);
+}
 
-void _verifySignature(PublicKey publicKey, List<int> bytes, List<int> signature, String subject) {
-  if (!verify(publicKey, Uint8List.fromList(bytes), Uint8List.fromList(signature))) {
-    throw PrecompiledGenerationException('Invalid Ed25519 signature for $subject.');
+Uint8List signPrecompiledAssetMetadata(
+  PrivateKey privateKey, {
+  required String generationHash,
+  required String name,
+  required int length,
+  required String sha256,
+}) =>
+    ed25519Sign(
+      privateKey,
+      precompiledAssetSignaturePayload(
+        generationHash: generationHash,
+        name: name,
+        length: length,
+        sha256: sha256,
+      ),
+    );
+
+void verifyPrecompiledAssetMetadataSignature(
+  PublicKey publicKey, {
+  required String generationHash,
+  required String name,
+  required int length,
+  required String sha256,
+  required List<int> signature,
+}) {
+  _verifySignature(
+    publicKey,
+    precompiledAssetSignaturePayload(
+      generationHash: generationHash,
+      name: name,
+      length: length,
+      sha256: sha256,
+    ),
+    signature,
+    'asset "$name" metadata',
+  );
+}
+
+Uint8List ed25519Sign(PrivateKey privateKey, Uint8List bytes) =>
+    sign(privateKey, bytes);
+
+void _verifySignature(
+    PublicKey publicKey, List<int> bytes, List<int> signature, String subject) {
+  if (signature.length != 64 ||
+      !verify(publicKey, Uint8List.fromList(bytes),
+          Uint8List.fromList(signature))) {
+    throw PrecompiledGenerationException(
+        'Invalid Ed25519 signature for $subject.');
+  }
+}
+
+Uint8List _decodeSha256(String value) => Uint8List.fromList([
+      for (var index = 0; index < value.length; index += 2)
+        int.parse(value.substring(index, index + 2), radix: 16),
+    ]);
+
+void _validateCompositeMetadata(
+  List<PrecompiledAsset> assets,
+  List<PrecompiledCompositeChecksum> composites,
+) {
+  final byName = {for (final asset in assets) asset.name: asset};
+  final boundAssets = <String>{};
+  for (final binding in composites) {
+    if (binding.algorithm != 'sha256') {
+      throw PrecompiledGenerationException('Unsupported checksum algorithm.');
+    }
+    if (binding.archive == binding.checksum) {
+      throw PrecompiledGenerationException(
+          'Composite archive and checksum must be distinct assets.');
+    }
+    if (!boundAssets.add(binding.archive) ||
+        !boundAssets.add(binding.checksum)) {
+      throw PrecompiledGenerationException(
+          'An asset may appear in at most one composite binding.');
+    }
+    final archive = byName[binding.archive];
+    final checksum = byName[binding.checksum];
+    if (archive == null || checksum == null) {
+      throw PrecompiledGenerationException(
+          'Composite checksum references an unknown asset.');
+    }
+    final expectedBytes = ascii.encode('${archive.sha256}\n');
+    if (checksum.length != 65 ||
+        checksum.sha256 != sha256.convert(expectedBytes).toString()) {
+      throw PrecompiledGenerationException(
+          'Composite checksum metadata is inconsistent with its archive.');
+    }
   }
 }
 
 PrecompiledBuildIdentity _identity(Object? value, String context) {
   final map = _object(value, context);
-  _requireFields(map, const {
-    'rust_toolchain',
-    'flutter_version',
-    'xcode_version',
-    'sdk_versions',
-    'deployment_targets',
-    'rust_targets',
-  }, context);
+  _requireFields(
+      map,
+      const {
+        'rust_toolchain',
+        'flutter_version',
+        'xcode_version',
+        'sdk_versions',
+        'deployment_targets',
+        'rust_targets',
+      },
+      context);
   return PrecompiledBuildIdentity(
     rustToolchain: _string(map['rust_toolchain'], '$context Rust toolchain'),
     flutterVersion: _string(map['flutter_version'], '$context Flutter version'),
     xcodeVersion: _string(map['xcode_version'], '$context Xcode version'),
     sdkVersions: _stringMap(map['sdk_versions'], '$context SDK versions'),
-    deploymentTargets: _stringMap(map['deployment_targets'], '$context deployment targets'),
-    rustTargets: _sortedUniqueStrings(map['rust_targets'], '$context Rust targets'),
+    deploymentTargets:
+        _stringMap(map['deployment_targets'], '$context deployment targets'),
+    rustTargets:
+        _sortedUniqueStrings(map['rust_targets'], '$context Rust targets'),
   );
 }
 
@@ -383,7 +560,9 @@ Map<String, String> _stringMap(Object? value, String context) {
   final map = _object(value, context);
   final result = <String, String>{};
   for (final entry in map.entries) {
-    if (entry.key.isEmpty) throw PrecompiledGenerationException('$context contains an empty key.');
+    if (entry.key.isEmpty) {
+      throw PrecompiledGenerationException('$context contains an empty key.');
+    }
     result[entry.key] = _string(entry.value, '$context value');
   }
   return result;
@@ -397,7 +576,9 @@ List<String> _sortedUniqueStrings(Object? value, String context) {
   final seen = <String>{};
   for (final item in value) {
     final string = _string(item, '$context entry');
-    if (!seen.add(string)) throw PrecompiledGenerationException('Duplicate $context entry.');
+    if (!seen.add(string)) {
+      throw PrecompiledGenerationException('Duplicate $context entry.');
+    }
     result.add(string);
   }
   return result;
@@ -408,8 +589,10 @@ Map<String, dynamic> _object(Object? value, String context) {
   throw PrecompiledGenerationException('$context must be an object.');
 }
 
-void _requireFields(Map<String, dynamic> map, Set<String> required, String context) {
-  if (map.keys.length != required.length || !map.keys.toSet().containsAll(required)) {
+void _requireFields(
+    Map<String, dynamic> map, Set<String> required, String context) {
+  if (map.keys.length != required.length ||
+      !map.keys.toSet().containsAll(required)) {
     final unknown = map.keys.where((key) => !required.contains(key));
     final missing = required.where((key) => !map.containsKey(key));
     throw PrecompiledGenerationException(
@@ -424,13 +607,20 @@ String _string(Object? value, String context) {
 
 int _nonNegativeInt(Object? value, String context) {
   if (value is int && value >= 0) return value;
-  throw PrecompiledGenerationException('$context must be a non-negative integer.');
+  throw PrecompiledGenerationException(
+      '$context must be a non-negative integer.');
 }
 
 String _safeName(String value, String context) {
-  if (value.contains('\\') || path.posix.isAbsolute(value) || path.windows.isAbsolute(value) ||
-      path.posix.normalize(value) != value || value.split('/').any((part) =>
-          part.isEmpty || part == '.' || part == '..' || !_assetNamePattern.hasMatch(part))) {
+  if (value.contains('\\') ||
+      path.posix.isAbsolute(value) ||
+      path.windows.isAbsolute(value) ||
+      path.posix.normalize(value) != value ||
+      value.split('/').any((part) =>
+          part.isEmpty ||
+          part == '.' ||
+          part == '..' ||
+          !_assetNamePattern.hasMatch(part))) {
     throw PrecompiledGenerationException('$context is unsafe.');
   }
   return value;
@@ -493,7 +683,9 @@ class _StrictJsonParser {
     if (_take(0x7d)) return result;
     while (true) {
       _space();
-      if (index >= input.length || input.codeUnitAt(index) != 0x22) _fail('Object key must be a string.');
+      if (index >= input.length || input.codeUnitAt(index) != 0x22) {
+        _fail('Object key must be a string.');
+      }
       final key = _stringValue();
       if (result.containsKey(key)) _fail('Duplicate object key "$key".');
       _space();
@@ -537,11 +729,14 @@ class _StrictJsonParser {
         if (index >= input.length) _fail('Malformed escape.');
         final escaped = input.codeUnitAt(index++);
         if (escaped == 0x75) {
-          if (index + 4 > input.length || !RegExp(r'^[0-9a-fA-F]{4}$').hasMatch(input.substring(index, index + 4))) {
+          if (index + 4 > input.length ||
+              !RegExp(r'^[0-9a-fA-F]{4}$')
+                  .hasMatch(input.substring(index, index + 4))) {
             _fail('Malformed unicode escape.');
           }
           index += 4;
-        } else if (!const [0x22, 0x5c, 0x2f, 0x62, 0x66, 0x6e, 0x72, 0x74].contains(escaped)) {
+        } else if (!const [0x22, 0x5c, 0x2f, 0x62, 0x66, 0x6e, 0x72, 0x74]
+            .contains(escaped)) {
           _fail('Malformed escape.');
         }
       } else if (code < 0x20) {
@@ -558,8 +753,9 @@ class _StrictJsonParser {
   }
 
   Object _numberValue() {
-    final match = RegExp(r'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?')
-        .matchAsPrefix(input.substring(index));
+    final match =
+        RegExp(r'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?')
+            .matchAsPrefix(input.substring(index));
     if (match == null) _fail('Malformed JSON value.');
     index += match.end;
     final text = match.group(0)!;
@@ -577,7 +773,8 @@ class _StrictJsonParser {
   }
 
   void _space() {
-    while (index < input.length && const [0x20, 0x09, 0x0a, 0x0d].contains(input.codeUnitAt(index))) {
+    while (index < input.length &&
+        const [0x20, 0x09, 0x0a, 0x0d].contains(input.codeUnitAt(index))) {
       index++;
     }
   }

@@ -12,7 +12,7 @@ const _generationHash =
 const _archiveHash =
     'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const _checksumHash =
-    'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
+    '5c6449da335badb355097ca2a7898509bce8feebfe31dedce47798825fdd9a11';
 const _sourceCommit = '1111111111111111111111111111111111111111';
 
 void main() {
@@ -22,8 +22,8 @@ void main() {
   setUp(() {
     keyPair = KeyPair(
       newKeyFromSeed(Uint8List.fromList(List<int>.generate(32, (i) => i))),
-      public(newKeyFromSeed(
-          Uint8List.fromList(List<int>.generate(32, (i) => i)))),
+      public(
+          newKeyFromSeed(Uint8List.fromList(List<int>.generate(32, (i) => i)))),
     );
     recipe = PrecompiledBuildRecipe(
       rustToolchain: '1.88.0',
@@ -45,7 +45,8 @@ void main() {
     expect(first.canonicalBytes(), second.canonicalBytes());
     expect(
       utf8.decode(first.canonicalBytes()),
-      '{"assets":[{"length":3,"name":"aarch64-apple-darwin_libfjs.a",'
+      '{"asset_signature_scheme":"ed25519-cargokit-v2",'
+      '"assets":[{"length":3,"name":"aarch64-apple-darwin_libfjs.a",'
       '"sha256":"$_checksumHash"},{"length":4,"name":"fjs.xcframework.zip",'
       '"sha256":"$_archiveHash"},{"length":65,'
       '"name":"fjs.xcframework.zip.checksum","sha256":"$_checksumHash"}],'
@@ -63,7 +64,7 @@ void main() {
       '["aarch64-apple-darwin","x86_64-apple-darwin"],'
       '"rust_toolchain":"1.88.0","sdk_versions":'
       '{"iphoneos":"18.5","macosx":"15.5"},"xcode_version":"16.4"}},'
-      '"schema_version":1,"scope":"cargokit-precompiled-generation",'
+      '"schema_version":2,"scope":"cargokit-precompiled-generation",'
       '"source_commit":"$_sourceCommit"}',
     );
   });
@@ -71,7 +72,8 @@ void main() {
   test('canonical manifest round trips through strict parsing', () {
     final manifest = _manifest(recipe);
 
-    final parsed = PrecompiledGenerationManifest.parse(manifest.canonicalBytes());
+    final parsed =
+        PrecompiledGenerationManifest.parse(manifest.canonicalBytes());
 
     expect(parsed.canonicalBytes(), manifest.canonicalBytes());
     expect(parsed.asset('fjs.xcframework.zip')?.length, 4);
@@ -93,18 +95,26 @@ void main() {
       );
       expect(
         () => PrecompiledGenerationManifest.parse(utf8.encode(
-          '{"schema_version":1,"schema_version":1}',
+          '{"schema_version":2,"schema_version":2}',
         )),
         throwsA(isA<PrecompiledGenerationException>()),
       );
     });
 
-    test('unsupported schema and scope', () {
+    test('v1, unsupported schema, scheme, and scope', () {
       final valid = jsonDecode(utf8.decode(_manifest(recipe).canonicalBytes()))
           as Map<String, dynamic>;
 
       expect(
-        () => _parse({...valid, 'schema_version': 2}),
+        () => _parse({...valid, 'schema_version': 1}),
+        throwsA(isA<PrecompiledGenerationException>()),
+      );
+      expect(
+        () => _parse({...valid, 'schema_version': 3}),
+        throwsA(isA<PrecompiledGenerationException>()),
+      );
+      expect(
+        () => _parse({...valid, 'asset_signature_scheme': 'ed25519'}),
         throwsA(isA<PrecompiledGenerationException>()),
       );
       expect(
@@ -113,7 +123,8 @@ void main() {
       );
     });
 
-    test('unsafe paths, malformed hashes, duplicates, and unsorted inventory', () {
+    test('unsafe paths, malformed hashes, duplicates, and unsorted inventory',
+        () {
       final valid = jsonDecode(utf8.decode(_manifest(recipe).canonicalBytes()))
           as Map<String, dynamic>;
       final assets = (valid['assets'] as List).cast<Map<String, dynamic>>();
@@ -133,7 +144,10 @@ void main() {
         throwsA(isA<PrecompiledGenerationException>()),
       );
       expect(
-        () => _parse({...valid, 'assets': [assets.first, assets.first]}),
+        () => _parse({
+          ...valid,
+          'assets': [assets.first, assets.first]
+        }),
         throwsA(isA<PrecompiledGenerationException>()),
       );
       expect(
@@ -178,7 +192,27 @@ void main() {
     );
   });
 
-  test('Ed25519 signs and verifies canonical manifest and asset bytes', () {
+  test('asset signature payload has the exact v2 metadata encoding', () {
+    final payload = precompiledAssetSignaturePayload(
+      generationHash: _generationHash,
+      name: 'asset.bin',
+      length: 3,
+      sha256:
+          'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+
+    expect(
+      _hex(payload),
+      '636172676f6b69742d707265636f6d70696c65642d61737365742d7369676e6174757265'
+      '0002'
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      '0000000961737365742e62696e'
+      '0000000000000003'
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+  });
+
+  test('Ed25519 binds asset generation, name, length, and digest metadata', () {
     final assetBytes = Uint8List.fromList([9, 8, 7]);
     final assetHash = sha256.convert(assetBytes).toString();
     final manifest = PrecompiledGenerationManifest(
@@ -192,7 +226,13 @@ void main() {
     );
 
     final manifestSignature = manifest.sign(keyPair.privateKey);
-    final assetSignature = signPrecompiledAsset(keyPair.privateKey, assetBytes);
+    final assetSignature = signPrecompiledAssetMetadata(
+      keyPair.privateKey,
+      generationHash: _generationHash,
+      name: 'asset.bin',
+      length: assetBytes.length,
+      sha256: assetHash,
+    );
 
     manifest.verifySignature(keyPair.publicKey, manifestSignature);
     manifest.verifyAsset(
@@ -210,6 +250,59 @@ void main() {
       ),
       throwsA(isA<PrecompiledGenerationException>()),
     );
+    for (final substitution in <PrecompiledGenerationManifest>[
+      PrecompiledGenerationManifest(
+        generationHash:
+            'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+        sourceCommit: _sourceCommit,
+        provenance: PrecompiledGenerationProvenance.fromRecipe(recipe),
+        assets: [
+          PrecompiledAsset(name: 'asset.bin', length: 3, sha256: assetHash),
+        ],
+        compositeChecksums: const [],
+      ),
+      PrecompiledGenerationManifest(
+        generationHash: _generationHash,
+        sourceCommit: _sourceCommit,
+        provenance: PrecompiledGenerationProvenance.fromRecipe(recipe),
+        assets: [
+          PrecompiledAsset(name: 'other.bin', length: 3, sha256: assetHash),
+        ],
+        compositeChecksums: const [],
+      ),
+      PrecompiledGenerationManifest(
+        generationHash: _generationHash,
+        sourceCommit: _sourceCommit,
+        provenance: PrecompiledGenerationProvenance.fromRecipe(recipe),
+        assets: [
+          PrecompiledAsset(name: 'asset.bin', length: 4, sha256: assetHash),
+        ],
+        compositeChecksums: const [],
+      ),
+      PrecompiledGenerationManifest(
+        generationHash: _generationHash,
+        sourceCommit: _sourceCommit,
+        provenance: PrecompiledGenerationProvenance.fromRecipe(recipe),
+        assets: const [
+          PrecompiledAsset(
+            name: 'asset.bin',
+            length: 3,
+            sha256:
+                'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          ),
+        ],
+        compositeChecksums: const [],
+      ),
+    ]) {
+      expect(
+        () => substitution.verifyAssetMetadataSignature(
+          name: substitution.assets.single.name,
+          signature: assetSignature,
+          publicKey: keyPair.publicKey,
+        ),
+        throwsA(isA<PrecompiledGenerationException>()),
+      );
+    }
     final badManifestSignature = Uint8List.fromList(manifestSignature)
       ..[0] ^= 1;
     expect(
@@ -218,9 +311,11 @@ void main() {
     );
   });
 
-  test('zip/checksum relationship binds checksum contents to archive digest', () {
+  test('zip/checksum relationship binds checksum contents to archive digest',
+      () {
     final archive = Uint8List.fromList([1, 2, 3, 4]);
-    final checksum = Uint8List.fromList(utf8.encode('${sha256.convert(archive)}\n'));
+    final checksum =
+        Uint8List.fromList(utf8.encode('${sha256.convert(archive)}\n'));
     final manifest = PrecompiledGenerationManifest(
       generationHash: _generationHash,
       sourceCommit: _sourceCommit,
@@ -255,6 +350,57 @@ void main() {
         'fjs.xcframework.zip.checksum': Uint8List.fromList(utf8.encode(
           'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\n',
         )),
+      }),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+  });
+
+  test('composite metadata is normative without downloading assets', () {
+    final valid = jsonDecode(utf8.decode(_manifest(recipe).canonicalBytes()))
+        as Map<String, dynamic>;
+    final assets = (valid['assets'] as List).cast<Map<String, dynamic>>();
+    final bindings =
+        (valid['composite_checksums'] as List).cast<Map<String, dynamic>>();
+
+    expect(
+      () => _parse({
+        ...valid,
+        'composite_checksums': [
+          {...bindings.single, 'checksum': bindings.single['archive']},
+        ],
+      }),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+    expect(
+      () => _parse({
+        ...valid,
+        'composite_checksums': [
+          bindings.single,
+          {
+            ...bindings.single,
+            'archive': 'aarch64-apple-darwin_libfjs.a',
+          },
+        ],
+      }),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+    expect(
+      () => _parse({
+        ...valid,
+        'assets': [
+          ...assets.take(2),
+          {...assets.last, 'length': 64},
+        ],
+      }),
+      throwsA(isA<PrecompiledGenerationException>()),
+    );
+    expect(
+      () => _parse({
+        ...valid,
+        'assets': [
+          ...assets.take(2),
+          {...assets.last, 'sha256': _archiveHash},
+        ],
       }),
       throwsA(isA<PrecompiledGenerationException>()),
     );
@@ -298,3 +444,6 @@ PrecompiledGenerationManifest _manifest(
 
 PrecompiledGenerationManifest _parse(Map<String, dynamic> value) =>
     PrecompiledGenerationManifest.parse(utf8.encode(jsonEncode(value)));
+
+String _hex(List<int> bytes) =>
+    bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
