@@ -41,7 +41,8 @@ jobs:
     uses: ./.github/workflows/precompile-binaries.yml
     permissions:
       contents: write
-    secrets: inherit
+    secrets:
+      PRECOMPILE_BINARIES_PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
 
   #####################################
   # Production quality gates
@@ -54,16 +55,18 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ env.ANDROID_COMPAT_FLUTTER_VERSION }}
           cache: true
 
       - name: Setup stable Rust with quality components
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
           components: rustfmt, clippy
 
@@ -128,16 +131,18 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter 3.44.0
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ env.ANDROID_COMPAT_FLUTTER_VERSION }}
           cache: true
 
       - name: Setup stable Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
 
       - name: Install nightly Rust with rustfmt
         run: rustup toolchain install nightly --profile minimal --component rustfmt
@@ -155,7 +160,7 @@ jobs:
         run: tool/prepare_darwin_release.sh --configuration Release --artifact-dir build/darwin-release
 
       - name: Upload validated Darwin release package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: darwin-release
           path: |
@@ -175,8 +180,9 @@ jobs:
       project_version: ${{ steps.version.outputs.project_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Generate release tag
@@ -204,16 +210,18 @@ jobs:
         arch: [arm64, x64, universal]
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
       - name: Setup Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -300,7 +308,7 @@ jobs:
 
       - name: Run Android cockpit verification
         if: matrix.arch == 'universal'
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: 35
           target: google_apis
@@ -316,7 +324,7 @@ jobs:
 
       - name: Upload Android cockpit evidence
         if: always() && matrix.arch == 'universal'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cockpit-android
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-android
@@ -324,7 +332,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: android-${{ matrix.arch }}
           path: |
@@ -352,22 +360,24 @@ jobs:
             compatibility: legacy
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter 3.44.0
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ env.ANDROID_COMPAT_FLUTTER_VERSION }}
           cache: true
 
       - name: Setup Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: zulu
           java-version: '17'
 
       - name: Setup stable Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
 
       - name: Select compatibility source
         id: source
@@ -442,16 +452,18 @@ jobs:
     needs: [prepare, quality, prepare-darwin]
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
       - name: Download validated Darwin release package
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: darwin-release
           path: darwin/fjs/Binaries
@@ -483,7 +495,7 @@ jobs:
 
       - name: Upload iOS cockpit evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cockpit-ios
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-ios
@@ -508,7 +520,7 @@ jobs:
           rm -rf Payload
 
       - name: Upload iOS artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ios
           path: |
@@ -524,10 +536,12 @@ jobs:
     needs: [prepare, quality]
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
@@ -555,7 +569,7 @@ jobs:
 
       - name: Upload Windows cockpit evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cockpit-windows
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-windows
@@ -596,7 +610,7 @@ jobs:
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ${{ env.PROJECT_SLUG }}-windows.zip
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: windows
           path: |
@@ -613,10 +627,12 @@ jobs:
     needs: [prepare, quality]
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
@@ -650,7 +666,7 @@ jobs:
 
       - name: Upload Linux cockpit evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cockpit-linux
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-linux
@@ -663,7 +679,7 @@ jobs:
           tar -czf ${{ env.PROJECT_SLUG }}-linux.tar.gz -C build/linux/x64/release/bundle .
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux
           path: ${{ env.EXAMPLE_DIR }}/${{ env.PROJECT_SLUG }}-linux.tar.gz
@@ -677,16 +693,18 @@ jobs:
     needs: [prepare, quality, prepare-darwin]
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
       - name: Download validated Darwin release package
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: darwin-release
           path: darwin/fjs/Binaries
@@ -713,7 +731,7 @@ jobs:
 
       - name: Upload macOS cockpit evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cockpit-macos
           path: ${{ env.EXAMPLE_DIR }}/.dart_tool/flutter_cockpit/ci-macos
@@ -735,7 +753,7 @@ jobs:
           rm -rf dmg
 
       - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: macos
           path: |
@@ -755,10 +773,12 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: artifacts
 
@@ -768,7 +788,7 @@ jobs:
           tree artifacts/ || ls -laR artifacts/
 
       - name: Create Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           tag_name: ${{ needs.prepare.outputs.release_tag }}
           name: ${{ needs.prepare.outputs.release_name }}

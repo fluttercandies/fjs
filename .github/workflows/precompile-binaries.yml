@@ -22,8 +22,9 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout full history
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Reject docs from tracked paths or history
@@ -43,7 +44,7 @@ jobs:
           test "$(xcrun --sdk macosx --show-sdk-version)" = 15.5
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
@@ -54,7 +55,7 @@ jobs:
           --expected-version ${{ env.FLUTTER_VERSION }}
 
       - name: Setup pinned Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
@@ -96,7 +97,7 @@ jobs:
 
       - name: Upload SwiftPM delivery artifact
         if: steps.generation.outcome == 'failure'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: fjs-swiftpm-${{ github.sha }}
           path: darwin/fjs/Binaries/fjs.xcframework.zip
