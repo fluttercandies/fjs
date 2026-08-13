@@ -212,7 +212,7 @@ check_structure() {
   require_exact_line ".github/workflows/publish-pub.yml" \
     "    uses: ./.github/workflows/precompile-binaries.yml"
   require_exact_line ".github/workflows/publish-pub.yml" "      contents: write"
-  require_exact_line ".github/workflows/publish-pub.yml" "    secrets: inherit"
+  require_contains ".github/workflows/publish-pub.yml" "PRECOMPILE_BINARIES_PRIVATE_KEY: \${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}"
   require_exact_line ".github/workflows/publish-pub.yml" "    needs: publish-precompiled"
   require_exact_line ".github/workflows/publish-pub.yml" "      id-token: write"
   require_exact_line "libfjs/Cargo.toml" "rust-version = \"1.95\""
