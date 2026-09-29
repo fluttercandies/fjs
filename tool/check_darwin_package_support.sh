@@ -98,8 +98,8 @@ EXPECTED_FRB_CONTENT_HASH=-2005216402
 DART_EXECUTABLE="${CARGOKIT_DART_EXECUTABLE:-dart}"
 
 check_version_invariants() {
-  [ "$PACKAGE_VERSION" = "3.3.0" ] ||
-    fail "pubspec.yaml version must be 3.3.0, found $PACKAGE_VERSION"
+  [ "$PACKAGE_VERSION" = "3.3.1" ] ||
+    fail "pubspec.yaml version must be 3.3.1, found $PACKAGE_VERSION"
 
   cargo_version="$(awk '
     /^\[package\]$/ { in_package = 1; next }

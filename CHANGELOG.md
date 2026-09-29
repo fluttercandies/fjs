@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.3.1
+
+* **FIX**: Published pub packages now ship `darwin/fjs/Binaries/fjs.xcframework.zip` again. The tag-triggered publish workflow materializes the signed SwiftPM composite from the verified precompiled generation before `flutter pub publish` and hard-fails when the binary is absent, so Swift Package Manager resolution no longer fails with a missing `FjsBinary` archive.
+* **FIX**: Android Cargokit builds pin `CLANG_PATH` to the NDK clang and use the NDK LLVM triple directory (`arm-linux-androideabi`) for armv7 bindgen includes, fixing Windows Android builds where bindgen loaded a host LLVM installation and could not find `stdbool.h`.
+* **FIX**: `cargokit/run_build_tool.cmd` now propagates the Dart build tool's non-zero exit code (including after the snapshot-rebuild retry path), so Windows Gradle builds fail instead of silently producing an APK without `libfjs.so`.
+* **FIX**: Declared `PRECOMPILE_BINARIES_PRIVATE_KEY` on the reusable precompile workflow so the explicitly scoped callers resolve; CI had rejected every workflow startup since the secret passthrough was introduced.
+
 ## 3.3.0
 
 * **BREAKING**: Raised the supported toolchain floor to Flutter 3.24.0 and Dart 3.5.0, aligned Cargokit and precompiled generation with that minimum, and added a minimum-version public API compilation gate while keeping the example on the latest pinned Flutter release.
