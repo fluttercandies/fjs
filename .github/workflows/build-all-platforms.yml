@@ -150,6 +150,9 @@ jobs:
       - name: Install FRB codegen 2.12.0
         run: cargo install flutter_rust_bridge_codegen --version 2.12.0 --locked
 
+      - name: Install pinned cargo-expand 1.0.126
+        run: cargo install cargo-expand --version 1.0.126 --locked
+
       - name: Resolve root dependencies
         run: flutter pub get --no-example
 
@@ -424,8 +427,16 @@ jobs:
             BEGIN { RS = "" }
             {
               record = tolower($0)
+              # Paragraph granularity couples unrelated lines: the Flutter
+              # tool nags about the intentionally old Gradle/AGP/Kotlin
+              # versions pinned by this leg, and the sdk manager mid-build
+              # CMake install logs an analytics.settings lock warning. Both
+              # land in the same paragraph as the cargokit env dump, but
+              # neither is a cargokit deprecation, so skip such records.
               if (record ~ /(warning|warn|deprecated|deprecation)/ &&
-                  record ~ /(cargokit|plugin\.gradle|build_tool)/) {
+                  record ~ /(cargokit|plugin\.gradle|build_tool)/ &&
+                  record !~ /flutter support for your project/ &&
+                  record !~ /unable to lock settings file .*analytics\.settings/) {
                 print $0
                 found = 1
               }

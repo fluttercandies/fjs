@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.3.1
+
+* **FIX**: Published pub packages now ship `darwin/fjs/Binaries/fjs.xcframework.zip` again. The tag-triggered publish workflow materializes the signed SwiftPM composite from the verified precompiled generation before `flutter pub publish` and hard-fails when the binary is absent, so Swift Package Manager resolution no longer fails with a missing `FjsBinary` archive.
+* **FIX**: Android Cargokit builds pin `CLANG_PATH` to the NDK clang and use the NDK LLVM triple directory (`arm-linux-androideabi`) for armv7 bindgen includes, fixing Windows Android builds where bindgen loaded a host LLVM installation and could not find `stdbool.h`.
+* **FIX**: `cargokit/run_build_tool.cmd` now propagates the Dart build tool's non-zero exit code (including after the snapshot-rebuild retry path), so Windows Gradle builds fail instead of silently producing an APK without `libfjs.so`.
+* **FIX**: Declared `PRECOMPILE_BINARIES_PRIVATE_KEY` on the reusable precompile workflow so the explicitly scoped callers resolve; CI had rejected every workflow startup since the secret passthrough was introduced.
+* **INTERNAL**: Updated `h2` to 0.4.19 (RUSTSEC-2026-0258) and `rustls` to 0.23.45 (RUSTSEC-2026-0285), clearing the RustSec audit gate that had not run since the CI startup regression.
+* **INTERNAL**: Upgraded `rquickjs` to 0.14.0 (master `3d5ecfc9`) and the `llrt` crates to main `89941ae1`; `ArrayBuffer`/`TypedArray` byte reads now record the copy-before-Java-runs safety invariant required by the new `as_bytes` contract.
+* **FIX**: Patched `dlopen2` to a git fix (upstream PR [OpenByteDev/dlopen2#29](https://github.com/OpenByteDev/dlopen2/pull/29)) because 0.9.0 removed its `once_cell` dependency while `raw/unix.rs` still imports it on every non-linux/non-macos target, so Android builds failed with E0433; the patch swaps in `std::sync::LazyLock` and drops out once upstream releases a fix.
+* **INTERNAL**: Pinned `cargo-expand` 1.0.126 for FRB regeneration and capped the root `flutter_rust_bridge` dependency to the codegen's minor line (`~2.12.0`). Release drift in cargo-expand re-prints expanded code differently, and an unconstrained caret let fresh resolutions pick newer FRB runtimes, tripping the generator's auto-upgrade into rewriting `pubspec.yaml` on CI; the codegen toolchain uses floating nightly as requested, and both pins are enforced by the regeneration check and installed by CI.
+
 ## 3.3.0
 
 * **BREAKING**: Raised the supported toolchain floor to Flutter 3.24.0 and Dart 3.5.0, aligned Cargokit and precompiled generation with that minimum, and added a minimum-version public API compilation gate while keeping the example on the latest pinned Flutter release.

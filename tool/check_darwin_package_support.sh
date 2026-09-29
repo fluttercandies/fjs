@@ -98,8 +98,8 @@ EXPECTED_FRB_CONTENT_HASH=-2005216402
 DART_EXECUTABLE="${CARGOKIT_DART_EXECUTABLE:-dart}"
 
 check_version_invariants() {
-  [ "$PACKAGE_VERSION" = "3.3.0" ] ||
-    fail "pubspec.yaml version must be 3.3.0, found $PACKAGE_VERSION"
+  [ "$PACKAGE_VERSION" = "3.3.1" ] ||
+    fail "pubspec.yaml version must be 3.3.1, found $PACKAGE_VERSION"
 
   cargo_version="$(awk '
     /^\[package\]$/ { in_package = 1; next }
@@ -203,6 +203,8 @@ check_structure() {
   require_exact_line ".github/workflows/precompile-binaries.yml" \
     '  group: precompiled-${{ github.repository }}-${{ github.sha }}'
   require_exact_line ".github/workflows/precompile-binaries.yml" "        id: generation"
+  require_contains ".github/workflows/precompile-binaries.yml" \
+    "      PRECOMPILE_BINARIES_PRIVATE_KEY:"
   require_exact_line ".github/workflows/precompile-binaries.yml" "        continue-on-error: true"
   require_line_count ".github/workflows/precompile-binaries.yml" \
     "        if: steps.generation.outcome == 'failure'" 4
@@ -215,6 +217,12 @@ check_structure() {
   require_contains ".github/workflows/publish-pub.yml" "PRECOMPILE_BINARIES_PRIVATE_KEY: \${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}"
   require_exact_line ".github/workflows/publish-pub.yml" "    needs: publish-precompiled"
   require_exact_line ".github/workflows/publish-pub.yml" "      id-token: write"
+  require_contains ".github/workflows/publish-pub.yml" \
+    "fetch-precompiled-artifacts"
+  require_contains ".github/workflows/publish-pub.yml" \
+    "--asset=fjs.xcframework.zip"
+  require_contains ".github/workflows/publish-pub.yml" \
+    "test -f darwin/fjs/Binaries/fjs.xcframework.zip"
   require_exact_line "libfjs/Cargo.toml" "rust-version = \"1.95\""
   require_exact_line "libfjs/cargokit.yaml" "  workspace_root: .."
   for hash_input in \
@@ -331,6 +339,12 @@ fjs.xcframework.zip.checksum'
   require_contains "tool/prepare_darwin_release.sh" "--require-artifact"
   require_contains "tool/prepare_darwin_release.sh" "check_frb_codegen.sh"
   require_contains "tool/prepare_darwin_release.sh" "flutter pub publish --dry-run"
+  require_contains "tool/check_frb_codegen.sh" "FRB_FMT_TOOLCHAIN=nightly"
+  require_contains ".github/workflows/build-all-platforms.yml" \
+    "rustup toolchain install nightly --profile minimal --component rustfmt"
+  require_contains "tool/check_frb_codegen.sh" "FRB_CARGO_EXPAND_VERSION=1.0.126"
+  require_contains ".github/workflows/build-all-platforms.yml" \
+    "cargo install cargo-expand --version 1.0.126 --locked"
   if grep -F -- "--ignore-warnings" tool/prepare_darwin_release.sh >/dev/null; then
     fail "release preparation must not ignore pub publish warnings"
   fi
