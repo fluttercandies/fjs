@@ -80,6 +80,45 @@ void main() {
       contains('/C:/Users/test/AppData/Local/Android/Sdk/ndk/26.3.11579264/'),
     );
   });
+
+  test('bindgen environment pins libclang to the NDK clang', () async {
+    final sdkPath = _createFakeAndroidSdk();
+    final target = Target.forRustTriple('aarch64-linux-android')!;
+    final env = await AndroidEnvironment(
+      sdkPath: sdkPath,
+      ndkVersion: '26.3.11579264',
+      minSdkVersion: 24,
+      targetTempDir: '/tmp/fjs-cargokit-test',
+      target: target,
+    ).buildEnvironment();
+
+    final toolchainBin = path.join(sdkPath, 'ndk', '26.3.11579264',
+        'toolchains', 'llvm', 'prebuilt', _hostTag, 'bin');
+    expect(env['CLANG_PATH'], path.join(toolchainBin, 'clang$_exeSuffix'));
+  });
+
+  test('armv7 bindgen include uses the NDK llvm triple directory', () async {
+    final sdkPath = _createFakeAndroidSdk();
+    final target = Target.forRustTriple('armv7-linux-androideabi')!;
+    final env = await AndroidEnvironment(
+      sdkPath: sdkPath,
+      ndkVersion: '26.3.11579264',
+      minSdkVersion: 24,
+      targetTempDir: '/tmp/fjs-cargokit-test',
+      target: target,
+    ).buildEnvironment();
+
+    final bindgenArgs = env['BINDGEN_EXTRA_CLANG_ARGS_armv7-linux-androideabi'];
+    expect(bindgenArgs, isNotNull);
+    expect(
+      bindgenArgs,
+      contains('/usr/include/arm-linux-androideabi'),
+    );
+    expect(
+      bindgenArgs,
+      isNot(contains('/usr/include/armv7-linux-androideabi')),
+    );
+  });
 }
 
 String _createFakeAndroidSdk({String? sdkPathSegment}) {
@@ -121,3 +160,11 @@ String _createFakeAndroidSdk({String? sdkPathSegment}) {
 
   return sdk.path;
 }
+
+String get _hostTag => Platform.isWindows
+    ? 'windows-x86_64'
+    : Platform.isLinux
+        ? 'linux-x86_64'
+        : 'darwin-x86_64';
+
+String get _exeSuffix => Platform.isWindows ? '.exe' : '';

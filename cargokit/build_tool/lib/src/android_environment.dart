@@ -162,8 +162,12 @@ class AndroidEnvironment {
 
     final bindgenKey = "BINDGEN_EXTRA_CLANG_ARGS_${target.rust}";
     final sysrootForClang = _clangPath(sysroot);
-    final includeForClang =
-        _clangPath(path.join(sysroot, 'usr', 'include', target.rust));
+    final includeForClang = _clangPath(path.join(
+      sysroot,
+      'usr',
+      'include',
+      _ndkIncludeTriple,
+    ));
     final bindgenValue =
         "$targetArg --sysroot=$sysrootForClang -I$includeForClang";
 
@@ -177,6 +181,10 @@ class AndroidEnvironment {
       rustFlagsKey: rustFlagsValue,
       linkerKey: selfPath,
       bindgenKey: bindgenValue,
+      // bindgen (clang-sys) resolves libclang from CLANG_PATH, so pin it to
+      // the NDK clang; a host LLVM installation has mismatched resource
+      // headers and cannot compile against the NDK sysroot.
+      'CLANG_PATH': ccValue,
       // Recognized by main() so we know when we're acting as a wrapper
       '_CARGOKIT_NDK_LINK_TARGET': targetArg,
       '_CARGOKIT_NDK_LINK_CLANG': ccValue,
@@ -190,6 +198,12 @@ class AndroidEnvironment {
   String _clangPath(String value) {
     return value.replaceAll(r'\', '/');
   }
+
+  /// The NDK sysroot names per-triple include directories by LLVM triple,
+  /// which drops the `v7` suffix for 32-bit ARM.
+  String get _ndkIncludeTriple => target.rust == 'armv7-linux-androideabi'
+      ? 'arm-linux-androideabi'
+      : target.rust;
 
   // Workaround for libgcc missing in NDK23, inspired by cargo-ndk
   String _libGccWorkaround(String buildDir, Version ndkVersion) {
