@@ -203,6 +203,8 @@ check_structure() {
   require_exact_line ".github/workflows/precompile-binaries.yml" \
     '  group: precompiled-${{ github.repository }}-${{ github.sha }}'
   require_exact_line ".github/workflows/precompile-binaries.yml" "        id: generation"
+  require_contains ".github/workflows/precompile-binaries.yml" \
+    "      PRECOMPILE_BINARIES_PRIVATE_KEY:"
   require_exact_line ".github/workflows/precompile-binaries.yml" "        continue-on-error: true"
   require_line_count ".github/workflows/precompile-binaries.yml" \
     "        if: steps.generation.outcome == 'failure'" 4
