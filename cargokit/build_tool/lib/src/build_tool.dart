@@ -13,6 +13,7 @@ import 'android_environment.dart';
 import 'build_cmake.dart';
 import 'build_gradle.dart';
 import 'build_pod.dart';
+import 'fetch_precompiled_artifacts.dart';
 import 'logging.dart';
 import 'options.dart';
 import 'precompile_binaries.dart';
@@ -347,6 +348,43 @@ class PublishPrecompiledGenerationCommand extends Command {
   }
 }
 
+class FetchPrecompiledArtifactsCommand extends Command {
+  FetchPrecompiledArtifactsCommand() {
+    argParser
+      ..addOption(
+        'manifest-dir',
+        mandatory: true,
+        help: 'Directory containing Cargo.toml and cargokit.yaml',
+      )
+      ..addOption(
+        'output-dir',
+        mandatory: true,
+        help: 'Directory that receives the fetched assets',
+      )
+      ..addMultiOption(
+        'asset',
+        help: 'Composite output name to fetch. Repeat for each asset.',
+      );
+  }
+
+  @override
+  final name = 'fetch-precompiled-artifacts';
+
+  @override
+  final description =
+      'Fetches verified composite assets from the published generation.';
+
+  @override
+  Future<void> run() async {
+    final fetch = FetchPrecompiledArtifacts(
+      manifestDir: argResults!['manifest-dir'] as String,
+      outputDir: argResults!['output-dir'] as String,
+      assetNames: argResults!['asset'] as List<String>,
+    );
+    await fetch.run();
+  }
+}
+
 class VerifyBinariesCommand extends Command {
   VerifyBinariesCommand() {
     argParser.addOption(
@@ -391,6 +429,7 @@ Future<void> runMain(List<String> args) async {
       ..addCommand(BuildPrecompiledGenerationCommand())
       ..addCommand(FinalizeLocalGenerationCommand())
       ..addCommand(PublishPrecompiledGenerationCommand())
+      ..addCommand(FetchPrecompiledArtifactsCommand())
       ..addCommand(VerifyBinariesCommand());
 
     await runner.run(args);

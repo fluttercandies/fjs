@@ -217,6 +217,12 @@ check_structure() {
   require_contains ".github/workflows/publish-pub.yml" "PRECOMPILE_BINARIES_PRIVATE_KEY: \${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}"
   require_exact_line ".github/workflows/publish-pub.yml" "    needs: publish-precompiled"
   require_exact_line ".github/workflows/publish-pub.yml" "      id-token: write"
+  require_contains ".github/workflows/publish-pub.yml" \
+    "fetch-precompiled-artifacts"
+  require_contains ".github/workflows/publish-pub.yml" \
+    "--asset=fjs.xcframework.zip"
+  require_contains ".github/workflows/publish-pub.yml" \
+    "test -f darwin/fjs/Binaries/fjs.xcframework.zip"
   require_exact_line "libfjs/Cargo.toml" "rust-version = \"1.95\""
   require_exact_line "libfjs/cargokit.yaml" "  workspace_root: .."
   for hash_input in \
