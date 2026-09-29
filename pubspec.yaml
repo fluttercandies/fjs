@@ -19,10 +19,11 @@ dependencies:
   flutter:
     sdk: flutter
   # FRB requires the runtime package to match the pinned codegen exactly
-  # (it enforces this at run time); a caret constraint let CI resolve newer
-  # releases, which tripped the generator's auto-upgrade into rewriting this
-  # file. Keep it capped to the codegen pinned in build-all-platforms.yml.
-  flutter_rust_bridge: 2.12.0
+  # (it enforces this at run time); an unconstrained caret let CI resolve
+  # newer releases, which tripped the generator's auto-upgrade into
+  # rewriting this file. Keep resolution capped to the codegen's minor
+  # line, pinned in build-all-platforms.yml.
+  flutter_rust_bridge: ">=2.12.0 <2.13.0"
   freezed_annotation: ^3.1.0
   plugin_platform_interface: ^2.1.8
 

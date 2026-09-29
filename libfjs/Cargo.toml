@@ -68,8 +68,9 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 # Force llrt modules to use the same rquickjs version as libfjs
 rquickjs = { git = "https://github.com/DelSkayn/rquickjs.git", rev = "3d5ecfc94e3f9ea3a9769422ca718a7dd063e00f", version = "0.14" }
 # dlopen2 0.9.0 references once_cell without declaring it, which breaks
-# android builds; see third_party/dlopen2/PATCH.md
-dlopen2 = { path = "third_party/dlopen2" }
+# android builds; drop this once upstream releases the fix
+# (https://github.com/OpenByteDev/dlopen2/pull/29)
+dlopen2 = { git = "https://github.com/iota9star/dlopen2.git", rev = "092357c55555a4f4bdf0ccfbdaf4f95eb2fddfd8" }
 
 [profile.release]
 strip = true  # Automatically strip symbols from the binary.

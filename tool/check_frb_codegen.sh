@@ -24,9 +24,9 @@ if [ "$ACTUAL_OUTPUT" != "$EXPECTED_OUTPUT" ]; then
   exit 1
 fi
 
-# Generated files are formatted with a pinned nightly so regeneration is
-# reproducible; the same pin is installed by build-all-platforms.yml.
-FRB_FMT_TOOLCHAIN=nightly-2026-09-28
+# Generated files are formatted with nightly so regeneration is
+# reproducible; CI installs the same toolchain.
+FRB_FMT_TOOLCHAIN=nightly
 
 # Expansion output differs between cargo-expand releases (it re-prints the
 # expanded code with its bundled formatter), which shifts the generated

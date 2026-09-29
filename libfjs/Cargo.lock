@@ -639,6 +639,7 @@ dependencies = [
 [[package]]
 name = "dlopen2"
 version = "0.9.0"
+source = "git+https://github.com/iota9star/dlopen2.git?rev=092357c55555a4f4bdf0ccfbdaf4f95eb2fddfd8#092357c55555a4f4bdf0ccfbdaf4f95eb2fddfd8"
 dependencies = [
  "dlopen2_derive",
  "libc",
@@ -648,8 +649,7 @@ dependencies = [
 [[package]]
 name = "dlopen2_derive"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aacdd87ba97c2f83ff479e881e547f776b0a7c42921be22d4391f32b6284050"
+source = "git+https://github.com/iota9star/dlopen2.git?rev=092357c55555a4f4bdf0ccfbdaf4f95eb2fddfd8#092357c55555a4f4bdf0ccfbdaf4f95eb2fddfd8"
 dependencies = [
  "proc-macro2",
  "quote",
