@@ -427,8 +427,16 @@ jobs:
             BEGIN { RS = "" }
             {
               record = tolower($0)
+              # Paragraph granularity couples unrelated lines: the Flutter
+              # tool nags about the intentionally old Gradle/AGP/Kotlin
+              # versions pinned by this leg, and the sdk manager mid-build
+              # CMake install logs an analytics.settings lock warning. Both
+              # land in the same paragraph as the cargokit env dump, but
+              # neither is a cargokit deprecation, so skip such records.
               if (record ~ /(warning|warn|deprecated|deprecation)/ &&
-                  record ~ /(cargokit|plugin\.gradle|build_tool)/) {
+                  record ~ /(cargokit|plugin\.gradle|build_tool)/ &&
+                  record !~ /flutter support for your project/ &&
+                  record !~ /unable to lock settings file .*analytics\.settings/) {
                 print $0
                 found = 1
               }
