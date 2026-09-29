@@ -118,7 +118,9 @@ fn dynamic_view_bytes<'js>(
         ($($ty:ty),+ $(,)?) => {
             $(
                 if let Some(arr) = obj.as_typed_array::<$ty>() {
-                    return match arr.as_bytes() {
+                    // SAFETY: the slice is copied before any JavaScript can
+                    // detach or mutate the backing store.
+                    return match unsafe { arr.as_bytes() } {
                         Some(bytes) => Ok(Some(bytes.to_vec())),
                         None => {
                             clear_residual_exception(ctx);
@@ -158,7 +160,10 @@ fn dynamic_view_bytes<'js>(
         clear_residual_exception(ctx);
         return Err(detached_buffer_error("DataView"));
     };
-    let Some(bytes) = array_buffer.as_bytes() else {
+    // SAFETY: the slice is copied before any JavaScript can detach or mutate
+    // the backing store.
+    let bytes = unsafe { array_buffer.as_bytes() };
+    let Some(bytes) = bytes else {
         clear_residual_exception(ctx);
         return Err(detached_buffer_error("DataView"));
     };
@@ -717,8 +722,10 @@ impl JsValue {
                 // which throws a TypeError for every non-ArrayBuffer object
                 // and would leave that exception pending on the context.
                 if is_array_buffer_instance(ctx, obj, intrinsics.as_deref()) {
+                    // SAFETY: the slice is copied before any JavaScript can
+                    // detach or mutate the backing store.
                     let bytes = rquickjs::ArrayBuffer::from_object(obj.clone())
-                        .and_then(|ab| ab.as_bytes().map(|bytes| bytes.to_vec()));
+                        .and_then(|ab| unsafe { ab.as_bytes() }.map(|bytes| bytes.to_vec()));
                     return match bytes {
                         Some(bytes) => Ok(JsValue::Bytes(bytes)),
                         None => {

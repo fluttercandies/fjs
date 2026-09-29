@@ -7,6 +7,7 @@
 * **FIX**: `cargokit/run_build_tool.cmd` now propagates the Dart build tool's non-zero exit code (including after the snapshot-rebuild retry path), so Windows Gradle builds fail instead of silently producing an APK without `libfjs.so`.
 * **FIX**: Declared `PRECOMPILE_BINARIES_PRIVATE_KEY` on the reusable precompile workflow so the explicitly scoped callers resolve; CI had rejected every workflow startup since the secret passthrough was introduced.
 * **INTERNAL**: Updated `h2` to 0.4.19 (RUSTSEC-2026-0258) and `rustls` to 0.23.45 (RUSTSEC-2026-0285), clearing the RustSec audit gate that had not run since the CI startup regression.
+* **INTERNAL**: Upgraded `rquickjs` to 0.14.0 (master `3d5ecfc9`) and the `llrt` crates to main `89941ae1`; `ArrayBuffer`/`TypedArray` byte reads now record the copy-before-Java-runs safety invariant required by the new `as_bytes` contract.
 
 ## 3.3.0
 
