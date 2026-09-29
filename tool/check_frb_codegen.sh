@@ -24,8 +24,12 @@ if [ "$ACTUAL_OUTPUT" != "$EXPECTED_OUTPUT" ]; then
   exit 1
 fi
 
-RUSTUP_TOOLCHAIN=nightly flutter_rust_bridge_codegen generate
-RUSTUP_TOOLCHAIN=nightly cargo fmt --manifest-path libfjs/Cargo.toml
+# Generated files are formatted with a pinned nightly so regeneration is
+# reproducible; the same pin is installed by build-all-platforms.yml.
+FRB_FMT_TOOLCHAIN=nightly-2026-09-28
+
+RUSTUP_TOOLCHAIN=$FRB_FMT_TOOLCHAIN flutter_rust_bridge_codegen generate
+RUSTUP_TOOLCHAIN=$FRB_FMT_TOOLCHAIN cargo fmt --manifest-path libfjs/Cargo.toml
 
 if ! git diff --exit-code -- lib/src/frb libfjs/src/frb_generated.rs; then
   echo "error: FRB regeneration changed committed generated files" >&2

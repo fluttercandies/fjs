@@ -339,6 +339,9 @@ fjs.xcframework.zip.checksum'
   require_contains "tool/prepare_darwin_release.sh" "--require-artifact"
   require_contains "tool/prepare_darwin_release.sh" "check_frb_codegen.sh"
   require_contains "tool/prepare_darwin_release.sh" "flutter pub publish --dry-run"
+  require_contains "tool/check_frb_codegen.sh" "FRB_FMT_TOOLCHAIN=nightly-2026-09-28"
+  require_contains ".github/workflows/build-all-platforms.yml" \
+    "rustup toolchain install nightly-2026-09-28 --profile minimal --component rustfmt"
   if grep -F -- "--ignore-warnings" tool/prepare_darwin_release.sh >/dev/null; then
     fail "release preparation must not ignore pub publish warnings"
   fi
