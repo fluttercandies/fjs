@@ -6,6 +6,7 @@
 * **FIX**: Android Cargokit builds pin `CLANG_PATH` to the NDK clang and use the NDK LLVM triple directory (`arm-linux-androideabi`) for armv7 bindgen includes, fixing Windows Android builds where bindgen loaded a host LLVM installation and could not find `stdbool.h`.
 * **FIX**: `cargokit/run_build_tool.cmd` now propagates the Dart build tool's non-zero exit code (including after the snapshot-rebuild retry path), so Windows Gradle builds fail instead of silently producing an APK without `libfjs.so`.
 * **FIX**: Declared `PRECOMPILE_BINARIES_PRIVATE_KEY` on the reusable precompile workflow so the explicitly scoped callers resolve; CI had rejected every workflow startup since the secret passthrough was introduced.
+* **INTERNAL**: Updated `h2` to 0.4.19 (RUSTSEC-2026-0258) and `rustls` to 0.23.45 (RUSTSEC-2026-0285), clearing the RustSec audit gate that had not run since the CI startup regression.
 
 ## 3.3.0
 
