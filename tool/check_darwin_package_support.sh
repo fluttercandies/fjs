@@ -342,6 +342,9 @@ fjs.xcframework.zip.checksum'
   require_contains "tool/check_frb_codegen.sh" "FRB_FMT_TOOLCHAIN=nightly-2026-09-28"
   require_contains ".github/workflows/build-all-platforms.yml" \
     "rustup toolchain install nightly-2026-09-28 --profile minimal --component rustfmt"
+  require_contains "tool/check_frb_codegen.sh" "FRB_CARGO_EXPAND_VERSION=1.0.126"
+  require_contains ".github/workflows/build-all-platforms.yml" \
+    "cargo install cargo-expand --version 1.0.126 --locked"
   if grep -F -- "--ignore-warnings" tool/prepare_darwin_release.sh >/dev/null; then
     fail "release preparation must not ignore pub publish warnings"
   fi

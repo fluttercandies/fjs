@@ -28,6 +28,18 @@ fi
 # reproducible; the same pin is installed by build-all-platforms.yml.
 FRB_FMT_TOOLCHAIN=nightly-2026-09-28
 
+# Expansion output differs between cargo-expand releases (it re-prints the
+# expanded code with its bundled formatter), which shifts the generated
+# trait-ignore headers. Require the pinned release; otherwise FRB silently
+# auto-installs the latest one. build-all-platforms.yml installs the same pin.
+FRB_CARGO_EXPAND_VERSION=1.0.126
+ACTUAL_CARGO_EXPAND="$(cargo expand --version 2>/dev/null || true)"
+if [ "$ACTUAL_CARGO_EXPAND" != "cargo-expand $FRB_CARGO_EXPAND_VERSION" ]; then
+  echo "error: cargo-expand $FRB_CARGO_EXPAND_VERSION is required for reproducible regeneration, found '$ACTUAL_CARGO_EXPAND'" >&2
+  echo "       install it with: cargo install cargo-expand --version $FRB_CARGO_EXPAND_VERSION --locked" >&2
+  exit 1
+fi
+
 RUSTUP_TOOLCHAIN=$FRB_FMT_TOOLCHAIN flutter_rust_bridge_codegen generate
 RUSTUP_TOOLCHAIN=$FRB_FMT_TOOLCHAIN cargo fmt --manifest-path libfjs/Cargo.toml
 

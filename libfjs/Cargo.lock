@@ -639,8 +639,6 @@ dependencies = [
 [[package]]
 name = "dlopen2"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60768c353d76ba6dd1b6332a5dbbdd3bc2dddadc2935f4cc6a9d0f17ca8ecb6a"
 dependencies = [
  "dlopen2_derive",
  "libc",
