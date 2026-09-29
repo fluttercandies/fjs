@@ -9,7 +9,7 @@
 * **INTERNAL**: Updated `h2` to 0.4.19 (RUSTSEC-2026-0258) and `rustls` to 0.23.45 (RUSTSEC-2026-0285), clearing the RustSec audit gate that had not run since the CI startup regression.
 * **INTERNAL**: Upgraded `rquickjs` to 0.14.0 (master `3d5ecfc9`) and the `llrt` crates to main `89941ae1`; `ArrayBuffer`/`TypedArray` byte reads now record the copy-before-Java-runs safety invariant required by the new `as_bytes` contract.
 * **FIX**: Vendored `dlopen2` 0.9.0 with a one-line Android fix (upstream removed its `once_cell` dependency while `raw/unix.rs` still imports it on every non-linux/non-macos target, so Android builds failed with E0433); the patch swaps in `std::sync::LazyLock` and drops out once upstream releases a fix.
-* **INTERNAL**: Pinned `cargo-expand` 1.0.126 for FRB regeneration. Release drift in cargo-expand re-prints expanded code differently, which changed generated trait-ignore headers on CI; the pin is enforced by the regeneration check and installed by CI.
+* **INTERNAL**: Pinned `cargo-expand` 1.0.126 for FRB regeneration and capped the root `flutter_rust_bridge` dependency to the pinned codegen version. Release drift in cargo-expand re-prints expanded code differently, and a caret constraint let fresh resolutions pick newer FRB runtimes, tripping the generator's auto-upgrade into rewriting `pubspec.yaml` on CI; both pins are enforced by the regeneration check and installed by CI.
 
 ## 3.3.0
 
