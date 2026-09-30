@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+* **FIX**: The example's `FjsService.dispose()` now drains already-scheduled JavaScript work via `closeGracefully()` before teardown, so pending evaluations settle normally instead of surfacing as late cancelled errors after callers move on.
+* **INTERNAL**: Integration tests now run on every desktop platform in CI: all four example suites (`smoke`, `simple`, `runtime_driver`, `fjs_service`) execute sequentially on Linux, macOS, and Windows instead of the previous Linux-only smoke test.
+* **INTERNAL**: Added a full unit-test suite for the `fetch-precompiled-artifacts` publish-path command (signature verification, multi-asset fetch, composite-name validation, missing generation, wrong signing key) and a Rust regression test locking the async engine's memory-limit error contract.
+
 ## 3.3.2
 
 * **BREAKING**: Raised the supported toolchain floor to Flutter 3.35.5 / Dart 3.9.2 (from 3.24.0 / 3.5.0), following `flutter_rust_bridge` 2.13.0 which requires Dart SDK >=3.9.2. Consumers on older Flutter must stay on fjs 3.3.1 (FRB 2.12) or upgrade Flutter.
