@@ -571,6 +571,7 @@ jobs:
           flutter build windows --release
 
       - name: Run Windows integration tests
+        shell: bash
         run: |
           cd ${{ env.EXAMPLE_DIR }}
           for suite in smoke_test simple_test runtime_driver_test fjs_service_test; do
