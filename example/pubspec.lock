@@ -151,7 +151,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "3.3.1"
+    version: "3.3.2"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -198,10 +198,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_rust_bridge
-      sha256: e87d6b9ee934dcd24a128ccb2bd91905d2d5fe5c06245d6a8f5477d4907a437a
+      sha256: ec69331e2335ab4d456c0a9fc700892c2c85b72b9c0cb39df3ecfe8833d5d5c8
       url: "https://pub.dev"
     source: hosted
-    version: "2.12.0"
+    version: "2.13.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -326,6 +326,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  logging:
+    dependency: transitive
+    description:
+      name: logging
+      sha256: c8245ada5f1717ed44271ed1c26b8ce85ca3228fd2ffdb75468ab01979309d61
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.0"
+
   matcher:
     dependency: transitive
     description:

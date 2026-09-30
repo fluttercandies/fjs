@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.3.2
+
+* **INTERNAL**: Upgraded `flutter_rust_bridge` to 2.13.0 — codegen, runtime dependency, and regenerated bindings. The bridge content hash is unchanged from 2.12.0, so the wire format stays compatible. CI installs codegen 2.13.0 and the root dependency stays capped to the codegen minor line (`>=2.13.0 <2.14.0`).
+
 ## 3.3.1
 
 * **FIX**: Published pub packages now ship `darwin/fjs/Binaries/fjs.xcframework.zip` again. The tag-triggered publish workflow materializes the signed SwiftPM composite from the verified precompiled generation before `flutter pub publish` and hard-fails when the binary is absent, so Swift Package Manager resolution no longer fails with a missing `FjsBinary` archive.

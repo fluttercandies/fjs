@@ -1,6 +1,6 @@
 name: fjs
 description: "A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS."
-version: 3.3.1
+version: 3.3.2
 homepage: https://github.com/fluttercandies/fjs
 repository: https://github.com/fluttercandies/fjs
 issue_tracker: https://github.com/fluttercandies/fjs/issues
@@ -23,7 +23,7 @@ dependencies:
   # newer releases, which tripped the generator's auto-upgrade into
   # rewriting this file. Keep resolution capped to the codegen's minor
   # line, pinned in build-all-platforms.yml.
-  flutter_rust_bridge: ">=2.12.0 <2.13.0"
+  flutter_rust_bridge: ">=2.13.0 <2.14.0"
   freezed_annotation: ^3.1.0
   plugin_platform_interface: ^2.1.8
 
