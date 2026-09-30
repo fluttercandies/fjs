@@ -23,7 +23,7 @@ void main() {
   late Map<String, List<int>> assets;
   late _StoreFixture fixture;
 
-  Future<void> _writeCargokitYaml({
+  Future<void> writeCargokitYaml({
     required String urlPrefix,
   }) async {
     final publicKeyHex = keyPair.publicKey.bytes
@@ -94,7 +94,7 @@ crate-type = ["staticlib"]
     // cargokit.yaml participates in the crate hash, so it must exist before
     // the fixture generation hash is computed (the fetch command recomputes
     // the hash from the same inputs at run time).
-    await _writeCargokitYaml(urlPrefix: server.prefix('/'));
+    await writeCargokitYaml(urlPrefix: server.prefix('/'));
     generationHash = CrateHash.compute(crate.path);
 
     assets = {
@@ -236,7 +236,7 @@ crate-type = ["staticlib"]
   test('fails when no completed generation is published', () async {
     // Pointing the prefix at an unpublished generation leaves the fixture
     // unreachable under the recomputed crate hash.
-    await _writeCargokitYaml(urlPrefix: server.prefix('/precompiled_missing_'));
+    await writeCargokitYaml(urlPrefix: server.prefix('/precompiled_missing_'));
 
     await expectLater(
       fetcher(outputDir: path.join(temp.path, 'out')).run(),
