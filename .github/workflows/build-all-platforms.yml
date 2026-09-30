@@ -135,10 +135,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Flutter 3.44.0
+      - name: Setup Flutter (stable)
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
-          flutter-version: ${{ env.ANDROID_COMPAT_FLUTTER_VERSION }}
+          channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
       - name: Setup stable Rust
@@ -147,8 +147,11 @@ jobs:
       - name: Install nightly Rust with rustfmt
         run: rustup toolchain install nightly --profile minimal --component rustfmt
 
-      - name: Install FRB codegen 2.12.0
-        run: cargo install flutter_rust_bridge_codegen --version 2.12.0 --locked
+      - name: Install FRB codegen 2.13.0
+        run: cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
+
+      - name: Install pinned cargo-expand 1.0.126
+        run: cargo install cargo-expand --version 1.0.126 --locked
 
       - name: Resolve root dependencies
         run: flutter pub get --no-example
@@ -424,8 +427,16 @@ jobs:
             BEGIN { RS = "" }
             {
               record = tolower($0)
+              # Paragraph granularity couples unrelated lines: the Flutter
+              # tool nags about the intentionally old Gradle/AGP/Kotlin
+              # versions pinned by this leg, and the sdk manager mid-build
+              # CMake install logs an analytics.settings lock warning. Both
+              # land in the same paragraph as the cargokit env dump, but
+              # neither is a cargokit deprecation, so skip such records.
               if (record ~ /(warning|warn|deprecated|deprecation)/ &&
-                  record ~ /(cargokit|plugin\.gradle|build_tool)/) {
+                  record ~ /(cargokit|plugin\.gradle|build_tool)/ &&
+                  record !~ /flutter support for your project/ &&
+                  record !~ /unable to lock settings file .*analytics\.settings/) {
                 print $0
                 found = 1
               }

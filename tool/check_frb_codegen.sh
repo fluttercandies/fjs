@@ -24,8 +24,24 @@ if [ "$ACTUAL_OUTPUT" != "$EXPECTED_OUTPUT" ]; then
   exit 1
 fi
 
-RUSTUP_TOOLCHAIN=nightly flutter_rust_bridge_codegen generate
-RUSTUP_TOOLCHAIN=nightly cargo fmt --manifest-path libfjs/Cargo.toml
+# Generated files are formatted with nightly so regeneration is
+# reproducible; CI installs the same toolchain.
+FRB_FMT_TOOLCHAIN=nightly
+
+# Expansion output differs between cargo-expand releases (it re-prints the
+# expanded code with its bundled formatter), which shifts the generated
+# trait-ignore headers. Require the pinned release; otherwise FRB silently
+# auto-installs the latest one. build-all-platforms.yml installs the same pin.
+FRB_CARGO_EXPAND_VERSION=1.0.126
+ACTUAL_CARGO_EXPAND="$(cargo expand --version 2>/dev/null || true)"
+if [ "$ACTUAL_CARGO_EXPAND" != "cargo-expand $FRB_CARGO_EXPAND_VERSION" ]; then
+  echo "error: cargo-expand $FRB_CARGO_EXPAND_VERSION is required for reproducible regeneration, found '$ACTUAL_CARGO_EXPAND'" >&2
+  echo "       install it with: cargo install cargo-expand --version $FRB_CARGO_EXPAND_VERSION --locked" >&2
+  exit 1
+fi
+
+RUSTUP_TOOLCHAIN=$FRB_FMT_TOOLCHAIN flutter_rust_bridge_codegen generate
+RUSTUP_TOOLCHAIN=$FRB_FMT_TOOLCHAIN cargo fmt --manifest-path libfjs/Cargo.toml
 
 if ! git diff --exit-code -- lib/src/frb libfjs/src/frb_generated.rs; then
   echo "error: FRB regeneration changed committed generated files" >&2

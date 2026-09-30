@@ -14,6 +14,56 @@ import 'precompiled_asset_store.dart';
 import 'precompiled_generation.dart';
 import 'target.dart';
 
+Set<String> expectedGenerationAssetNames({
+  required PrecompiledBuildRecipe recipe,
+  required PrecompiledBinaries precompiled,
+  required String libraryName,
+}) {
+  final result = <String>{};
+  for (final triple in recipe.rustTargets) {
+    final target = Target.forRustTriple(triple);
+    if (target == null) {
+      throw PrecompiledGenerationException(
+          'Build recipe contains an unsupported Rust target.');
+    }
+    for (final type in AritifactType.values) {
+      for (final artifact in getArtifactNames(
+        target: target,
+        libraryName: libraryName,
+        remote: true,
+        aritifactType: type,
+      )) {
+        result.add(PrecompileBinaries.fileName(target, artifact));
+      }
+    }
+  }
+  for (final group in precompiled.compositeGroups) {
+    for (final checksum
+        in group.outputs.where((output) => output.endsWith('.checksum'))) {
+      final archive = checksum.substring(0, checksum.length - '.checksum'.length);
+      if (group.outputs.contains(archive)) {
+        result.add(archive);
+        result.add(checksum);
+      }
+    }
+  }
+  return result;
+}
+
+Set<String> expectedCompositeChecksumPairs(PrecompiledBinaries precompiled) {
+  final result = <String>{};
+  for (final group in precompiled.compositeGroups) {
+    for (final checksum
+        in group.outputs.where((output) => output.endsWith('.checksum'))) {
+      final archive = checksum.substring(0, checksum.length - '.checksum'.length);
+      if (group.outputs.contains(archive)) {
+        result.add('$archive\u0000$checksum');
+      }
+    }
+  }
+  return result;
+}
+
 class VerifyBinaries {
   VerifyBinaries({
     required this.manifestDir,
@@ -34,37 +84,13 @@ class VerifyBinaries {
           'Configured precompiled binaries need a complete build recipe.');
     }
     final crateInfo = CrateInfo.load(manifestDir);
-    final expectedNames = <String>{};
-    for (final triple in recipe.rustTargets) {
-      final target = Target.forRustTriple(triple);
-      if (target == null) {
-        throw PrecompiledGenerationException(
-            'Build recipe contains an unsupported Rust target.');
-      }
-      for (final type in AritifactType.values) {
-        for (final artifact in getArtifactNames(
-          target: target,
-          libraryName: crateInfo.packageName,
-          remote: true,
-          aritifactType: type,
-        )) {
-          expectedNames.add(PrecompileBinaries.fileName(target, artifact));
-        }
-      }
-    }
-    final compositeChecksums = <String>{};
-    for (final group in precompiledBinaries.compositeGroups) {
-      for (final checksum
-          in group.outputs.where((output) => output.endsWith('.checksum'))) {
-        final archive =
-            checksum.substring(0, checksum.length - '.checksum'.length);
-        if (group.outputs.contains(archive)) {
-          expectedNames.add(archive);
-          expectedNames.add(checksum);
-          compositeChecksums.add('$archive\u0000$checksum');
-        }
-      }
-    }
+    final expectedNames = expectedGenerationAssetNames(
+      recipe: recipe,
+      precompiled: precompiledBinaries,
+      libraryName: crateInfo.packageName,
+    );
+    final compositeChecksums =
+        expectedCompositeChecksumPairs(precompiledBinaries);
     final generationHash = CrateHash.compute(manifestDir);
     final cacheRoot = Directory.systemTemp.createTempSync('cargokit-verify-');
     final transport = PrecompiledAssetTransport();

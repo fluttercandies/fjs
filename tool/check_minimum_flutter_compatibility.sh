@@ -72,7 +72,7 @@ cat > "$TEMP_DIR/pubspec.yaml" <<'PUBSPEC'
 name: fjs_minimum_compatibility
 publish_to: none
 environment:
-  sdk: '>=3.5.0 <4.0.0'
+  sdk: '>=3.9.2 <4.0.0'
 dependencies:
   fjs:
     path: fjs

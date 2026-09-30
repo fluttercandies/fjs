@@ -331,6 +331,13 @@ async fn test_engine_runtime_proxy_methods_fail_while_initializing() {
     let close_engine = engine.clone();
     let close_task = tokio::spawn(async move { close_engine.close().await });
 
+    // close() transitions the state on its first poll; wait for that to
+    // happen before releasing the blocked init, otherwise the resumed init
+    // can win the race to finish_init and succeed.
+    while !engine.closed() {
+        tokio::task::yield_now().await;
+    }
+
     release_blocking_init_attachment();
 
     close_task.await.unwrap().unwrap();

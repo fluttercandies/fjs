@@ -1,6 +1,6 @@
 name: fjs
 description: "A high-performance JavaScript runtime for Flutter applications, built with Rust and powered by QuickJS."
-version: 3.3.0
+version: 3.3.2
 homepage: https://github.com/fluttercandies/fjs
 repository: https://github.com/fluttercandies/fjs
 issue_tracker: https://github.com/fluttercandies/fjs/issues
@@ -12,13 +12,16 @@ topics:
   - runtime
 
 environment:
-  sdk: ^3.5.0
-  flutter: '>=3.24.0'
+  sdk: ^3.9.2
+  flutter: '>=3.35.5'
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_rust_bridge: ^2.12.0
+  # FRB requires the runtime package to match the pinned codegen exactly
+  # (it enforces this at run time), so pin it with an exact constraint;
+  # the codegen version is pinned in build-all-platforms.yml.
+  flutter_rust_bridge: "2.13.0"
   freezed_annotation: ^3.1.0
   plugin_platform_interface: ^2.1.8
 

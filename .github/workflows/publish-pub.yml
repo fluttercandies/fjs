@@ -53,6 +53,22 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get --no-example
 
+      - name: Resolve build tool dependencies
+        run: dart pub get
+        working-directory: cargokit/build_tool
+
+      - name: Fetch verified SwiftPM binary into the package
+        run: >-
+          dart run cargokit/build_tool/bin/build_tool.dart
+          fetch-precompiled-artifacts
+          --manifest-dir=libfjs
+          --output-dir=darwin/fjs/Binaries
+          --asset=fjs.xcframework.zip
+
+      - name: Require the SwiftPM binary in the package
+        shell: bash
+        run: test -f darwin/fjs/Binaries/fjs.xcframework.zip
+
       - name: Verify tracked package source
         run: git diff HEAD --exit-code --
 

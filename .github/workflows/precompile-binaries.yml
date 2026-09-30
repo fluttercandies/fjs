@@ -2,6 +2,9 @@ name: Precompile Binaries
 
 on:
   workflow_call:
+    secrets:
+      PRECOMPILE_BINARIES_PRIVATE_KEY:
+        required: true
   workflow_dispatch:
 
 permissions:
@@ -12,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FLUTTER_VERSION: 3.24.0
+  FLUTTER_VERSION: 3.35.5
   RUST_TOOLCHAIN: 1.97.1
   RUST_CRATE_DIR: libfjs
 
@@ -85,7 +88,7 @@ jobs:
           --repository=${{ github.repository }}
           --source-commit=${{ github.sha }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           PRIVATE_KEY: ${{ secrets.PRECOMPILE_BINARIES_PRIVATE_KEY }}
 
       - name: Verify the published v2 generation
