@@ -8,6 +8,16 @@ import org.gradle.process.ExecOperations
 import javax.inject.Inject
 import java.nio.file.Paths
 
+class AndroidSdkVersionParser {
+    static int parse(Object value) {
+        def matcher = value.toString() =~ /\d+/
+        if (!matcher.find()) {
+            throw new GradleException("Unsupported Android SDK version: ${value}")
+        }
+        return matcher.group() as int
+    }
+}
+
 CargoKitPlugin.file = buildscript.sourceFile
 
 apply plugin: CargoKitPlugin
@@ -128,13 +138,9 @@ class CargoKitPlugin implements Plugin<Project> {
         def projectBuildDir = project.layout.buildDirectory.get().asFile
         def cargoBuildDir = new File(projectBuildDir, "build").path
 
-        // Determine if the project is an application or library
-        def isApplication = plugin.project.plugins.hasPlugin('com.android.application')
-        def variants = isApplication ? plugin.project.android.applicationVariants : plugin.project.android.libraryVariants
-
-        variants.all { variant ->
-
-            final buildType = variant.buildType.name
+        def androidComponents = project.extensions.getByName("androidComponents")
+        androidComponents.onVariants(androidComponents.selector().all()) { variant ->
+            final buildType = variant.buildType
 
             def cargoOutputDir = new File(projectBuildDir, "jniLibs/${buildType}").path;
             def jniLibs = project.android.sourceSets.maybeCreate(buildType).jniLibs;
@@ -171,13 +177,13 @@ class CargoKitPlugin implements Plugin<Project> {
                 }
 
                 def task = project.tasks.create(taskName, CargoKitBuildTask.class) {
-                    buildMode = variant.buildType.name
+                    buildMode = buildType
                     buildDir = cargoBuildDir
                     outputDir = cargoOutputDir
                     ndkVersion = plugin.project.android.ndkVersion
                     sdkDirectory = plugin.project.android.sdkDirectory
                     minSdkVersion = plugin.project.android.defaultConfig.minSdkVersion.apiLevel as int
-                    compileSdkVersion = plugin.project.android.compileSdkVersion.substring(8) as int
+                    compileSdkVersion = AndroidSdkVersionParser.parse(plugin.project.android.compileSdkVersion)
                     targetPlatforms = platforms
                     pluginFile = CargoKitPlugin.file
                 }
