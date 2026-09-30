@@ -22,6 +22,7 @@ precompiled_binaries:
     - tool/check_darwin_package_support.sh
     - tool/check_frb_codegen.sh
     - tool/check_frb_content_hash.dart
+    - tool/check_pub_dry_run.sh
   build_recipe:
     rust_toolchain: '1.97.1'
     flutter_version: '3.35.5'
