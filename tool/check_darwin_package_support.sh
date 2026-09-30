@@ -339,6 +339,7 @@ fjs.xcframework.zip.checksum'
   require_contains "tool/prepare_darwin_release.sh" "--require-artifact"
   require_contains "tool/prepare_darwin_release.sh" "check_frb_codegen.sh"
   require_contains "tool/prepare_darwin_release.sh" "flutter pub publish --dry-run"
+  require_contains "tool/prepare_darwin_release.sh" "should allow more than one version"
   require_contains "tool/check_frb_codegen.sh" "FRB_FMT_TOOLCHAIN=nightly"
   require_contains ".github/workflows/build-all-platforms.yml" \
     "rustup toolchain install nightly --profile minimal --component rustfmt"
