@@ -2,7 +2,7 @@
 
 ## 3.3.2
 
-* **INTERNAL**: Upgraded `flutter_rust_bridge` to 2.13.0 — codegen, runtime dependency, and regenerated bindings. The bridge content hash is unchanged from 2.12.0, so the wire format stays compatible. CI installs codegen 2.13.0 and the root dependency stays capped to the codegen minor line (`>=2.13.0 <2.14.0`).
+* **INTERNAL**: Upgraded `flutter_rust_bridge` to 2.13.0 — codegen, runtime dependency, and regenerated bindings. The bridge content hash is unchanged from 2.12.0, so the wire format stays compatible. CI installs codegen 2.13.0 and the root dependency pins the runtime with an exact constraint (`=2.13.0`), matching the codegen like the Rust side does.
 
 ## 3.3.1
 
