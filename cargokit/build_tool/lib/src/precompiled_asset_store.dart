@@ -1023,8 +1023,15 @@ class PrecompiledAssetStore {
     String? staging;
     var ownsStaging = false;
     try {
+      // Windows MAX_PATH: this name lives under v2/<key>/snapshots/, so
+      // embedding the full 64-hex key again — plus the staging id, the
+      // createTempSync suffix and the asset's relative path — pushes long
+      // cache roots past the ~260-char limit dart:io enforces (it does not
+      // apply \\?\ prefixing). A 16-hex prefix keeps the name diagnostic and
+      // collision-free within the generation directory; the authoritative
+      // full key remains the parent directory name and the manifest.
       staging = Directory(snapshotsDirectory)
-          .createTempSync('$key.staging-${stagingId()}-')
+          .createTempSync('${key.substring(0, 16)}.staging-${stagingId()}-')
           .path;
       ownsStaging = true;
       final names = expanded.toList()..sort();

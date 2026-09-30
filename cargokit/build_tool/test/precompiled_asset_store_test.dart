@@ -1141,8 +1141,11 @@ void main() {
       expect(renames, hasLength(2));
       expect(path.basename(renames[0][0]), startsWith('anchor.staging-'));
       expect(path.basename(renames[0][1]), 'anchor');
+      // The staging name carries the 16-hex truncation of the key (Windows
+      // MAX_PATH headroom); the published snapshot directory keeps the full
+      // key.
       expect(path.basename(renames[1][0]),
-          startsWith('${snapshot!.requestKey}.staging-'));
+          startsWith('${snapshot!.requestKey.substring(0, 16)}.staging-'));
       expect(path.basename(renames[1][1]), snapshot.requestKey);
 
       final metrics = store.metrics(
