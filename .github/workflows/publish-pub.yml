@@ -76,5 +76,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          flutter pub publish --dry-run
+          # Tolerates only the expected exact-pin warning for
+          # flutter_rust_bridge (see tool/check_pub_dry_run.sh).
+          tool/check_pub_dry_run.sh
           flutter pub publish --force

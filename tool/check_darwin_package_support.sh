@@ -167,6 +167,7 @@ check_structure() {
   require_file "tool/build_fjs_xcframework.sh"
   require_file "tool/check_frb_content_hash.dart"
   require_file "tool/check_minimum_flutter_compatibility.sh"
+  require_file "tool/check_pub_dry_run.sh"
   require_file "tool/prepare_darwin_release.sh"
 
   require_contains "pubspec.yaml" "sharedDarwinSource: true"
@@ -244,7 +245,8 @@ check_structure() {
     tool/build_fjs_xcframework.sh \
     tool/check_darwin_package_support.sh \
     tool/check_frb_codegen.sh \
-    tool/check_frb_content_hash.dart; do
+    tool/check_frb_content_hash.dart \
+    tool/check_pub_dry_run.sh; do
     require_exact_line "libfjs/cargokit.yaml" "    - $hash_input"
   done
   require_exact_line "libfjs/cargokit.yaml" "    rust_toolchain: '1.97.1'"
@@ -338,8 +340,10 @@ fjs.xcframework.zip.checksum'
   require_not_contains "tool/build_fjs_xcframework.sh" 'assemble_fjs_xcframework.sh'
   require_contains "tool/prepare_darwin_release.sh" "--require-artifact"
   require_contains "tool/prepare_darwin_release.sh" "check_frb_codegen.sh"
-  require_contains "tool/prepare_darwin_release.sh" "flutter pub publish --dry-run"
-  require_contains "tool/prepare_darwin_release.sh" "should allow more than one version"
+  require_contains "tool/prepare_darwin_release.sh" "check_pub_dry_run.sh"
+  require_contains "tool/check_pub_dry_run.sh" "flutter pub publish --dry-run"
+  require_contains "tool/check_pub_dry_run.sh" "should allow more than one version"
+  require_contains ".github/workflows/publish-pub.yml" "tool/check_pub_dry_run.sh"
   require_contains "tool/check_frb_codegen.sh" "FRB_FMT_TOOLCHAIN=nightly"
   require_contains ".github/workflows/build-all-platforms.yml" \
     "rustup toolchain install nightly --profile minimal --component rustfmt"
