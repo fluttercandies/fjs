@@ -503,13 +503,8 @@ fn test_range_error_invalid_array_length() {
 // Memory Boundary Tests
 // ============================================================================
 
-#[test]
-fn test_async_engine_memory_limit_error_code() {
-    // Mirror the FRB worker threading model: a dedicated thread with its own
-    // multi-thread tokio runtime, like the Dart bridge executes with.
-    std::thread::spawn(|| {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        runtime.block_on(async {
+#[tokio::test]
+async fn test_async_engine_memory_limit_error_code() {
     let engine = JsEngine::create(
         Some(JsBuiltinOptions::essential()),
         None,
@@ -545,12 +540,8 @@ fn test_async_engine_memory_limit_error_code() {
         matches!(error, JsError::MemoryLimit(_)),
         "expected MemoryLimit, got {error}"
     );
-        assert!(!engine.closed());
-        engine.close().await.unwrap();
-        })
-    })
-    .join()
-    .unwrap();
+    assert!(!engine.closed());
+    engine.close().await.unwrap();
 }
 
 #[test]
