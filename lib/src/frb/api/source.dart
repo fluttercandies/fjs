@@ -178,8 +178,7 @@ enum JsBytecodeEndianness {
   little,
 
   /// Always emit big-endian bytecode.
-  big,
-  ;
+  big;
 
   static Future<JsBytecodeEndianness> default_() =>
       LibFjs.instance.api.crateApiSourceJsBytecodeEndiannessDefault();
@@ -190,46 +189,34 @@ sealed class JsCode with _$JsCode {
   const JsCode._();
 
   /// Inline JavaScript code as a string
-  const factory JsCode.code(
-    String field0,
-  ) = JsCode_Code;
+  const factory JsCode.code(String field0) = JsCode_Code;
 
   /// File path containing JavaScript code
-  const factory JsCode.path(
-    String field0,
-  ) = JsCode_Path;
+  const factory JsCode.path(String field0) = JsCode_Path;
 
   /// Raw UTF-8 bytes containing JavaScript source code
-  const factory JsCode.bytes(
-    Uint8List field0,
-  ) = JsCode_Bytes;
+  const factory JsCode.bytes(Uint8List field0) = JsCode_Bytes;
 
   /// Returns true if this is a Bytes variant.
   ///
   /// ## Returns
   ///
   /// `true` if this is a Bytes variant, `false` otherwise
-  bool isBytes() => LibFjs.instance.api.crateApiSourceJsCodeIsBytes(
-        that: this,
-      );
+  bool isBytes() => LibFjs.instance.api.crateApiSourceJsCodeIsBytes(that: this);
 
   /// Returns true if this is a Code variant.
   ///
   /// ## Returns
   ///
   /// `true` if this is a Code variant, `false` otherwise
-  bool isCode() => LibFjs.instance.api.crateApiSourceJsCodeIsCode(
-        that: this,
-      );
+  bool isCode() => LibFjs.instance.api.crateApiSourceJsCodeIsCode(that: this);
 
   /// Returns true if this is a Path variant.
   ///
   /// ## Returns
   ///
   /// `true` if this is a Path variant, `false` otherwise
-  bool isPath() => LibFjs.instance.api.crateApiSourceJsCodeIsPath(
-        that: this,
-      );
+  bool isPath() => LibFjs.instance.api.crateApiSourceJsCodeIsPath(that: this);
 }
 
 /// Options for JavaScript code evaluation.
@@ -308,16 +295,17 @@ sealed class JsEvalOptions with _$JsEvalOptions {
   /// ## Returns
   ///
   /// A new `JsEvalOptions` instance
-  factory JsEvalOptions(
-          {bool? global,
-          bool? strict,
-          bool? backtraceBarrier,
-          bool? promise}) =>
-      LibFjs.instance.api.crateApiSourceJsEvalOptionsNew(
-          global: global,
-          strict: strict,
-          backtraceBarrier: backtraceBarrier,
-          promise: promise);
+  factory JsEvalOptions({
+    bool? global,
+    bool? strict,
+    bool? backtraceBarrier,
+    bool? promise,
+  }) => LibFjs.instance.api.crateApiSourceJsEvalOptionsNew(
+    global: global,
+    strict: strict,
+    backtraceBarrier: backtraceBarrier,
+    promise: promise,
+  );
 
   /// Creates options with promise support enabled.
   ///
@@ -368,10 +356,8 @@ sealed class JsEvalOptions with _$JsEvalOptions {
 @freezed
 sealed class JsModule with _$JsModule {
   const JsModule._();
-  const factory JsModule.raw({
-    required String name,
-    required JsCode source,
-  }) = _JsModule;
+  const factory JsModule.raw({required String name, required JsCode source}) =
+      _JsModule;
 
   /// Creates a module from raw UTF-8 source bytes.
   ///
@@ -387,8 +373,10 @@ sealed class JsModule with _$JsModule {
   /// );
   /// ```
   static JsModule bytes({required String module, required List<int> bytes}) =>
-      LibFjs.instance.api
-          .crateApiSourceJsModuleBytes(module: module, bytes: bytes);
+      LibFjs.instance.api.crateApiSourceJsModuleBytes(
+        module: module,
+        bytes: bytes,
+      );
 
   /// Creates a module from inline source text.
   ///
@@ -403,9 +391,10 @@ sealed class JsModule with _$JsModule {
   ///   code: 'export const enabled = true;',
   /// );
   /// ```
-  static JsModule code({required String module, required String code}) =>
-      LibFjs.instance.api
-          .crateApiSourceJsModuleCode(module: module, code: code);
+  static JsModule code({required String module, required String code}) => LibFjs
+      .instance
+      .api
+      .crateApiSourceJsModuleCode(module: module, code: code);
 
   /// Creates a new module with the given name and source.
   ///
@@ -441,9 +430,10 @@ sealed class JsModule with _$JsModule {
   ///   path: '/absolute/path/to/logger.js',
   /// );
   /// ```
-  static JsModule path({required String module, required String path}) =>
-      LibFjs.instance.api
-          .crateApiSourceJsModulePath(module: module, path: path);
+  static JsModule path({required String module, required String path}) => LibFjs
+      .instance
+      .api
+      .crateApiSourceJsModulePath(module: module, path: path);
 }
 
 /// Serialized QuickJS bytecode for a single ES module.
@@ -480,8 +470,10 @@ sealed class JsModuleBytecode with _$JsModuleBytecode {
   /// );
   /// ```
   factory JsModuleBytecode({required String name, required List<int> bytes}) =>
-      LibFjs.instance.api
-          .crateApiSourceJsModuleBytecodeNew(name: name, bytes: bytes);
+      LibFjs.instance.api.crateApiSourceJsModuleBytecodeNew(
+        name: name,
+        bytes: bytes,
+      );
 }
 
 /// A collection of precompiled ES modules, optionally with a designated entry module.
@@ -512,10 +504,13 @@ sealed class JsModuleBytecodeBundle with _$JsModuleBytecodeBundle {
   ///   ],
   /// );
   /// ```
-  factory JsModuleBytecodeBundle(
-          {String? entry, required List<JsModuleBytecode> modules}) =>
-      LibFjs.instance.api.crateApiSourceJsModuleBytecodeBundleNew(
-          entry: entry, modules: modules);
+  factory JsModuleBytecodeBundle({
+    String? entry,
+    required List<JsModuleBytecode> modules,
+  }) => LibFjs.instance.api.crateApiSourceJsModuleBytecodeBundleNew(
+    entry: entry,
+    modules: modules,
+  );
 }
 
 /// Options used when compiling an ES module into QuickJS bytecode.
@@ -584,8 +579,10 @@ sealed class JsScriptBytecode with _$JsScriptBytecode {
   /// );
   /// ```
   factory JsScriptBytecode({required String name, required List<int> bytes}) =>
-      LibFjs.instance.api
-          .crateApiSourceJsScriptBytecodeNew(name: name, bytes: bytes);
+      LibFjs.instance.api.crateApiSourceJsScriptBytecodeNew(
+        name: name,
+        bytes: bytes,
+      );
 }
 
 /// Options used when compiling non-module JavaScript into QuickJS bytecode.

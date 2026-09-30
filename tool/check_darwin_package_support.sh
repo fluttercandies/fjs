@@ -190,13 +190,13 @@ check_structure() {
   require_contains "darwin/fjs.podspec" "s.osx.dependency 'FlutterMacOS'"
   require_contains "darwin/fjs.podspec" "cargokit/build_pod.sh"
 
-  require_exact_line "pubspec.yaml" "  sdk: ^3.5.0"
-  require_exact_line "pubspec.yaml" "  flutter: '>=3.24.0'"
+  require_exact_line "pubspec.yaml" "  sdk: ^3.9.2"
+  require_exact_line "pubspec.yaml" "  flutter: '>=3.35.5'"
   require_exact_line ".github/workflows/build-all-platforms.yml" \
     "  ANDROID_COMPAT_FLUTTER_VERSION: 3.44.0"
   require_exact_line ".github/workflows/publish-pub.yml" \
     "          flutter-version: 3.44.0"
-  require_exact_line ".github/workflows/precompile-binaries.yml" "  FLUTTER_VERSION: 3.24.0"
+  require_exact_line ".github/workflows/precompile-binaries.yml" "  FLUTTER_VERSION: 3.35.5"
   require_exact_line ".github/workflows/precompile-binaries.yml" "  RUST_TOOLCHAIN: 1.97.1"
   require_contains ".github/workflows/precompile-binaries.yml" \
     "tool/check_minimum_flutter_compatibility.sh"
@@ -248,7 +248,7 @@ check_structure() {
     require_exact_line "libfjs/cargokit.yaml" "    - $hash_input"
   done
   require_exact_line "libfjs/cargokit.yaml" "    rust_toolchain: '1.97.1'"
-  require_exact_line "libfjs/cargokit.yaml" "    flutter_version: '3.24.0'"
+  require_exact_line "libfjs/cargokit.yaml" "    flutter_version: '3.35.5'"
   require_exact_line "libfjs/cargokit.yaml" "    xcode_version: '16.4'"
   require_exact_line "libfjs/cargokit.yaml" "      iphoneos: '18.5'"
   require_exact_line "libfjs/cargokit.yaml" "      macosx: '15.5'"

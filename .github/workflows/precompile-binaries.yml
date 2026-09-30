@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FLUTTER_VERSION: 3.24.0
+  FLUTTER_VERSION: 3.35.5
   RUST_TOOLCHAIN: 1.97.1
   RUST_CRATE_DIR: libfjs
 

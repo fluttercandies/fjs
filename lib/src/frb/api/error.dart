@@ -18,9 +18,7 @@ sealed class JsError with _$JsError {
   const JsError._();
 
   /// Promise-related errors (async operation failures)
-  const factory JsError.promise(
-    String field0,
-  ) = JsError_Promise;
+  const factory JsError.promise(String field0) = JsError_Promise;
 
   /// Module-related errors (import/export failures)
   const factory JsError.module({
@@ -35,14 +33,10 @@ sealed class JsError with _$JsError {
   }) = JsError_Module;
 
   /// Context attachment errors (global object setup failures)
-  const factory JsError.context(
-    String field0,
-  ) = JsError_Context;
+  const factory JsError.context(String field0) = JsError_Context;
 
   /// Storage initialization errors (dynamic module storage failures)
-  const factory JsError.storage(
-    String field0,
-  ) = JsError_Storage;
+  const factory JsError.storage(String field0) = JsError_Storage;
 
   /// File I/O errors (file reading failures)
   const factory JsError.io({
@@ -54,24 +48,16 @@ sealed class JsError with _$JsError {
   }) = JsError_Io;
 
   /// JavaScript runtime errors from QuickJS engine
-  const factory JsError.runtime(
-    String field0,
-  ) = JsError_Runtime;
+  const factory JsError.runtime(String field0) = JsError_Runtime;
 
   /// Generic catch-all errors
-  const factory JsError.generic(
-    String field0,
-  ) = JsError_Generic;
+  const factory JsError.generic(String field0) = JsError_Generic;
 
   /// Engine lifecycle errors
-  const factory JsError.engine(
-    String field0,
-  ) = JsError_Engine;
+  const factory JsError.engine(String field0) = JsError_Engine;
 
   /// Bridge communication errors
-  const factory JsError.bridge(
-    String field0,
-  ) = JsError_Bridge;
+  const factory JsError.bridge(String field0) = JsError_Bridge;
 
   /// Type conversion errors
   const factory JsError.conversion({
@@ -95,14 +81,10 @@ sealed class JsError with _$JsError {
   }) = JsError_Timeout;
 
   /// Memory limit exceeded errors
-  const factory JsError.memoryLimit(
-    String field0,
-  ) = JsError_MemoryLimit;
+  const factory JsError.memoryLimit(String field0) = JsError_MemoryLimit;
 
   /// Stack overflow errors
-  const factory JsError.stackOverflow(
-    String field0,
-  ) = JsError_StackOverflow;
+  const factory JsError.stackOverflow(String field0) = JsError_StackOverflow;
 
   /// Syntax errors in JavaScript code
   const factory JsError.syntax({
@@ -117,19 +99,13 @@ sealed class JsError with _$JsError {
   }) = JsError_Syntax;
 
   /// Reference errors (undefined variables, etc.)
-  const factory JsError.reference(
-    String field0,
-  ) = JsError_Reference;
+  const factory JsError.reference(String field0) = JsError_Reference;
 
   /// Type errors in JavaScript
-  const factory JsError.type(
-    String field0,
-  ) = JsError_Type;
+  const factory JsError.type(String field0) = JsError_Type;
 
   /// Cancelled operation errors
-  const factory JsError.cancelled(
-    String field0,
-  ) = JsError_Cancelled;
+  const factory JsError.cancelled(String field0) = JsError_Cancelled;
 
   /// Returns the error code for this error type.
   ///
@@ -160,9 +136,7 @@ sealed class JsError with _$JsError {
   ///     print('Other error: ${error.code()}');
   /// }
   /// ```
-  String code() => LibFjs.instance.api.crateApiErrorJsErrorCode(
-        that: this,
-      );
+  String code() => LibFjs.instance.api.crateApiErrorJsErrorCode(that: this);
 
   /// Returns whether this error is recoverable.
   ///
@@ -188,18 +162,16 @@ sealed class JsError with _$JsError {
   ///   print('Fatal error, cannot recover');
   /// }
   /// ```
-  bool isRecoverable() => LibFjs.instance.api.crateApiErrorJsErrorIsRecoverable(
-        that: this,
-      );
+  bool isRecoverable() =>
+      LibFjs.instance.api.crateApiErrorJsErrorIsRecoverable(that: this);
 
   /// Converts the error to a string representation.
   ///
   /// ## Returns
   ///
   /// A formatted string describing the error
-  String toString() => LibFjs.instance.api.crateApiErrorJsErrorToString(
-        that: this,
-      );
+  String toString() =>
+      LibFjs.instance.api.crateApiErrorJsErrorToString(that: this);
 }
 
 @freezed
@@ -207,14 +179,10 @@ sealed class JsResult with _$JsResult {
   const JsResult._();
 
   /// Successful execution result containing the value
-  const factory JsResult.ok(
-    JsValue field0,
-  ) = JsResult_Ok;
+  const factory JsResult.ok(JsValue field0) = JsResult_Ok;
 
   /// Error during execution containing the error details
-  const factory JsResult.err(
-    JsError field0,
-  ) = JsResult_Err;
+  const factory JsResult.err(JsError field0) = JsResult_Err;
 
   bool get isOk => this is JsResult_Ok;
   bool get isErr => this is JsResult_Err;
