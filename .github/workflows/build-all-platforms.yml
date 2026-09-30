@@ -570,6 +570,13 @@ jobs:
           cd ${{ env.EXAMPLE_DIR }}
           flutter build windows --release
 
+      - name: Run Windows integration tests
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          for suite in smoke_test simple_test runtime_driver_test fjs_service_test; do
+            flutter test "integration_test/$suite.dart" -d windows
+          done
+
       - name: Run Windows cockpit verification
         run: |
           cd ${{ env.EXAMPLE_DIR }}
@@ -662,10 +669,12 @@ jobs:
           cd ${{ env.EXAMPLE_DIR }}
           flutter build linux --release
 
-      - name: Run Linux smoke test
+      - name: Run Linux integration tests
         run: |
           cd ${{ env.EXAMPLE_DIR }}
-          xvfb-run -a flutter test integration_test/smoke_test.dart -d linux
+          for suite in smoke_test simple_test runtime_driver_test fjs_service_test; do
+            xvfb-run -a flutter test "integration_test/$suite.dart" -d linux
+          done
 
       - name: Run Linux cockpit verification
         run: |
@@ -731,6 +740,13 @@ jobs:
         run: |
           cd ${{ env.EXAMPLE_DIR }}
           flutter build macos --release
+
+      - name: Run macOS integration tests
+        run: |
+          cd ${{ env.EXAMPLE_DIR }}
+          for suite in smoke_test simple_test runtime_driver_test fjs_service_test; do
+            flutter test "integration_test/$suite.dart" -d macos
+          done
 
       - name: Run macOS cockpit verification
         run: |

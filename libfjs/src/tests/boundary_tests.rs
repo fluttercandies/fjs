@@ -3,10 +3,10 @@
 //! Comprehensive boundary condition tests for the FJS library.
 //! Tests edge cases, limits, and error conditions.
 
-use crate::api::engine::JsEngine;
-use crate::api::error::JsResult;
+use crate::api::engine::{JsEngine, JsEngineRuntimeOptions};
+use crate::api::error::{JsError, JsResult};
 use crate::api::runtime::{JsAsyncContext, JsAsyncRuntime, JsContext, JsRuntime};
-use crate::api::source::{JsCode, JsEvalOptions, JsModule};
+use crate::api::source::{JsBuiltinOptions, JsCode, JsEvalOptions, JsModule};
 use crate::api::value::JsValue;
 use std::collections::HashMap;
 
@@ -502,6 +502,56 @@ fn test_range_error_invalid_array_length() {
 // ============================================================================
 // Memory Boundary Tests
 // ============================================================================
+
+#[test]
+fn test_async_engine_memory_limit_error_code() {
+    // Mirror the FRB worker threading model: a dedicated thread with its own
+    // multi-thread tokio runtime, like the Dart bridge executes with.
+    std::thread::spawn(|| {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        runtime.block_on(async {
+    let engine = JsEngine::create(
+        Some(JsBuiltinOptions::essential()),
+        None,
+        Some(JsEngineRuntimeOptions {
+            memory_limit: Some(1024 * 1024),
+            ..Default::default()
+        }),
+    )
+    .await
+    .unwrap();
+    engine.init_without_bridge().await.unwrap();
+
+    let small = engine
+        .eval(
+            JsCode::Code("const arr = [1, 2, 3]; arr.length".to_string()),
+            None,
+        )
+        .await
+        .unwrap();
+    let JsValue::Integer(small) = small else {
+        panic!("expected integer result");
+    };
+    assert_eq!(small, 3);
+
+    let error = engine
+        .eval(
+            JsCode::Code("new Array(10000000).fill({})".to_string()),
+            None,
+        )
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(error, JsError::MemoryLimit(_)),
+        "expected MemoryLimit, got {error}"
+    );
+        assert!(!engine.closed());
+        engine.close().await.unwrap();
+        })
+    })
+    .join()
+    .unwrap();
+}
 
 #[test]
 fn test_memory_limit() {

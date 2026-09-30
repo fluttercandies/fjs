@@ -555,7 +555,10 @@ final class _FjsSession {
     required this.engine,
   });
 
-  Future<void> dispose() => engine.close();
+  // Drain already-scheduled JavaScript work before teardown so pending
+  // evaluations settle normally instead of surfacing as late cancelled
+  // errors after the caller has moved on.
+  Future<void> dispose() => engine.closeGracefully();
 }
 
 final class _FjsModuleAssets {
