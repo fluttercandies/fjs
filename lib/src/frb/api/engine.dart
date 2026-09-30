@@ -52,8 +52,11 @@ abstract class JsEngine implements RustOpaqueInterface {
   ///   method: 'getVersion',
   /// );
   /// ```
-  Future<JsValue> call(
-      {required String module, required String method, List<JsValue>? params});
+  Future<JsValue> call({
+    required String module,
+    required String method,
+    List<JsValue>? params,
+  });
 
   /// Clears dynamic modules that have not been loaded into the QuickJS module cache.
   ///
@@ -129,12 +132,15 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// - `modules`: Optional list of additional modules to register
   /// - `runtimeOptions`: Optional runtime-level limits and metadata applied
   ///   before the engine context is created
-  static Future<JsEngine> create(
-          {JsBuiltinOptions? builtins,
-          List<JsModule>? modules,
-          JsEngineRuntimeOptions? runtimeOptions}) =>
-      LibFjs.instance.api.crateApiEngineJsEngineCreate(
-          builtins: builtins, modules: modules, runtimeOptions: runtimeOptions);
+  static Future<JsEngine> create({
+    JsBuiltinOptions? builtins,
+    List<JsModule>? modules,
+    JsEngineRuntimeOptions? runtimeOptions,
+  }) => LibFjs.instance.api.crateApiEngineJsEngineCreate(
+    builtins: builtins,
+    modules: modules,
+    runtimeOptions: runtimeOptions,
+  );
 
   /// Declares a bundle of bytecode-backed modules without executing them.
   ///
@@ -146,8 +152,9 @@ abstract class JsEngine implements RustOpaqueInterface {
   /// ```dart
   /// await engine.declareNewBytecodeBundle(bundle: pluginBundle);
   /// ```
-  Future<void> declareNewBytecodeBundle(
-      {required JsModuleBytecodeBundle bundle});
+  Future<void> declareNewBytecodeBundle({
+    required JsModuleBytecodeBundle bundle,
+  });
 
   /// Declares a new bytecode-backed module without executing it.
   ///
@@ -183,8 +190,9 @@ abstract class JsEngine implements RustOpaqueInterface {
   ///   helpersBytecode,
   /// ]);
   /// ```
-  Future<void> declareNewBytecodeModules(
-      {required List<JsModuleBytecode> modules});
+  Future<void> declareNewBytecodeModules({
+    required List<JsModuleBytecode> modules,
+  });
 
   /// Declares a new module without executing it.
   ///
@@ -303,8 +311,9 @@ abstract class JsEngine implements RustOpaqueInterface {
   ///   plugin.name
   /// '''));
   /// ```
-  Future<JsValue> evaluateBytecodeBundle(
-      {required JsModuleBytecodeBundle bundle});
+  Future<JsValue> evaluateBytecodeBundle({
+    required JsModuleBytecodeBundle bundle,
+  });
 
   /// Evaluates a bytecode-backed module (registers and executes it).
   ///

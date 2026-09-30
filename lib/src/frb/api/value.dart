@@ -22,59 +22,37 @@ sealed class JsValue with _$JsValue {
   const factory JsValue.none() = JsValue_None;
 
   /// Represents boolean values (true/false)
-  const factory JsValue.boolean(
-    bool field0,
-  ) = JsValue_Boolean;
+  const factory JsValue.boolean(bool field0) = JsValue_Boolean;
 
   /// Represents JavaScript safe integers (`Number` within +/- 2^53 - 1)
-  const factory JsValue.integer(
-    PlatformInt64 field0,
-  ) = JsValue_Integer;
+  const factory JsValue.integer(PlatformInt64 field0) = JsValue_Integer;
 
   /// Represents floating-point number values
-  const factory JsValue.float(
-    double field0,
-  ) = JsValue_Float;
+  const factory JsValue.float(double field0) = JsValue_Float;
 
   /// Represents BigInt values stored as strings for precision
-  const factory JsValue.bigint(
-    String field0,
-  ) = JsValue_Bigint;
+  const factory JsValue.bigint(String field0) = JsValue_Bigint;
 
   /// Represents string values
-  const factory JsValue.string(
-    String field0,
-  ) = JsValue_String;
+  const factory JsValue.string(String field0) = JsValue_String;
 
   /// Represents binary data (ArrayBuffer or typed array bytes)
-  const factory JsValue.bytes(
-    Uint8List field0,
-  ) = JsValue_Bytes;
+  const factory JsValue.bytes(Uint8List field0) = JsValue_Bytes;
 
   /// Represents arrays with nested value support
-  const factory JsValue.array(
-    List<JsValue> field0,
-  ) = JsValue_Array;
+  const factory JsValue.array(List<JsValue> field0) = JsValue_Array;
 
   /// Represents objects with string keys and arbitrary values
-  const factory JsValue.object(
-    Map<String, JsValue> field0,
-  ) = JsValue_Object;
+  const factory JsValue.object(Map<String, JsValue> field0) = JsValue_Object;
 
   /// Represents Date objects (milliseconds since epoch)
-  const factory JsValue.date(
-    PlatformInt64 field0,
-  ) = JsValue_Date;
+  const factory JsValue.date(PlatformInt64 field0) = JsValue_Date;
 
   /// Represents Symbol values (description)
-  const factory JsValue.symbol(
-    String field0,
-  ) = JsValue_Symbol;
+  const factory JsValue.symbol(String field0) = JsValue_Symbol;
 
   /// Represents function references (serialized name/id)
-  const factory JsValue.function(
-    String field0,
-  ) = JsValue_Function;
+  const factory JsValue.function(String field0) = JsValue_Function;
 
   static Future<JsValue> default_() =>
       LibFjs.instance.api.crateApiValueJsValueDefault();
@@ -84,63 +62,52 @@ sealed class JsValue with _$JsValue {
   /// ## Returns
   ///
   /// `true` if the value is `JsValue::Array`, `false` otherwise
-  bool isArray() => LibFjs.instance.api.crateApiValueJsValueIsArray(
-        that: this,
-      );
+  bool isArray() => LibFjs.instance.api.crateApiValueJsValueIsArray(that: this);
 
   /// Returns true if the value is a boolean.
   ///
   /// ## Returns
   ///
   /// `true` if the value is `JsValue::Boolean`, `false` otherwise
-  bool isBoolean() => LibFjs.instance.api.crateApiValueJsValueIsBoolean(
-        that: this,
-      );
+  bool isBoolean() =>
+      LibFjs.instance.api.crateApiValueJsValueIsBoolean(that: this);
 
   /// Returns true if the value is bytes (binary data).
   ///
   /// ## Returns
   ///
   /// `true` if the value is `JsValue::Bytes`, `false` otherwise
-  bool isBytes() => LibFjs.instance.api.crateApiValueJsValueIsBytes(
-        that: this,
-      );
+  bool isBytes() => LibFjs.instance.api.crateApiValueJsValueIsBytes(that: this);
 
   /// Returns true if the value is a Date.
   ///
   /// ## Returns
   ///
   /// `true` if the value is `JsValue::Date`, `false` otherwise
-  bool isDate() => LibFjs.instance.api.crateApiValueJsValueIsDate(
-        that: this,
-      );
+  bool isDate() => LibFjs.instance.api.crateApiValueJsValueIsDate(that: this);
 
   /// Returns true if the value is None.
   ///
   /// ## Returns
   ///
   /// `true` if the value is `JsValue::None`, `false` otherwise
-  bool isNone() => LibFjs.instance.api.crateApiValueJsValueIsNone(
-        that: this,
-      );
+  bool isNone() => LibFjs.instance.api.crateApiValueJsValueIsNone(that: this);
 
   /// Returns true if the value is a number (integer, float, or bigint).
   ///
   /// ## Returns
   ///
   /// `true` if the value is any numeric type, `false` otherwise
-  bool isNumber() => LibFjs.instance.api.crateApiValueJsValueIsNumber(
-        that: this,
-      );
+  bool isNumber() =>
+      LibFjs.instance.api.crateApiValueJsValueIsNumber(that: this);
 
   /// Returns true if the value is an object.
   ///
   /// ## Returns
   ///
   /// `true` if the value is `JsValue::Object`, `false` otherwise
-  bool isObject() => LibFjs.instance.api.crateApiValueJsValueIsObject(
-        that: this,
-      );
+  bool isObject() =>
+      LibFjs.instance.api.crateApiValueJsValueIsObject(that: this);
 
   /// Returns true if the value is a primitive type.
   ///
@@ -149,18 +116,16 @@ sealed class JsValue with _$JsValue {
   /// ## Returns
   ///
   /// `true` if the value is a primitive type, `false` otherwise
-  bool isPrimitive() => LibFjs.instance.api.crateApiValueJsValueIsPrimitive(
-        that: this,
-      );
+  bool isPrimitive() =>
+      LibFjs.instance.api.crateApiValueJsValueIsPrimitive(that: this);
 
   /// Returns true if the value is a string.
   ///
   /// ## Returns
   ///
   /// `true` if the value is `JsValue::String`, `false` otherwise
-  bool isString() => LibFjs.instance.api.crateApiValueJsValueIsString(
-        that: this,
-      );
+  bool isString() =>
+      LibFjs.instance.api.crateApiValueJsValueIsString(that: this);
 
   /// Returns the type name of this value.
   ///
@@ -176,9 +141,8 @@ sealed class JsValue with _$JsValue {
   /// final value = JsValue.string("hello");
   /// print(value.typeName()); // "string"
   /// ```
-  String typeName() => LibFjs.instance.api.crateApiValueJsValueTypeName(
-        that: this,
-      );
+  String typeName() =>
+      LibFjs.instance.api.crateApiValueJsValueTypeName(that: this);
 
   /// Creates a JsValue from any Dart object.
   static JsValue from(Object? any) {
@@ -213,19 +177,19 @@ sealed class JsValue with _$JsValue {
 
   /// Gets the underlying Dart value.
   dynamic get value => when(
-        none: () => null,
-        boolean: (v) => v,
-        integer: (v) => v,
-        float: (v) => v,
-        bigint: (v) => BigInt.parse(v),
-        string: (v) => v,
-        bytes: (v) => v,
-        array: (v) => v.map((e) => e.value).toList(),
-        object: (v) => v.map((key, value) => MapEntry(key, value.value)),
-        date: (ms) => DateTime.fromMillisecondsSinceEpoch(ms.toInt()),
-        symbol: (v) => v,
-        function: (v) => v,
-      );
+    none: () => null,
+    boolean: (v) => v,
+    integer: (v) => v,
+    float: (v) => v,
+    bigint: (v) => BigInt.parse(v),
+    string: (v) => v,
+    bytes: (v) => v,
+    array: (v) => v.map((e) => e.value).toList(),
+    object: (v) => v.map((key, value) => MapEntry(key, value.value)),
+    date: (ms) => DateTime.fromMillisecondsSinceEpoch(ms.toInt()),
+    symbol: (v) => v,
+    function: (v) => v,
+  );
 
   /// Safe casting methods
   bool? get asBoolean =>

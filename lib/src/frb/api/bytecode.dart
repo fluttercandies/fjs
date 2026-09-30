@@ -26,10 +26,13 @@ abstract class JsBytecode implements RustOpaqueInterface {
   ///   ),
   /// );
   /// ```
-  static Future<JsModuleBytecode> compile(
-          {required JsModule module, JsModuleBytecodeOptions? options}) =>
-      LibFjs.instance.api
-          .crateApiBytecodeJsBytecodeCompile(module: module, options: options);
+  static Future<JsModuleBytecode> compile({
+    required JsModule module,
+    JsModuleBytecodeOptions? options,
+  }) => LibFjs.instance.api.crateApiBytecodeJsBytecodeCompile(
+    module: module,
+    options: options,
+  );
 
   /// Compiles a set of ES modules into a bytecode bundle.
   ///
@@ -54,12 +57,15 @@ abstract class JsBytecode implements RustOpaqueInterface {
   ///   entry: 'plugins/main',
   /// );
   /// ```
-  static Future<JsModuleBytecodeBundle> compileModuleBundle(
-          {required List<JsModule> modules,
-          String? entry,
-          JsModuleBytecodeOptions? options}) =>
-      LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileModuleBundle(
-          modules: modules, entry: entry, options: options);
+  static Future<JsModuleBytecodeBundle> compileModuleBundle({
+    required List<JsModule> modules,
+    String? entry,
+    JsModuleBytecodeOptions? options,
+  }) => LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileModuleBundle(
+    modules: modules,
+    entry: entry,
+    options: options,
+  );
 
   /// Compiles a set of ES modules into a bytecode bundle synchronously.
   ///
@@ -87,12 +93,15 @@ abstract class JsBytecode implements RustOpaqueInterface {
   ///   entry: 'feature/index',
   /// );
   /// ```
-  static JsModuleBytecodeBundle compileModuleBundleSync(
-          {required List<JsModule> modules,
-          String? entry,
-          JsModuleBytecodeOptions? options}) =>
-      LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileModuleBundleSync(
-          modules: modules, entry: entry, options: options);
+  static JsModuleBytecodeBundle compileModuleBundleSync({
+    required List<JsModule> modules,
+    String? entry,
+    JsModuleBytecodeOptions? options,
+  }) => LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileModuleBundleSync(
+    modules: modules,
+    entry: entry,
+    options: options,
+  );
 
   /// Compiles a classic global script into QuickJS bytecode.
   ///
@@ -108,12 +117,15 @@ abstract class JsBytecode implements RustOpaqueInterface {
   ///   options: JsScriptBytecodeOptions.defaults().copyWith(promise: true),
   /// );
   /// ```
-  static Future<JsScriptBytecode> compileScript(
-          {required String name,
-          required JsCode source,
-          JsScriptBytecodeOptions? options}) =>
-      LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileScript(
-          name: name, source: source, options: options);
+  static Future<JsScriptBytecode> compileScript({
+    required String name,
+    required JsCode source,
+    JsScriptBytecodeOptions? options,
+  }) => LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileScript(
+    name: name,
+    source: source,
+    options: options,
+  );
 
   /// Compiles a classic global script into QuickJS bytecode synchronously.
   ///
@@ -128,12 +140,15 @@ abstract class JsBytecode implements RustOpaqueInterface {
   ///   source: JsCode.code('globalThis.version = "3.0.0";'),
   /// );
   /// ```
-  static JsScriptBytecode compileScriptSync(
-          {required String name,
-          required JsCode source,
-          JsScriptBytecodeOptions? options}) =>
-      LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileScriptSync(
-          name: name, source: source, options: options);
+  static JsScriptBytecode compileScriptSync({
+    required String name,
+    required JsCode source,
+    JsScriptBytecodeOptions? options,
+  }) => LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileScriptSync(
+    name: name,
+    source: source,
+    options: options,
+  );
 
   /// Compiles an ES module into QuickJS bytecode synchronously.
   ///
@@ -150,10 +165,13 @@ abstract class JsBytecode implements RustOpaqueInterface {
   ///   ),
   /// );
   /// ```
-  static JsModuleBytecode compileSync(
-          {required JsModule module, JsModuleBytecodeOptions? options}) =>
-      LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileSync(
-          module: module, options: options);
+  static JsModuleBytecode compileSync({
+    required JsModule module,
+    JsModuleBytecodeOptions? options,
+  }) => LibFjs.instance.api.crateApiBytecodeJsBytecodeCompileSync(
+    module: module,
+    options: options,
+  );
 
   /// Validates serialized QuickJS ES module bytecode.
   ///
@@ -180,10 +198,11 @@ abstract class JsBytecode implements RustOpaqueInterface {
   /// ```dart
   /// await JsBytecode.validateBundle(bundle: compiledBundle);
   /// ```
-  static Future<void> validateBundle(
-          {required JsModuleBytecodeBundle bundle}) =>
-      LibFjs.instance.api
-          .crateApiBytecodeJsBytecodeValidateBundle(bundle: bundle);
+  static Future<void> validateBundle({
+    required JsModuleBytecodeBundle bundle,
+  }) => LibFjs.instance.api.crateApiBytecodeJsBytecodeValidateBundle(
+    bundle: bundle,
+  );
 
   /// Validates a bundle of serialized QuickJS ES module bytecode synchronously.
   ///
@@ -197,8 +216,9 @@ abstract class JsBytecode implements RustOpaqueInterface {
   /// JsBytecode.validateBundleSync(bundle: compiledBundle);
   /// ```
   static void validateBundleSync({required JsModuleBytecodeBundle bundle}) =>
-      LibFjs.instance.api
-          .crateApiBytecodeJsBytecodeValidateBundleSync(bundle: bundle);
+      LibFjs.instance.api.crateApiBytecodeJsBytecodeValidateBundleSync(
+        bundle: bundle,
+      );
 
   /// Validates serialized QuickJS script bytecode.
   ///
@@ -211,8 +231,9 @@ abstract class JsBytecode implements RustOpaqueInterface {
   /// await JsBytecode.validateScript(script: compiledScriptBytecode);
   /// ```
   static Future<void> validateScript({required JsScriptBytecode script}) =>
-      LibFjs.instance.api
-          .crateApiBytecodeJsBytecodeValidateScript(script: script);
+      LibFjs.instance.api.crateApiBytecodeJsBytecodeValidateScript(
+        script: script,
+      );
 
   /// Validates serialized QuickJS script bytecode synchronously.
   ///
@@ -224,9 +245,10 @@ abstract class JsBytecode implements RustOpaqueInterface {
   /// ```dart
   /// JsBytecode.validateScriptSync(script: compiledScriptBytecode);
   /// ```
-  static void validateScriptSync({required JsScriptBytecode script}) =>
-      LibFjs.instance.api
-          .crateApiBytecodeJsBytecodeValidateScriptSync(script: script);
+  static void validateScriptSync({required JsScriptBytecode script}) => LibFjs
+      .instance
+      .api
+      .crateApiBytecodeJsBytecodeValidateScriptSync(script: script);
 
   /// Validates serialized QuickJS ES module bytecode synchronously.
   ///
@@ -237,7 +259,8 @@ abstract class JsBytecode implements RustOpaqueInterface {
   /// ```dart
   /// JsBytecode.validateSync(module: compiledModuleBytecode);
   /// ```
-  static void validateSync({required JsModuleBytecode module}) =>
-      LibFjs.instance.api
-          .crateApiBytecodeJsBytecodeValidateSync(module: module);
+  static void validateSync({required JsModuleBytecode module}) => LibFjs
+      .instance
+      .api
+      .crateApiBytecodeJsBytecodeValidateSync(module: module);
 }
