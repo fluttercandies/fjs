@@ -85,7 +85,27 @@ cleanup_release_temp
 RELEASE_TEMP_DIR=""
 
 pod ipc spec "$ROOT_DIR/darwin/fjs.podspec" >/dev/null
-(cd "$ROOT_DIR" && flutter pub publish --dry-run)
+
+# The runtime dependency is pinned to the exact FRB codegen version because
+# FRB enforces runtime == codegen at run time, so pub's "should allow more
+# than one version" warning for flutter_rust_bridge is expected; it is the
+# only warning this script tolerates. Anything else still fails the release.
+publish_log="$(mktemp "$ARTIFACT_DIR/.fjs-pub-dry-run.XXXXXX")"
+publish_status=0
+(cd "$ROOT_DIR" && flutter pub publish --dry-run) >"$publish_log" 2>&1 || publish_status=$?
+total_warnings="$(sed -nE 's/^Package has ([0-9]+) warnings?\.$/\1/p' "$publish_log" | tail -n 1)"
+[ -n "$total_warnings" ] || total_warnings=0
+frb_pin_warnings="$(grep -c 'should allow more than one version' "$publish_log" || true)"
+unexpected_warnings=$((total_warnings - frb_pin_warnings))
+if [ "$unexpected_warnings" -gt 0 ] ||
+  { [ "$publish_status" -ne 0 ] && [ "$frb_pin_warnings" -eq 0 ]; } ||
+  grep -q '^Error' "$publish_log"; then
+  cat "$publish_log" >&2
+  echo "error: pub publish dry-run failed or reported unexpected warnings ($unexpected_warnings)" >&2
+  rm -f "$publish_log"
+  exit 1
+fi
+rm -f "$publish_log"
 
 echo "Darwin release artifact: $ARTIFACT_DIR/fjs.xcframework.zip"
 echo "SwiftPM checksum: $(cat "$ARTIFACT_DIR/fjs.xcframework.zip.checksum")"
