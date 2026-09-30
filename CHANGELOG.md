@@ -2,6 +2,7 @@
 
 ## 3.3.2
 
+* **BREAKING**: Raised the supported toolchain floor to Flutter 3.35.5 / Dart 3.9.2 (from 3.24.0 / 3.5.0), following `flutter_rust_bridge` 2.13.0 which requires Dart SDK >=3.9.2. Consumers on older Flutter must stay on fjs 3.3.1 (FRB 2.12) or upgrade Flutter.
 * **INTERNAL**: Upgraded `flutter_rust_bridge` to 2.13.0 — codegen, runtime dependency, and regenerated bindings. The bridge content hash is unchanged from 2.12.0, so the wire format stays compatible. CI installs codegen 2.13.0 and the root dependency pins the runtime with an exact bare-version constraint (`2.13.0`), matching the codegen like the Rust side does.
 
 ## 3.3.1

@@ -12,8 +12,8 @@ topics:
   - runtime
 
 environment:
-  sdk: ^3.5.0
-  flutter: '>=3.24.0'
+  sdk: ^3.9.2
+  flutter: '>=3.35.5'
 
 dependencies:
   flutter:
